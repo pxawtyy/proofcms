@@ -49,15 +49,28 @@ class TestCVE202687902SafeProbe(unittest.TestCase):
         self.assertTrue(result.exploit_ran)
 
     def test_matching_control_cannot_confirm_lfi(self):
+        calls = 0
+
         def fake_request(url, method="GET", **kwargs):
+            nonlocal calls
+            calls += 1
             if "rest_route=" in url:
-                return self._response(body='[{"id":2}]')
+                return self._response(body='[{"id":2},{"id":3},{"id":4}]')
             return self._response(body='<?xml version="1.0"?><opml><head><title>WordPress Links</title></head></opml>')
 
         with patch.object(module, "request", side_effect=fake_request):
             result = module.run_safe_probe("http://target", timeout=1)
 
         self.assertEqual(result.status, "NOT_CONFIRMED")
+        # One discovery request plus three differential pairs for each of the
+        # two bounded page candidates.
+        self.assertEqual(calls, 13)
+        self.assertIn("stopped=identical-responses", result.detail)
+
+    def test_page_discovery_is_bounded(self):
+        response = self._response(body='[{"id":1},{"id":2},{"id":3}]')
+        with patch.object(module, "request", return_value=response):
+            self.assertEqual(module._discover_page_ids("http://target", 1, None), [1, 2])
 
     def test_invalid_rest_payload_falls_back_to_default_page(self):
         with patch.object(module, "request", return_value=self._response(body="not json")):

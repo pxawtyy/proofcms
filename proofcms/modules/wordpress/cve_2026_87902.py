@@ -16,6 +16,12 @@ AFFECTED_RULE = "WordPress 4.7.0 through the branch-specific releases fixed on 2
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe"]
+MAX_PAGE_IDS = 2
+# Theme templates normally need only a few parent traversals to reach the
+# WordPress root. Try the most likely depths first and keep the safe probe
+# bounded for remote sites.
+TRAVERSAL_DEPTHS = (4, 3, 5, 2, 1, 6)
+IDENTICAL_RESPONSE_LIMIT = 3
 
 # Official GHSA branch ranges. Each value is the first fixed release.
 FIRST_FIXED_BY_BRANCH = {
@@ -101,7 +107,7 @@ def _discover_page_ids(target_url: str, timeout: int, proxy: str | None) -> list
         return [2]
     ids = [item.get("id") for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
     valid_ids = [value for value in ids if isinstance(value, int) and value > 0]
-    return valid_ids[:5] or [2]
+    return valid_ids[:MAX_PAGE_IDS] or [2]
 
 
 def _encoded_candidate(target: str, depth: int) -> str:
@@ -141,7 +147,8 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     missing = f"proofcms-missing-{secrets.token_hex(6)}"
     observations: list[str] = []
     for page_id in page_ids:
-        for depth in range(1, 11):
+        identical_responses = 0
+        for depth in TRAVERSAL_DEPTHS:
             control = _post_candidate(target_url, page_id, missing, depth, timeout, proxy)
             proof = _post_candidate(target_url, page_id, "wp-links-opml", depth, timeout, proxy)
             control_hit = _is_opml_proof(control.get("body", ""))
@@ -166,6 +173,17 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
                     ),
                     action="Upgrade WordPress to the fixed release for the installed branch immediately.",
                 )
+            same_response = (
+                control.get("status") == proof.get("status")
+                and control.get("body", "") == proof.get("body", "")
+            )
+            identical_responses = identical_responses + 1 if same_response else 0
+            if identical_responses >= IDENTICAL_RESPONSE_LIMIT:
+                observations.append(f"page_id={page_id},stopped=identical-responses")
+                break
+    displayed = observations[:8]
+    if len(observations) > len(displayed):
+        displayed.append(f"{len(observations) - len(displayed)} more omitted")
     return Finding(
         cve=CVE_ID,
         name=NAME,
@@ -177,7 +195,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         exploit_ran=True,
         detail=(
             "The safe differential LFI probe did not confirm traversal. Theme layout and page-template "
-            f"preconditions may be absent. Attempts: {'; '.join(observations)}"
+            f"preconditions may be absent. Attempts: {'; '.join(displayed)}"
         ),
         action="Apply the branch-specific WordPress security update when the detected version is affected.",
     )
