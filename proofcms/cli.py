@@ -371,7 +371,7 @@ def main():
                         proxy=args.proxy,
                         exploit_mode=selected_exploit_mode,
                         aggressive_command=args.aggressive_command,
-                        plugins=plugins,
+                        plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
                     )
                     result_dict = result.as_dict()
                     result_dict["exploit_requested"] = run_exploit_check

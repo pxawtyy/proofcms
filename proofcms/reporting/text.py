@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .console import is_joomla_core_result, sanitize_argv, visible_results
+from .console import is_joomla_core_result, is_wordpress_core_result, sanitize_argv, visible_results
 
 
 def append_text_result(lines: list[str], result: dict | Any):
@@ -86,7 +86,10 @@ def write_text_report(
         lines.append("")
         results, hidden = visible_results(target.get("results", []), show_patched)
         if cms.get("name") == "wordpress":
-            sections = [("WordPress core", results)]
+            sections = [
+                ("WordPress core", [result for result in results if is_wordpress_core_result(result)]),
+                ("WordPress plugins", [result for result in results if not is_wordpress_core_result(result)]),
+            ]
         else:
             sections = [
                 ("Joomla core/framework", [result for result in results if is_joomla_core_result(result)]),

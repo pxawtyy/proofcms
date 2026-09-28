@@ -120,6 +120,7 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-56291` | Balbooa Forms | Through 2.4.0 | `aggressive` |
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate | Through 2.2.6 | `safe` |
+| `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |

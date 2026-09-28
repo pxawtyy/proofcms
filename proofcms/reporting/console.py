@@ -81,6 +81,11 @@ def is_joomla_core_result(result: dict | Any) -> bool:
     return str(comp).lower().startswith("joomla core")
 
 
+def is_wordpress_core_result(result: dict | Any) -> bool:
+    comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
+    return str(comp).lower().startswith("wordpress core")
+
+
 def visible_results(results: list[dict | Any], show_patched: bool) -> tuple[list[dict | Any], int]:
     hidden = 0
     visible = []
@@ -168,7 +173,10 @@ def print_result(target: str, info: CMSInfo, results: list[dict | Any], show_pat
         return
     filtered, hidden = visible_results(results, show_patched)
     if info.name == "wordpress":
-        sections = [("WordPress core", filtered)]
+        sections = [
+            ("WordPress core", [result for result in filtered if is_wordpress_core_result(result)]),
+            ("WordPress plugins", [result for result in filtered if not is_wordpress_core_result(result)]),
+        ]
     else:
         sections = [
             ("Joomla core/framework", [result for result in filtered if is_joomla_core_result(result)]),
