@@ -113,7 +113,10 @@ __all__ = [
 TOOL_NAME = "ProofCMS"
 ROOT = Path(__file__).resolve().parent.parent
 
-from proofcms.modules.joomla import AVAILABLE_CVES
+from proofcms.modules.joomla import AVAILABLE_CVES as JOOMLA_CVES
+from proofcms.modules.wordpress import AVAILABLE_CVES as WORDPRESS_CVES
+
+AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES}
 
 
 def print_cve_catalog():
@@ -127,7 +130,7 @@ def selected_cves(selection: str) -> list[str]:
     requested = [item.strip().upper() for item in selection.split(",") if item.strip()]
     unknown = [item for item in requested if item not in AVAILABLE_CVES]
     if unknown:
-        raise SystemExit(f"CVE desconhecido: {', '.join(unknown)}")
+        raise SystemExit(f"Unknown CVE: {', '.join(unknown)}")
     return requested
 
 
@@ -322,9 +325,12 @@ def main():
             "wordpress": wordpress_inventory,
             "results": [],
         }
-        if info.detected and info.name == "joomla":
+        if info.detected and info.name in {"joomla", "wordpress"}:
             for cve_id in cves:
                 module = importlib.import_module(AVAILABLE_CVES[cve_id])
+                meta = getattr(module, "metadata", dict)()
+                if meta.get("cms", "joomla") != info.name:
+                    continue
                 run_exploit_check = cve_id in exploits
                 selected_exploit_mode = (
                     effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
@@ -345,7 +351,6 @@ def main():
                     result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
                     result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
                 except Exception as exc:  # noqa: BLE001 - isolate third-party probe failures per target
-                    meta = getattr(module, "metadata", dict)()
                     result_dict = {
                         "cve": cve_id,
                         "name": meta.get("name", cve_id),

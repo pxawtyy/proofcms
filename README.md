@@ -2,7 +2,7 @@
 
 ProofCMS is a modular Python toolkit for detecting content management systems and validating known vulnerabilities with explicit evidence, false-positive controls, and CI-friendly reports.
 
-The current release detects Joomla and WordPress. Vulnerability checks currently focus on Joomla core and Joomla extensions; the WordPress detector and module namespace are ready for additional checks.
+The current release detects Joomla and WordPress and includes vulnerability checks for both CMS families.
 
 > [!CAUTION]
 > Run ProofCMS only against systems you own or are explicitly authorized to test. Active verification is disabled by default and requires explicit authorization flags.
@@ -120,6 +120,7 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-56291` | Balbooa Forms | Through 2.4.0 | `aggressive` |
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate | Through 2.2.6 | `safe` |
+| `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
 
 An ambiguous or unavailable version produces an inconclusive result instead of an unsupported vulnerability claim.
 
@@ -180,6 +181,9 @@ proofcms/
 New vulnerability logic belongs under `proofcms/modules/<cms>/`. Shared HTTP, version, evidence, and probe behavior belongs under `proofcms/core/`.
 
 ## Development
+
+The isolated, loopback-only reproduction environment for the first WordPress
+module is documented in [labs/cve-2026-87902](labs/cve-2026-87902/README.md).
 
 Run the complete test suite:
 

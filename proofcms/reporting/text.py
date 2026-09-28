@@ -84,17 +84,14 @@ def write_text_report(
                     f"version: {data.get('version') or 'unknown'} | source: {data.get('source') or 'unknown'}"
                 )
         lines.append("")
-        if cms.get("name") == "wordpress":
-            lines.append("CVE results:")
-            lines.append("  WordPress CVE modules are not configured yet; this run collected CMS/plugin inventory.")
-            lines.append("")
-            continue
-
         results, hidden = visible_results(target.get("results", []), show_patched)
-        sections = [
-            ("Joomla core/framework", [result for result in results if is_joomla_core_result(result)]),
-            ("Plugins/components", [result for result in results if not is_joomla_core_result(result)]),
-        ]
+        if cms.get("name") == "wordpress":
+            sections = [("WordPress core", results)]
+        else:
+            sections = [
+                ("Joomla core/framework", [result for result in results if is_joomla_core_result(result)]),
+                ("Plugins/components", [result for result in results if not is_joomla_core_result(result)]),
+            ]
         lines.append("CVE results:")
         if hidden:
             lines.append(f"Note: {hidden} PATCHED result(s) hidden. Use --show-patched to include them.")

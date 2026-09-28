@@ -101,9 +101,11 @@ def print_cve_catalog(available_cves: dict[str, str]):
         modes = ",".join(meta.get("exploit_modes", [])) or "none"
         exploit = "yes" if meta.get("exploit_available") else "no"
         intrusive = "intrusive" if meta.get("intrusive") else "passive"
-        versions = ",".join(meta.get("affected_joomla_versions", ["unknown"]))
+        cms_key = str(meta.get("cms", "joomla")).lower()
+        cms = {"joomla": "Joomla", "wordpress": "WordPress"}.get(cms_key, cms_key.title())
+        versions = ",".join(meta.get("affected_joomla_versions", meta.get("affected_versions", ["unknown"])))
         print(
-            f"- {cve_id}: {meta.get('name')} | Joomla: {versions} | "
+            f"- {cve_id}: {meta.get('name')} | {cms}: {versions} | "
             f"rule: {meta.get('affected_rule')} | exploit: {exploit} ({intrusive}; modes: {modes})"
         )
 
@@ -146,14 +148,14 @@ def print_result(target: str, info: CMSInfo, results: list[dict | Any], show_pat
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")
         print()
         return
-    if info.name != "joomla":
-        print()
-        return
     filtered, hidden = visible_results(results, show_patched)
-    sections = [
-        ("Joomla core/framework", [result for result in filtered if is_joomla_core_result(result)]),
-        ("Plugins/components", [result for result in filtered if not is_joomla_core_result(result)]),
-    ]
+    if info.name == "wordpress":
+        sections = [("WordPress core", filtered)]
+    else:
+        sections = [
+            ("Joomla core/framework", [result for result in filtered if is_joomla_core_result(result)]),
+            ("Plugins/components", [result for result in filtered if not is_joomla_core_result(result)]),
+        ]
     for title, section_results in sections:
         if not section_results:
             continue

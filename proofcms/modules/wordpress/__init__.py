@@ -1,3 +1,9 @@
-"""WordPress vulnerability modules (ready for future CVE implementations)."""
+"""WordPress vulnerability module registry."""
 
-AVAILABLE_CVES: dict[str, str] = {}
+from . import cve_2026_87902
+
+AVAILABLE_CVES: dict[str, str] = {
+    "CVE-2026-87902": "proofcms.modules.wordpress.cve_2026_87902",
+}
+
+__all__ = ["AVAILABLE_CVES", "cve_2026_87902"]

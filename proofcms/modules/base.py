@@ -19,7 +19,7 @@ class VulnerabilityModule(Protocol):
     def check(
         self,
         target_url: str,
-        joomla_version: str | None = None,
+        cms_version: str | None = None,
         run_exploit_check: bool = False,
         timeout: int = 12,
         proxy: str | None = None,

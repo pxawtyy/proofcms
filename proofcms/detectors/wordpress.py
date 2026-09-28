@@ -27,8 +27,8 @@ def detect_wordpress(
     ]
     version_patterns = [
         r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress\s+([^"\']+)',
-        r"\bwp-includes/[^?\"']+\?ver=([0-9]+(?:\.[0-9]+){1,3})",
         r"\bwp-emoji-release(?:\.min)?\.js\?ver=([0-9]+(?:\.[0-9]+){1,3})",
+        r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
         r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})",
     ]
     for path in paths:

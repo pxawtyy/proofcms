@@ -12,3 +12,4 @@ reports/*.txt
 reports/*.json
 dist/
 build/
+proofcms.egg-info

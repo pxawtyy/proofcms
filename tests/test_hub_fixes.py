@@ -144,6 +144,23 @@ class TestBaselineAndFalsePositives(unittest.TestCase):
             res = cli.detect_wordpress("http://target", timeout=5, baseline=baseline)
             self.assertFalse(res.detected, "Blanket 403 must not detect WordPress!")
 
+    def test_detect_wordpress_does_not_treat_dependency_version_as_core(self):
+        response = {
+            "status": 200,
+            "body": (
+                '<script src="/wp-includes/js/jquery/ui/core.min.js?ver=1.13.8"></script>'
+                '<script src="/wp-includes/js/wp-emoji-release.min.js?ver=7.0.2"></script>'
+            ),
+            "body_hash": "homepage",
+            "final_url": "http://target/",
+            "redirected": False,
+        }
+        with patch("proofcms.detectors.wordpress.fetch_url", return_value=response):
+            res = cli.detect_wordpress("http://target", timeout=5)
+
+        self.assertTrue(res.detected)
+        self.assertEqual(res.version, "7.0.2")
+
 
 class TestJoomlaXmlManifestValidation(unittest.TestCase):
     """Item 6: Generic XMLs with <version> must be rejected by fallback Joomla detector."""
