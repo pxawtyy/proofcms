@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proofcms"
+version = "2.1.0"
+description = "CMS vulnerability validation hub for Joomla and WordPress"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "ProofCMS Security Team"}
+]
+keywords = ["security", "joomla", "wordpress", "vulnerability-scanner", "cve"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "requests>=2.28.0",
+    "packaging>=21.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/pxawtyy/proofcms"
+Repository = "https://github.com/pxawtyy/proofcms.git"
+Issues = "https://github.com/pxawtyy/proofcms/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "pyflakes>=3.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+proofcms = "proofcms.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["proofcms*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

@@ -1,0 +1,41 @@
+"""Joomla vulnerability modules registry."""
+
+from . import (
+    cve_2010_4166,
+    cve_2015_8562,
+    cve_2026_48907,
+    cve_2026_48908,
+    cve_2026_48939,
+    cve_2026_49049,
+    cve_2026_56290,
+    cve_2026_56291,
+    cve_2026_57827,
+    cve_2026_57830,
+)
+
+AVAILABLE_CVES: dict[str, str] = {
+    "CVE-2010-4166": "proofcms.modules.joomla.cve_2010_4166",
+    "CVE-2015-8562": "proofcms.modules.joomla.cve_2015_8562",
+    "CVE-2026-48939": "proofcms.modules.joomla.cve_2026_48939",
+    "CVE-2026-49049": "proofcms.modules.joomla.cve_2026_49049",
+    "CVE-2026-48908": "proofcms.modules.joomla.cve_2026_48908",
+    "CVE-2026-56291": "proofcms.modules.joomla.cve_2026_56291",
+    "CVE-2026-56290": "proofcms.modules.joomla.cve_2026_56290",
+    "CVE-2026-57827": "proofcms.modules.joomla.cve_2026_57827",
+    "CVE-2026-57830": "proofcms.modules.joomla.cve_2026_57830",
+    "CVE-2026-48907": "proofcms.modules.joomla.cve_2026_48907",
+}
+
+__all__ = [
+    "AVAILABLE_CVES",
+    "cve_2010_4166",
+    "cve_2015_8562",
+    "cve_2026_48907",
+    "cve_2026_48908",
+    "cve_2026_48939",
+    "cve_2026_49049",
+    "cve_2026_56290",
+    "cve_2026_56291",
+    "cve_2026_57827",
+    "cve_2026_57830",
+]
