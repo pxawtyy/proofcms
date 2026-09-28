@@ -3,6 +3,7 @@ from __future__ import annotations
 from .console import (
     is_joomla_core_result,
     print_banner,
+    print_chain_results,
     print_cve_catalog,
     print_one_result,
     print_plugins,
@@ -20,6 +21,7 @@ __all__ = [
     "append_text_result",
     "is_joomla_core_result",
     "print_banner",
+    "print_chain_results",
     "print_cve_catalog",
     "print_one_result",
     "print_plugins",

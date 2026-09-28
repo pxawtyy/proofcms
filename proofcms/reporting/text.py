@@ -102,6 +102,16 @@ def write_text_report(
             lines.append(f"[{title}]")
             for result in section_results:
                 append_text_result(lines, result)
+        chains = target.get("chains", [])
+        if chains:
+            lines.append("")
+            lines.append("[Attack chains]")
+            for chain in chains:
+                lines.append("-" * 80)
+                lines.append(f"{chain.get('chain')}: {chain.get('status')} ({chain.get('confidence')})")
+                lines.append(f"Components : {', '.join(chain.get('components', []))}")
+                lines.append(f"Detail     : {chain.get('detail')}")
+                lines.append(f"Action     : {chain.get('action')}")
         lines.append("")
 
     content = "\n".join(lines) + "\n"

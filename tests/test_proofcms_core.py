@@ -3,6 +3,7 @@ import unittest
 import unittest.mock
 
 import proofcms.modules.joomla as joomla_modules
+from proofcms.cli import selected_chains, selected_cves
 from proofcms.core.evidence import (
     find_sql_errors,
     generate_php_math_payload,
@@ -326,6 +327,10 @@ class TestMandatoryRegressionCases(unittest.TestCase):
 
 
 class TestCliCiEnhancements(unittest.TestCase):
+    def test_named_chain_selection(self):
+        self.assertEqual(selected_chains("wp2shell"), ["wp2shell"])
+        self.assertEqual(selected_cves("none"), [])
+
     def test_effective_exploit_mode_auto_prefers_safe(self):
         # Helix3 supports safe and aggressive
         import proofcms.modules.joomla.cve_2026_49049 as h3

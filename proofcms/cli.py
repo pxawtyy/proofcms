@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from proofcms.chains import AVAILABLE_CHAINS
 from proofcms.core.http import (
     fetch_url,
     is_baseline_match,
@@ -49,6 +50,7 @@ from proofcms.reporting import (
     append_text_result,
     is_joomla_core_result,
     print_banner,
+    print_chain_results,
     print_one_result,
     print_plugins,
     print_result,
@@ -121,10 +123,12 @@ AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES}
 
 def print_cve_catalog():
     from proofcms.reporting import print_cve_catalog as _core_catalog
-    _core_catalog(AVAILABLE_CVES)
+    _core_catalog(AVAILABLE_CVES, AVAILABLE_CHAINS)
 
 
 def selected_cves(selection: str) -> list[str]:
+    if selection.lower() in {"none", "no", "off"}:
+        return []
     if selection.lower() == "all":
         return list(AVAILABLE_CVES)
     requested = [item.strip().upper() for item in selection.split(",") if item.strip()]
@@ -142,6 +146,18 @@ def exploit_selection(value: str) -> set[str]:
         return set(AVAILABLE_CVES)
     chosen = selected_cves(value)
     return set(chosen)
+
+
+def selected_chains(selection: str) -> list[str]:
+    if selection.strip().lower() in {"", "none", "no", "off"}:
+        return []
+    if selection.strip().lower() == "all":
+        return list(AVAILABLE_CHAINS)
+    requested = [item.strip().lower() for item in selection.split(",") if item.strip()]
+    unknown = [item for item in requested if item not in AVAILABLE_CHAINS]
+    if unknown:
+        raise SystemExit(f"Unknown attack chain: {', '.join(unknown)}")
+    return requested
 
 
 def effective_exploit_mode(module, requested_mode: str) -> str:
@@ -190,7 +206,12 @@ def main():
         default="auto",
         help="CMS detection mode. Default: auto",
     )
-    parser.add_argument("--cve", default="all", help="CVE to check, comma-list, or all (default: all)")
+    parser.add_argument(
+        "--cve",
+        default=None,
+        help="CVE to check, comma-list, all, or none. Defaults to all unless --chain is used.",
+    )
+    parser.add_argument("--chain", default="none", help="Named attack chain to assess, comma-list, or all")
     parser.add_argument(
         "--run-exploit",
         default="none",
@@ -236,7 +257,7 @@ def main():
             "Supported: vulnerable, likely, inconclusive, error. Example: --fail-on vulnerable,error"
         ),
     )
-    parser.add_argument("--list-cves", action="store_true", help="List available CVE modules and exit")
+    parser.add_argument("--list-cves", action="store_true", help="List available CVE modules and attack chains, then exit")
     args = parser.parse_args()
 
     print_banner()
@@ -254,8 +275,13 @@ def main():
         parser.print_help()
         return 2
 
-    cves = selected_cves(args.cve)
-    exploits = exploit_selection(args.run_exploit)
+    chains = selected_chains(args.chain)
+    cves = selected_cves(args.cve or ("none" if chains else "all"))
+    for chain_id in chains:
+        for cve_id in AVAILABLE_CHAINS[chain_id]["cves"]:
+            if cve_id not in cves:
+                cves.append(cve_id)
+    exploits = set(cves) if args.run_exploit.strip().lower() == "all" else exploit_selection(args.run_exploit)
 
     # Validate that requested exploits are among selected CVEs
     if exploits:
@@ -324,6 +350,7 @@ def main():
             "plugins": plugins,
             "wordpress": wordpress_inventory,
             "results": [],
+            "chains": [],
         }
         if info.detected and info.name in {"joomla", "wordpress"}:
             for cve_id in cves:
@@ -368,7 +395,11 @@ def main():
                         "requested_exploit_mode_input": args.exploit_mode if run_exploit_check else None,
                     }
                 target_report["results"].append(result_dict)
+        for chain_id in chains:
+            aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
+            target_report["chains"].append(aggregate(target_report["results"]))
         print_result(target, info, target_report["results"], show_patched=args.show_patched)
+        print_chain_results(target_report["chains"])
         if info.detected and info.name == "joomla":
             print_plugins(plugins)
             print()
@@ -405,6 +436,7 @@ def main():
         "options": {
             "cms": args.cms,
             "cve": args.cve,
+            "chain": args.chain,
             "run_exploit": args.run_exploit,
             "exploit_mode": args.exploit_mode,
             "timeout": args.timeout,

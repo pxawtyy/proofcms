@@ -121,9 +121,32 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate | Through 2.2.6 | `safe` |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
+| `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
 
 An ambiguous or unavailable version produces an inconclusive result instead of an unsupported vulnerability claim.
+
+## Named attack chains
+
+ProofCMS keeps vulnerability nicknames separate from official CVE identifiers.
+The `wp2shell` chain combines `CVE-2026-63030` with `CVE-2026-60137`:
+
+```bash
+# Passive assessment of both prerequisites
+proofcms -u https://lab.example.test --cms wordpress --chain wp2shell
+
+# Safe confirmation of the combined nested-batch timing path
+proofcms -u https://lab.example.test \
+  --cms wordpress \
+  --chain wp2shell \
+  --run-exploit all \
+  --exploit-mode safe \
+  --i-understand-authorized
+```
+
+Chain findings have their own `chains` collection in JSON reports and their own
+report section. The safe proof does not run the wp2shell RCE stage, extract data,
+write to the database, create accounts, or upload files.
 
 ## Result states
 

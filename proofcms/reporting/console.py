@@ -93,7 +93,7 @@ def visible_results(results: list[dict | Any], show_patched: bool) -> tuple[list
     return visible, hidden
 
 
-def print_cve_catalog(available_cves: dict[str, str]):
+def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str, dict] | None = None):
     print("Available CVEs:")
     for cve_id, module_name in available_cves.items():
         module = importlib.import_module(module_name)
@@ -108,6 +108,24 @@ def print_cve_catalog(available_cves: dict[str, str]):
             f"- {cve_id}: {meta.get('name')} | {cms}: {versions} | "
             f"rule: {meta.get('affected_rule')} | exploit: {exploit} ({intrusive}; modes: {modes})"
         )
+    if available_chains:
+        print("\nAvailable attack chains:")
+        for chain_id, chain in available_chains.items():
+            print(f"- {chain_id}: {chain.get('description')} | components: {','.join(chain.get('cves', []))}")
+
+
+def print_chain_results(chains: list[dict[str, Any]]):
+    if not chains:
+        return
+    print("[Attack chains]")
+    for chain in chains:
+        color = status_color(chain["status"])
+        reset = "\033[0m"
+        print(f"{color}{chain['chain']}: {chain['status']} ({chain['confidence']}){reset}")
+        print(f"  Components: {', '.join(chain.get('components', []))}")
+        print(f"  Detail: {chain['detail']}")
+        print(f"  Action: {chain['action']}")
+    print()
 
 
 def print_one_result(result: dict | Any):
