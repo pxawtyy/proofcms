@@ -51,30 +51,57 @@ class TestJoomlaTassosCVEs(unittest.TestCase):
                     if self.proof_requests == 1:
                         return {"status": 200, "body": self.marker}
                     return {"status": 404, "body": ""}
+                if kwargs.get("method") == "POST":
+                    body = kwargs["data"].decode()
+                    marker_start = body.index("ProofCMS CVE-2026-21627 safe proof")
+                    self.marker = body[marker_start:].split("\r\n", 1)[0]
+                    return {
+                        "status": 200,
+                        "body": (
+                            '{"error":false,"file_name":"ignored",'
+                            '"file":"/srv/www/images/abc123_proof.txt"}'
+                        ),
+                    }
+                if url.rstrip("/") == "https://target.test":
+                    return {
+                        "status": 200,
+                        "body": f'<script>"csrf.token":"{"a" * 32}"</script>',
+                        "final_url": "https://target.test/",
+                    }
                 return {"status": 200, "body": '{"error":false}'}
 
-            def post_multipart(self, url, fields, files, **kwargs):
-                self.marker = files["file"][1].decode()
-                return {
-                    "status": 200,
-                    "body": (
-                        '{"error":false,"file_name":"ignored",'
-                        '"file":"/srv/www/images/abc123_proof.txt"}'
-                    ),
-                }
-
-        with (
-            patch.object(cve_2026_21627, "HttpClient", FakeClient),
-            patch.object(
-                cve_2026_21627,
-                "find_anon_csrf_token",
-                return_value=("a" * 32, "https://target.test/"),
-            ),
-        ):
+        with patch.object(cve_2026_21627, "HttpClient", FakeClient):
             result = cve_2026_21627.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "VULNERABLE")
         self.assertEqual(result.confidence, "CONFIRMED")
         self.assertIsNone(result.uploaded_filename)
+
+    def test_decodes_framework_base64_upload_response(self):
+        import base64
+
+        path = "/srv/www/images/abc123_proof.txt"
+        name = "abc123_proof.txt"
+        result = cve_2026_21627._stored_filename(
+            {
+                "file": base64.b64encode(path.encode()).decode(),
+                "file_name": base64.b64encode(name.encode()).decode(),
+            }
+        )
+        self.assertEqual(result, (name, path))
+
+    def test_csrf_candidates_include_administrator_login_token(self):
+        class FakeClient:
+            def request(self, url, **kwargs):
+                token = "b" * 32 if "/administrator" in url else "a" * 32
+                return {"status": 200, "body": f'<input name="{token}" value="1">'}
+
+        candidates = cve_2026_21627._csrf_candidates(
+            FakeClient(),
+            "https://target.test",
+            "https://target.test/",
+            2,
+        )
+        self.assertIn(("b" * 32, "https://target.test/administrator/"), candidates)
 
     def test_active_probe_runs_for_detected_pre_range_framework(self):
         plugins = {"nrframework": {"found": True, "version": "4.9.62"}}
