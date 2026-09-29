@@ -5,6 +5,13 @@ import re
 from ..core.http import fetch_url, is_baseline_match
 from ..core.models import CMSInfo
 
+KNOWN_PLUGIN_MARKERS = {
+    "contact-form-7": r"Contact\s+Form\s+7",
+    "drag-and-drop-multiple-file-upload-contact-form-7": r"Drag\s+and\s+Drop\s+Multiple\s+File\s+Upload",
+    "woocommerce-payments": r"Woo(?:Commerce\s+)?Payments|WooPayments",
+    "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
+}
+
 
 def _fetch(url: str, timeout: int, proxy: str | None = None) -> dict:
     return fetch_url(url, timeout=timeout, proxy=proxy)
@@ -147,16 +154,27 @@ def detect_wordpress_plugins(
     if is_baseline_match(home, baseline):
         return {"plugins": {}, "theme": {"found": False, "name": None, "version": None, "source": "not-detected"}}
     html = home.get("body", "")
-    slugs = set(re.findall(r"/wp-content/plugins/([A-Za-z0-9_-]+)/", html, re.IGNORECASE))
+    asset_slugs = set(re.findall(r"/wp-content/plugins/([A-Za-z0-9_-]+)/", html, re.IGNORECASE))
+    slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS)
 
     plugins: dict[str, dict] = {}
     for slug in sorted(slugs):
         version = None
+        found = slug in asset_slugs
         source = f"/wp-content/plugins/{slug}/"
 
         readme = _fetch(f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt", timeout=timeout, proxy=proxy)
-        if not is_baseline_match(readme, baseline) and readme.get("status") == 200 and len(readme.get("body", "")) > 20:
-            parsed = parse_wordpress_plugin_version(readme.get("body", ""))
+        readme_body = readme.get("body", "")
+        marker = KNOWN_PLUGIN_MARKERS.get(slug)
+        valid_readme = marker is None or bool(re.search(marker, readme_body, re.IGNORECASE))
+        if (
+            not is_baseline_match(readme, baseline)
+            and readme.get("status") == 200
+            and len(readme_body) > 20
+            and valid_readme
+        ):
+            found = True
+            parsed = parse_wordpress_plugin_version(readme_body)
             if parsed:
                 version = parsed
                 source = f"{source}readme.txt"
@@ -171,11 +189,12 @@ def detect_wordpress_plugins(
                 version = asset_match.group(1)
                 source = f"{source}asset-query"
 
-        plugins[slug] = {
-            "found": True,
-            "version": version,
-            "source": source,
-        }
+        if found:
+            plugins[slug] = {
+                "found": True,
+                "version": version,
+                "source": source,
+            }
 
     return {
         "plugins": plugins,

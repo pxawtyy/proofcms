@@ -110,6 +110,8 @@ proofcms -u https://lab.example.test \
 
 | CVE | Component | Affected rule | Verification modes |
 |---|---|---|---|
+| `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
+| `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
 | `CVE-2026-48907` | JCE Editor | Before 2.9.99.5 | `safe` |
@@ -121,6 +123,8 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate | Through 2.2.6 | `safe` |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
+| `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
+| `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
