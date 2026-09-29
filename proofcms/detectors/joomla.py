@@ -584,6 +584,88 @@ def detect_helixultimate(
     return fallback
 
 
+COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
+    "akeebabackup": {
+        "manifests": [
+            "/administrator/components/com_akeebabackup/akeebabackup.xml",
+            "/administrator/components/com_akeeba/akeeba.xml",
+        ],
+        "routes": ["/?option=com_akeebabackup", "/?option=com_akeeba"],
+        "markers": r"com_akeebabackup|com_akeeba|Akeeba\s+Backup",
+    },
+    "jsitemap": {
+        "manifests": ["/administrator/components/com_jsitemap/jsitemap.xml"],
+        "routes": ["/?option=com_jsitemap"],
+        "markers": r"com_jsitemap|JSitemap",
+    },
+    "jce": {
+        "manifests": ["/administrator/components/com_jce/jce.xml"],
+        "routes": ["/?option=com_jce"],
+        "markers": r"com_jce|JCE\s+(?:Editor|Administration|Component)",
+    },
+    "convertforms": {
+        "manifests": ["/administrator/components/com_convertforms/convertforms.xml"],
+        "routes": ["/?option=com_convertforms"],
+        "markers": r"com_convertforms|Convert\s+Forms",
+    },
+    "rsform": {
+        "manifests": [
+            "/administrator/components/com_rsform/rsform.xml",
+            "/administrator/components/com_rsform/rsformpro.xml",
+        ],
+        "routes": ["/?option=com_rsform"],
+        "markers": r"com_rsform|RSForm!?\s*Pro",
+    },
+    "eventbooking": {
+        "manifests": ["/administrator/components/com_eventbooking/eventbooking.xml"],
+        "routes": ["/?option=com_eventbooking"],
+        "markers": r"com_eventbooking|Event\s+Booking",
+    },
+    "engagebox": {
+        "manifests": [
+            "/administrator/components/com_rstbox/rstbox.xml",
+            "/administrator/components/com_engagebox/engagebox.xml",
+        ],
+        "routes": ["/?option=com_rstbox", "/?option=com_engagebox"],
+        "markers": r"com_rstbox|com_engagebox|EngageBox",
+    },
+}
+
+
+def detect_common_component(
+    target: str,
+    component: str,
+    timeout: int,
+    proxy: str | None = None,
+    baseline: dict | None = None,
+) -> PluginInfo:
+    """Detect a common Joomla component using public manifests and front-end routes."""
+    definition = COMMON_COMPONENTS[component]
+    marker = definition["markers"]
+    for path in definition["manifests"]:
+        response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
+        if is_baseline_match(response, baseline) or response.get("status") != 200:
+            continue
+        body = response.get("body", "")
+        is_manifest = bool(re.search(r"<(?:extension|install)\b", body, re.IGNORECASE))
+        if is_manifest and re.search(marker, body, re.IGNORECASE):
+            match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
+            return PluginInfo(True, match.group(1).strip() if match else None, path)
+
+    for path in definition["routes"]:
+        response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
+        if is_baseline_match(response, baseline) or response.get("status") != 200:
+            continue
+        body = response.get("body", "")
+        if re.search(marker, body, re.IGNORECASE):
+            version_match = re.search(
+                rf"(?:{marker})[^0-9]{{0,40}}([0-9]+(?:\.[0-9]+)+)", body, re.IGNORECASE
+            )
+            return PluginInfo(True, version_match.group(1) if version_match else None, path)
+
+    return PluginInfo(False, None, "not-detected")
+
+
 def detect_plugins(
     target: str,
     args,
@@ -607,8 +689,13 @@ def detect_plugins(
         "helix3": lambda: detect_helix3(target, timeout, proxy=proxy, baseline=baseline),
         "helixultimate": lambda: detect_helixultimate(target, timeout, proxy=proxy, baseline=baseline),
     }
+    for component in COMMON_COMPONENTS:
+        all_detectors[component] = lambda component=component: detect_common_component(
+            target, component, timeout, proxy=proxy, baseline=baseline
+        )
 
-    needed_keys = set(all_detectors.keys()) if required_plugins is None else set(required_plugins)
+    inventory_keys = set(COMMON_COMPONENTS)
+    needed_keys = set(all_detectors) if required_plugins is None else set(required_plugins) | inventory_keys
 
     results: dict[str, dict] = {}
     for key in all_detectors:

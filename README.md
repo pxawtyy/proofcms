@@ -18,7 +18,7 @@ The current release detects Joomla and WordPress and includes vulnerability chec
 - Runtime evidence that distinguishes successful PHP execution from source-code disclosure
 - Per-module error isolation
 - Proxy-aware HTTP transport
-- Concurrent, on-demand component detection
+- Concurrent Joomla component inventory with on-demand vulnerability-specific detectors
 - Console, JSON, and timestamped text reports
 - CI-oriented exit codes
 
@@ -126,6 +126,10 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
 
 An ambiguous or unavailable version produces an inconclusive result instead of an unsupported vulnerability claim.
+
+## Joomla component inventory
+
+Every Joomla scan checks public manifests and front-end component routes for commonly deployed extensions. The inventory currently includes Akeeba Backup (current `com_akeebabackup` and legacy `com_akeeba`), JSitemap, JCE, Convert Forms, RSForm! Pro, Event Booking, and EngageBox, in addition to components required by vulnerability modules. Detection requires extension-specific content; a generic HTTP `200` response is rejected.
 
 ## Named attack chains
 
