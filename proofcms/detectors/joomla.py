@@ -608,6 +608,42 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_convertforms"],
         "markers": r"com_convertforms|Convert\s+Forms",
     },
+    "nrframework": {
+        "manifests": ["/plugins/system/nrframework/nrframework.xml"],
+        "routes": [],
+        "markers": r"(?:plg_system_)?nrframework|NovaRain|Tassos\s+Framework",
+    },
+    "google_structured_data": {
+        "manifests": [
+            "/administrator/components/com_gsd/gsd.xml",
+            "/plugins/system/gsd/gsd.xml",
+        ],
+        "routes": ["/?option=com_gsd"],
+        "markers": r"com_gsd|Google\s+Structured\s+Data",
+    },
+    "advanced_custom_fields": {
+        "manifests": [
+            "/administrator/components/com_acf/acf.xml",
+            "/plugins/system/acf/acf.xml",
+            "/plugins/fields/acf/acf.xml",
+        ],
+        "routes": ["/?option=com_acf"],
+        "markers": r"com_acf|Advanced\s+Custom\s+Fields|(?:plg_)?(?:system|fields)_acf",
+    },
+    "smilepack": {
+        "manifests": ["/administrator/components/com_smilepack/smilepack.xml"],
+        "routes": ["/?option=com_smilepack"],
+        "markers": r"com_smilepack|Smile\s+Pack",
+    },
+    "mailchimp_auto_subscribe": {
+        "manifests": [
+            "/plugins/system/nr_mailchimp/nr_mailchimp.xml",
+            "/plugins/user/nr_mailchimp/nr_mailchimp.xml",
+            "/plugins/system/mailchimpautosubscribe/mailchimpautosubscribe.xml",
+        ],
+        "routes": [],
+        "markers": r"nr_mailchimp|mailchimpautosubscribe|MailChimp\s+Auto-Subscribe",
+    },
     "rsform": {
         "manifests": [
             "/administrator/components/com_rsform/rsform.xml",

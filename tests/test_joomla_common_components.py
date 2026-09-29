@@ -36,6 +36,32 @@ class TestCommonJoomlaComponents(unittest.TestCase):
         self.assertTrue(result.found)
         self.assertEqual(result.version, "4.31.6")
 
+    def test_nrframework_manifest_extracts_version(self):
+        manifest = """<?xml version="1.0"?>
+        <extension type="plugin"><name>plg_system_nrframework</name><version>6.0.37</version></extension>
+        """
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body=manifest)),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component("https://example.test", "nrframework", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "6.0.37")
+
+    def test_mailchimp_manifest_extracts_version(self):
+        manifest = """<?xml version="1.0"?>
+        <extension type="plugin"><name>MailChimp Auto-Subscribe</name><version>5.1.1</version></extension>
+        """
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body=manifest)),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component(
+                "https://example.test", "mailchimp_auto_subscribe", 2
+            )
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "5.1.1")
+
     def test_generic_200_page_is_not_a_component(self):
         with (
             patch.object(joomla, "fetch_url", return_value=self._response(body="generic home page")),
