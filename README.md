@@ -115,7 +115,7 @@ proofcms -u https://lab.example.test \
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
 | `CVE-2024-40744` | Convert Forms | Before 4.4.8 | passive |
-| `CVE-2026-21627` | Novarain/Tassos Framework and bundled extensions | Framework 4.10.14–6.0.37; product-specific ranges | passive |
+| `CVE-2026-21627` | Novarain/Tassos Framework and bundled extensions | Framework 4.10.14–6.0.37; product-specific ranges | `safe` |
 | `CVE-2026-48907` | JCE Editor | Before 2.9.99.5 | `safe` |
 | `CVE-2026-48908` | SP Page Builder | 1.0.0 through 6.6.1 | `aggressive` |
 | `CVE-2026-48939` | iCagenda | 3.2.1–3.9.14 and 4.0.0–4.0.7 | `aggressive` |
