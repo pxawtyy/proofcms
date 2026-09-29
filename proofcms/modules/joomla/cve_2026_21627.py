@@ -120,9 +120,9 @@ def _csrf_candidates(
 ) -> list[tuple[str, str]]:
     urls = [
         homepage_url,
-        f"{base}/administrator/",
-        f"{base}/administrator/index.php",
         f"{base}/index.php?option=com_users&view=login",
+        f"{base}/index.php?option=com_users&view=registration",
+        f"{base}/index.php?option=com_contact",
     ]
     tokens: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -149,7 +149,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         client.request(trigger_url, timeout=timeout)
         token_candidates = _csrf_candidates(client, base, homepage_url, timeout)
         if not token_candidates:
-            preflight_detail = "the refreshed public and administrator pages exposed no anonymous CSRF token"
+            preflight_detail = "the refreshed frontend pages exposed no site-session CSRF token"
             continue
         for candidate_token, candidate_source in token_candidates:
             verify_params = {
@@ -346,6 +346,12 @@ def check(
         detail = f"A framework-bundling product was detected, but affected status could not be resolved. Evidence: {evidence}."
 
     component_version = direct[1] if direct else None
+    if status == "NOT_AFFECTED":
+        action = "No remediation is required for this CVE; update bundled Tassos extensions for their independent advisories."
+    elif status == "PATCHED":
+        action = "Keep the Tassos Framework and bundled extensions updated."
+    else:
+        action = "Update plg_system_nrframework to 6.0.38 or newer and update every installed Tassos extension."
     result = Finding(
         cve=CVE_ID,
         name=NAME,
@@ -356,7 +362,7 @@ def check(
         affected_rule=AFFECTED_RULE,
         exploit_available=HAS_EXPLOIT,
         detail=detail,
-        action="Update plg_system_nrframework to 6.0.38 or newer and update every installed Tassos extension.",
+        action=action,
     )
     if not run_exploit_check:
         return result
@@ -366,8 +372,20 @@ def check(
     if not (plugins or {}).get("nrframework", {}).get("found"):
         result.detail += " Safe proof skipped because the framework itself was not detected."
         return result
+    framework_version = (plugins or {}).get("nrframework", {}).get("version")
+    framework_state = _classify(framework_version, "4.10.14", "6.0.37")
+    if framework_state == "NOT_AFFECTED":
+        result.detail += (
+            " Safe proof skipped: this release predates 4.10.14. In the reproduced 4.9.62 source, "
+            "onAjaxNrframework validates a frontend site-session token and then rejects every non-administrator "
+            "client; administrator tokens belong to a separate backend session and are invalid at com_ajax."
+        )
+        return result
+    if framework_state == "PATCHED":
+        result.detail += " Safe proof skipped because the detected framework includes the 6.0.38 redesign."
+        return result
     proof = run_safe_probe(target_url, timeout=timeout, proxy=proxy)
-    proof.component_version = (plugins or {}).get("nrframework", {}).get("version")
+    proof.component_version = framework_version
     return proof
 
 
@@ -386,7 +404,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.0.0",
+        "module_version": "1.1.0",
         "last_reviewed": "2026-09-29",
         "updated": "2026-09-29",
         "required_detectors": list(PRODUCTS),

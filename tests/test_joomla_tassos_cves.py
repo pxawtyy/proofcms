@@ -89,10 +89,10 @@ class TestJoomlaTassosCVEs(unittest.TestCase):
         )
         self.assertEqual(result, (name, path))
 
-    def test_csrf_candidates_include_administrator_login_token(self):
+    def test_csrf_candidates_use_only_frontend_session_tokens(self):
         class FakeClient:
             def request(self, url, **kwargs):
-                token = "b" * 32 if "/administrator" in url else "a" * 32
+                token = "a" * 32
                 return {"status": 200, "body": f'<input name="{token}" value="1">'}
 
         candidates = cve_2026_21627._csrf_candidates(
@@ -101,9 +101,10 @@ class TestJoomlaTassosCVEs(unittest.TestCase):
             "https://target.test/",
             2,
         )
-        self.assertIn(("b" * 32, "https://target.test/administrator/"), candidates)
+        self.assertTrue(candidates)
+        self.assertTrue(all("/administrator" not in source for _, source in candidates))
 
-    def test_active_probe_runs_for_detected_pre_range_framework(self):
+    def test_active_probe_skips_detected_pre_range_framework(self):
         plugins = {"nrframework": {"found": True, "version": "4.9.62"}}
         confirmed = cve_2026_21627._finding("VULNERABLE", "CONFIRMED", "proof", exploit_ran=True)
         with patch.object(cve_2026_21627, "run_safe_probe", return_value=confirmed) as probe:
@@ -113,9 +114,10 @@ class TestJoomlaTassosCVEs(unittest.TestCase):
                 run_exploit_check=True,
                 exploit_mode="safe",
             )
-        probe.assert_called_once()
-        self.assertEqual(result.status, "VULNERABLE")
+        probe.assert_not_called()
+        self.assertEqual(result.status, "NOT_AFFECTED")
         self.assertEqual(result.component_version, "4.9.62")
+        self.assertIn("separate backend session", result.detail)
 
 
 if __name__ == "__main__":
