@@ -121,7 +121,8 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-56290` | Page Builder CK | Public affected range remains ambiguous | `aggressive` |
 | `CVE-2026-56291` | Balbooa Forms | Through 2.4.0 | `aggressive` |
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
-| `CVE-2026-57830` | Helix Ultimate | Through 2.2.6 | `safe` |
+| `CVE-2026-57830` | Helix Ultimate arbitrary file deletion | Through 2.2.6 | `safe` |
+| `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
 | `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |

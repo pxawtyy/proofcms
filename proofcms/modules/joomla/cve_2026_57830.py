@@ -10,14 +10,14 @@ from ...core.probes import find_anon_csrf_token
 from ...core.versions import version_lte
 
 CVE_ID = "CVE-2026-57830"
-NAME = "Helix Ultimate unauthenticated media access via AJAX"
+NAME = "Helix Ultimate unauthenticated arbitrary file deletion"
 COMPONENT = "Helix Ultimate Framework"
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe"]
 AFFECTED_JOOMLA_VERSIONS = ["*"]
 AFFECTED_RULE = "plg_system_helixultimate up to and including 2.2.6"
-FIXED_RULE = "Update Helix Ultimate when a fixed release is available"
+FIXED_RULE = "Update Helix Ultimate to 2.2.7 or newer"
 AJAX_ENDPOINT = "/index.php?option=com_ajax&helix=ultimate&request=task&action=view-media"
 
 
@@ -72,7 +72,7 @@ def passive_result(plugins: dict | None) -> Finding:
             affected_rule=AFFECTED_RULE,
             exploit_available=HAS_EXPLOIT,
             detail=f"Helix Ultimate {version} is at or below 2.2.6.",
-            action="Update Helix Ultimate when a fixed release is available and restrict unauthenticated AJAX access.",
+            action="Update Helix Ultimate to 2.2.7 or newer and restrict unauthenticated AJAX access.",
         )
 
     return Finding(
@@ -173,11 +173,11 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             exploit_ran=True,
             proof_url=proof_url,
             detail=(
-                "Safe read-only probe confirmed unauthenticated access to Helix Ultimate view-media. "
+                "Safe read-only companion-action probe confirmed missing authorization in Helix Ultimate media AJAX. "
                 f"Folders listed: {folder_count}; images listed: {image_count}. "
                 f"Token source: {token_source}."
             ),
-            action="Restrict unauthenticated AJAX media actions and update Helix Ultimate when a fixed release is available.",
+            action="Restrict unauthenticated AJAX media actions and update Helix Ultimate to 2.2.7 or newer.",
         )
 
     if parsed.get("success") is True:
@@ -194,11 +194,11 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             exploit_ran=True,
             proof_url=proof_url,
             detail=(
-                "Safe read-only probe confirmed unauthenticated access to Helix Ultimate AJAX media action. "
+                "Safe read-only companion-action probe confirmed missing authorization in Helix Ultimate media AJAX. "
                 "The endpoint returned Joomla's success wrapper. "
                 f"Data items returned: {data_count}. Token source: {token_source}."
             ),
-            action="Restrict unauthenticated AJAX media actions and update Helix Ultimate when a fixed release is available.",
+            action="Restrict unauthenticated AJAX media actions and update Helix Ultimate to 2.2.7 or newer.",
         )
 
     parsed_text = str(parsed)
@@ -291,11 +291,12 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.2.0",
-        "last_reviewed": "2026-03-20",
-        "updated": "2026-03-20",
+        "module_version": "1.3.0",
+        "last_reviewed": "2026-09-29",
+        "updated": "2026-09-29",
         "required_detectors": ["helixultimate"],
         "references": [
+            "https://www.cve.org/CVERecord?id=CVE-2026-57830",
             "https://www.joomshaper.com/documentation/helix-framework/helix-ultimate",
         ],
     }

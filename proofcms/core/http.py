@@ -14,6 +14,11 @@ from typing import Any, cast
 DEFAULT_USER_AGENT = "ProofCMS/2.1 authorized-audit"
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def normalize_url(url: str, timeout: int = 0, proxy: str | None = None) -> str:
     """Normalize URL by adding scheme if missing and trimming trailing slash."""
     url = url.strip()
@@ -135,6 +140,7 @@ class HttpClient:
         if self.proxy:
             handlers.append(urllib.request.ProxyHandler({"http": self.proxy, "https": self.proxy}))
         self.opener = urllib.request.build_opener(*handlers)
+        self.no_redirect_opener = urllib.request.build_opener(_NoRedirectHandler(), *handlers)
 
     def _resolve_url(self, url: str) -> str:
         if self.base_url and not url.startswith(("http://", "https://")):
@@ -149,6 +155,7 @@ class HttpClient:
         headers: dict[str, Any] | None = None,
         data: bytes | str | None = None,
         timeout: int | None = None,
+        follow_redirects: bool = True,
     ) -> dict[str, Any]:
         full_url = self._resolve_url(url)
         req_headers: dict[str, Any] = {"User-Agent": self.user_agent}
@@ -163,7 +170,8 @@ class HttpClient:
         effective_timeout = timeout if timeout is not None else self.timeout
 
         try:
-            with self.opener.open(req, timeout=effective_timeout) as response:
+            opener = self.opener if follow_redirects else self.no_redirect_opener
+            with opener.open(req, timeout=effective_timeout) as response:
                 body_bytes = response.read(512 * 1024)
                 body = body_bytes.decode("utf-8", errors="replace")
                 final_url: str = response.url or full_url

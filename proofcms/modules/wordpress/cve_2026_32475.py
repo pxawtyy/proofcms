@@ -214,6 +214,7 @@ def run_safe_probe(
         response_json = {}
     accepted = upload.get("status") == 200 and isinstance(response_json, dict) and response_json.get("success") is True
     if not accepted:
+        response_detail = json.dumps(response_json, ensure_ascii=False)[:400] if response_json else "non-JSON response"
         return Finding(
             cve=CVE_ID,
             name=NAME,
@@ -223,7 +224,10 @@ def run_safe_probe(
             affected_rule=AFFECTED_RULE,
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
-            detail=f"The form upload was not accepted as successful (HTTP {upload.get('status', 0)}).",
+            detail=(
+                f"The form upload was not accepted as successful (HTTP {upload.get('status', 0)}). "
+                f"Response: {response_detail}"
+            ),
             action="Upgrade any detected version through 4.2.1 even when active proof is inconclusive.",
         )
 
