@@ -585,6 +585,11 @@ def detect_helixultimate(
 
 
 COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
+    "articles_good_search": {
+        "manifests": ["/modules/mod_articles_good_search/mod_articles_good_search.xml"],
+        "routes": [],
+        "markers": r"mod_articles_good_search|Articles\s+Good\s+Search",
+    },
     "akeebabackup": {
         "manifests": [
             "/administrator/components/com_akeebabackup/akeebabackup.xml",
@@ -664,6 +669,11 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         ],
         "routes": ["/?option=com_rstbox", "/?option=com_engagebox"],
         "markers": r"com_rstbox|com_engagebox|EngageBox",
+    },
+    "djclassifieds": {
+        "manifests": ["/administrator/components/com_djclassifieds/djclassifieds.xml"],
+        "routes": ["/?option=com_djclassifieds"],
+        "markers": r"com_djclassifieds|DJ-?Classifieds",
     },
 }
 

@@ -1,0 +1,96 @@
+import unittest
+from unittest.mock import patch
+
+from proofcms.detectors import joomla
+from proofcms.modules.joomla import (
+    cve_2017_8917,
+    cve_2018_15882,
+    cve_2025_26854,
+    cve_2026_61424,
+    cve_2026_73373,
+)
+
+
+class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
+    def test_core_boundaries(self):
+        cases = (
+            (cve_2017_8917, "3.6.5", "NOT_AFFECTED"),
+            (cve_2017_8917, "3.7.0", "LIKELY_VULNERABLE"),
+            (cve_2017_8917, "3.7.1", "PATCHED"),
+            (cve_2018_15882, "3.8.11", "LIKELY_VULNERABLE"),
+            (cve_2018_15882, "3.8.12", "PATCHED"),
+            (cve_2026_73373, "5.4.7", "LIKELY_VULNERABLE"),
+            (cve_2026_73373, "5.4.8", "PATCHED"),
+            (cve_2026_73373, "6.1.2", "LIKELY_VULNERABLE"),
+            (cve_2026_73373, "6.1.3", "PATCHED"),
+        )
+        for module, version, expected in cases:
+            with self.subTest(cve=module.CVE_ID, version=version):
+                self.assertEqual(module.classify_version(version), expected)
+
+    def test_extension_boundaries(self):
+        cases = (
+            (cve_2025_26854, "0.9.9", "NOT_AFFECTED"),
+            (cve_2025_26854, "1.2.4.0011", "LIKELY_VULNERABLE"),
+            (cve_2025_26854, "1.2.5", "NOT_AFFECTED"),
+            (cve_2026_61424, "3.11.1", "LIKELY_VULNERABLE"),
+            (cve_2026_61424, "3.11.2", "PATCHED"),
+        )
+        for module, version, expected in cases:
+            with self.subTest(cve=module.CVE_ID, version=version):
+                self.assertEqual(module.classify_version(version), expected)
+
+    def test_standard_checks_are_passive(self):
+        core = cve_2026_73373.check("https://target.test", joomla_version="5.4.7", run_exploit_check=True)
+        extension = cve_2026_61424.check(
+            "https://target.test",
+            plugins={"djclassifieds": {"found": True, "version": "3.11.1"}},
+            run_exploit_check=True,
+        )
+        self.assertEqual(core.status, "LIKELY_VULNERABLE")
+        self.assertEqual(extension.status, "LIKELY_VULNERABLE")
+        self.assertFalse(core.exploit_available)
+        self.assertFalse(extension.exploit_available)
+        self.assertIn("no active proof", core.detail.lower())
+
+
+class TestJoomlaCriticalExtensionDiscovery(unittest.TestCase):
+    @staticmethod
+    def _response(status=200, body=""):
+        return {"status": status, "body": body, "body_hash": "test"}
+
+    def test_articles_good_search_manifest(self):
+        manifest = """<extension type="module">
+        <name>mod_articles_good_search</name><version>1.2.4.0011</version></extension>"""
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body=manifest)),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component("https://example.test", "articles_good_search", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "1.2.4.0011")
+
+    def test_djclassifieds_manifest(self):
+        manifest = """<extension type="component">
+        <name>com_djclassifieds</name><version>3.11.1</version></extension>"""
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body=manifest)),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component("https://example.test", "djclassifieds", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "3.11.1")
+
+    def test_generic_200_does_not_detect_new_extensions(self):
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body="generic homepage")),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            for component in ("articles_good_search", "djclassifieds"):
+                with self.subTest(component=component):
+                    result = joomla.detect_common_component("https://example.test", component, 2)
+                    self.assertFalse(result.found)
+
+
+if __name__ == "__main__":
+    unittest.main()

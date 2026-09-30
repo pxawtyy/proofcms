@@ -119,7 +119,10 @@ proofcms -u https://lab.example.test \
 | `CVE-2024-28000` | LiteSpeed Cache | 1.9–6.3.0.1 | passive |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
+| `CVE-2017-8917` | Joomla core `com_fields` | Joomla 3.7.0 | passive |
+| `CVE-2018-15882` | Joomla core `InputFilter` | Before 3.8.12 | passive |
 | `CVE-2024-40744` | Convert Forms | Before 4.4.8 | passive |
+| `CVE-2025-26854` | Articles Good Search | 1.0.0–1.2.4.0011 | passive |
 | `CVE-2026-21627` | Novarain/Tassos Framework and bundled extensions | Framework 4.10.14–6.0.37; product-specific ranges | `safe` |
 | `CVE-2026-48907` | JCE Editor | Before 2.9.99.5 | `safe` |
 | `CVE-2026-48908` | SP Page Builder | 1.0.0 through 6.6.1 | `aggressive` |
@@ -129,6 +132,8 @@ proofcms -u https://lab.example.test \
 | `CVE-2026-56291` | Balbooa Forms | Through 2.4.0 | `aggressive` |
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate arbitrary file deletion | Through 2.2.6 | `safe` |
+| `CVE-2026-61424` | DJ-Classifieds arbitrary file upload | Before 3.11.2 | passive |
+| `CVE-2026-73373` | Joomla core SHTML upload | 1.0.0–5.4.7 and 6.0.0–6.1.2 | passive |
 | `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
