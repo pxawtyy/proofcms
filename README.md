@@ -111,7 +111,12 @@ proofcms -u https://lab.example.test \
 | CVE | Component | Affected rule | Verification modes |
 |---|---|---|---|
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
+| `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |
+| `CVE-2023-32243` | Essential Addons for Elementor | 5.4.0–5.7.1 | passive |
+| `CVE-2023-3460` | Ultimate Member | Before 2.6.7 | passive |
+| `CVE-2024-10924` | Really Simple Security | 9.0.0–9.1.1.1 | passive |
+| `CVE-2024-28000` | LiteSpeed Cache | 1.9–6.3.0.1 | passive |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
 | `CVE-2024-40744` | Convert Forms | Before 4.4.8 | passive |

@@ -8,8 +8,13 @@ from ..core.models import CMSInfo
 KNOWN_PLUGIN_MARKERS = {
     "contact-form-7": r"Contact\s+Form\s+7",
     "drag-and-drop-multiple-file-upload-contact-form-7": r"Drag\s+and\s+Drop\s+Multiple\s+File\s+Upload",
+    "essential-addons-for-elementor-lite": r"Essential\s+Addons\s+for\s+Elementor",
+    "litespeed-cache": r"LiteSpeed\s+Cache",
+    "really-simple-ssl": r"Really\s+Simple\s+(?:SSL|Security)",
+    "ultimate-member": r"Ultimate\s+Member",
     "woocommerce-payments": r"Woo(?:Commerce\s+)?Payments|WooPayments",
     "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
+    "wp-file-manager": r"(?:WP\s+)?File\s+Manager",
 }
 
 
