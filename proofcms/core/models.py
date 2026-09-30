@@ -98,3 +98,12 @@ class JoomlaInfo:
     version: str | None
     source: str
     raw: str = ""
+
+
+@dataclass
+class PHPRuntimeInfo:
+    detected: bool
+    version: str | None
+    source: str
+    server: str | None = None
+    entrypoint: str = "/index.php"

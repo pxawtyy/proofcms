@@ -18,6 +18,7 @@ from .joomla import (
 from .joomla import (
     detect_plugins as detect_joomla_plugins,
 )
+from .php import detect_php_runtime
 from .wordpress import (
     detect_wordpress,
     detect_wordpress_plugins,
@@ -66,6 +67,7 @@ __all__ = [
     "detect_joomla",
     "detect_joomla_plugins",
     "detect_pagebuilderck",
+    "detect_php_runtime",
     "detect_rsfiles",
     "detect_sppagebuilder",
     "detect_wordpress",

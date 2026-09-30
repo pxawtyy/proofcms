@@ -86,6 +86,11 @@ def is_wordpress_core_result(result: dict | Any) -> bool:
     return str(comp).lower().startswith("wordpress core")
 
 
+def is_php_runtime_result(result: dict | Any) -> bool:
+    comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
+    return str(comp).lower().startswith("php runtime")
+
+
 def visible_results(results: list[dict | Any], show_patched: bool) -> tuple[list[dict | Any], int]:
     hidden = 0
     visible = []
@@ -159,7 +164,13 @@ def print_one_result(result: dict | Any):
             print(f"  Cleanup: if present, delete uploaded file {res_dict['uploaded_filename']}")
 
 
-def print_result(target: str, info: CMSInfo, results: list[dict | Any], show_patched: bool = False):
+def print_result(
+    target: str,
+    info: CMSInfo,
+    results: list[dict | Any],
+    show_patched: bool = False,
+    php_runtime: dict[str, Any] | None = None,
+):
     reset = "\033[0m"
     print(f"Target: {target}")
     cms_name = info.name if info.detected else "unknown"
@@ -167,20 +178,27 @@ def print_result(target: str, info: CMSInfo, results: list[dict | Any], show_pat
         f"CMS: {cms_name} | detected: {'yes' if info.detected else 'no'} | "
         f"version: {info.version or 'unknown'} | source: {info.source}"
     )
+    runtime = php_runtime or {}
+    print(
+        f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
+        f"version: {runtime.get('version') or 'unknown'} | source: {runtime.get('source') or 'not-detected'}"
+    )
     if not info.detected:
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")
-        print()
-        return
     filtered, hidden = visible_results(results, show_patched)
+    php_results = [result for result in filtered if is_php_runtime_result(result)]
+    cms_results = [result for result in filtered if not is_php_runtime_result(result)]
     if info.name == "wordpress":
         sections = [
-            ("WordPress core", [result for result in filtered if is_wordpress_core_result(result)]),
-            ("WordPress plugins", [result for result in filtered if not is_wordpress_core_result(result)]),
+            ("PHP runtime", php_results),
+            ("WordPress core", [result for result in cms_results if is_wordpress_core_result(result)]),
+            ("WordPress plugins", [result for result in cms_results if not is_wordpress_core_result(result)]),
         ]
     else:
         sections = [
-            ("Joomla core/framework", [result for result in filtered if is_joomla_core_result(result)]),
-            ("Plugins/components", [result for result in filtered if not is_joomla_core_result(result)]),
+            ("PHP runtime", php_results),
+            ("Joomla core/framework", [result for result in cms_results if is_joomla_core_result(result)]),
+            ("Plugins/components", [result for result in cms_results if not is_joomla_core_result(result)]),
         ]
     for title, section_results in sections:
         if not section_results:

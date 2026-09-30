@@ -2,7 +2,8 @@
 
 ProofCMS is a modular Python toolkit for detecting content management systems and validating known vulnerabilities with explicit evidence, false-positive controls, and CI-friendly reports.
 
-The current release detects Joomla and WordPress and includes vulnerability checks for both CMS families.
+The current release detects Joomla and WordPress, includes vulnerability checks for both CMS families,
+and separately fingerprints the web-facing PHP runtime.
 
 > [!CAUTION]
 > Run ProofCMS only against systems you own or are explicitly authorized to test. Active verification is disabled by default and requires explicit authorization flags.
@@ -10,6 +11,7 @@ The current release detects Joomla and WordPress and includes vulnerability chec
 ## Features
 
 - Independent Joomla and WordPress fingerprinting
+- PHP runtime fingerprinting from public response headers and error output
 - Native Python Joomla discovery with no Perl or external scanner dependency
 - Baseline probes that reject custom-200 pages, blanket-403 responses, and redirects to the home page
 - Strict Joomla manifest validation
@@ -110,6 +112,9 @@ proofcms -u https://lab.example.test \
 
 | CVE | Component | Affected rule | Verification modes |
 |---|---|---|---|
+| `CVE-2012-1823` | PHP-CGI runtime | Before 5.3.13 and 5.4.0–5.4.2 | `safe` |
+| `CVE-2019-11043` | PHP-FPM with Nginx | Affected PHP 7.1–7.3 branches with vulnerable PATH_INFO configuration | passive |
+| `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1–8.3 releases | `safe` |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |

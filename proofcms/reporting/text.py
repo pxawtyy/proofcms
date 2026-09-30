@@ -4,7 +4,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .console import is_joomla_core_result, is_wordpress_core_result, sanitize_argv, visible_results
+from .console import (
+    is_joomla_core_result,
+    is_php_runtime_result,
+    is_wordpress_core_result,
+    sanitize_argv,
+    visible_results,
+)
 
 
 def append_text_result(lines: list[str], result: dict | Any):
@@ -57,6 +63,12 @@ def write_text_report(
             f"version: {cms.get('version') or 'unknown'} | source: {cms.get('source')}"
         )
         lines.append("")
+        runtime = target.get("php") or {}
+        lines.append(
+            f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
+            f"version: {runtime.get('version') or 'unknown'} | source: {runtime.get('source') or 'not-detected'}"
+        )
+        lines.append("")
         if cms.get("name") == "wordpress":
             wp = target.get("wordpress") or {}
             theme = wp.get("theme") or {}
@@ -85,15 +97,19 @@ def write_text_report(
                 )
         lines.append("")
         results, hidden = visible_results(target.get("results", []), show_patched)
+        php_results = [result for result in results if is_php_runtime_result(result)]
+        cms_results = [result for result in results if not is_php_runtime_result(result)]
         if cms.get("name") == "wordpress":
             sections = [
-                ("WordPress core", [result for result in results if is_wordpress_core_result(result)]),
-                ("WordPress plugins", [result for result in results if not is_wordpress_core_result(result)]),
+                ("PHP runtime", php_results),
+                ("WordPress core", [result for result in cms_results if is_wordpress_core_result(result)]),
+                ("WordPress plugins", [result for result in cms_results if not is_wordpress_core_result(result)]),
             ]
         else:
             sections = [
-                ("Joomla core/framework", [result for result in results if is_joomla_core_result(result)]),
-                ("Plugins/components", [result for result in results if not is_joomla_core_result(result)]),
+                ("PHP runtime", php_results),
+                ("Joomla core/framework", [result for result in cms_results if is_joomla_core_result(result)]),
+                ("Plugins/components", [result for result in cms_results if not is_joomla_core_result(result)]),
             ]
         lines.append("CVE results:")
         if hidden:

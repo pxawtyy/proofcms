@@ -32,6 +32,7 @@ from proofcms.detectors import (
     detect_icagenda,
     detect_joomla,
     detect_pagebuilderck,
+    detect_php_runtime,
     detect_rsfiles,
     detect_sppagebuilder,
     detect_wordpress,
@@ -116,13 +117,15 @@ TOOL_NAME = "ProofCMS"
 ROOT = Path(__file__).resolve().parent.parent
 
 from proofcms.modules.joomla import AVAILABLE_CVES as JOOMLA_CVES
+from proofcms.modules.php import AVAILABLE_CVES as PHP_CVES
 from proofcms.modules.wordpress import AVAILABLE_CVES as WORDPRESS_CVES
 
-AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES}
+AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES, **PHP_CVES}
 
 
 def print_cve_catalog():
     from proofcms.reporting import print_cve_catalog as _core_catalog
+
     _core_catalog(AVAILABLE_CVES, AVAILABLE_CHAINS)
 
 
@@ -257,7 +260,9 @@ def main():
             "Supported: vulnerable, likely, inconclusive, error. Example: --fail-on vulnerable,error"
         ),
     )
-    parser.add_argument("--list-cves", action="store_true", help="List available CVE modules and attack chains, then exit")
+    parser.add_argument(
+        "--list-cves", action="store_true", help="List available CVE modules and attack chains, then exit"
+    )
     args = parser.parse_args()
 
     print_banner()
@@ -318,6 +323,14 @@ def main():
     for target in targets:
         baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
         info = detect_cms(target, args, baseline=baseline)
+        php_runtime_info = detect_php_runtime(target, timeout=args.timeout, proxy=args.proxy)
+        php_runtime = {
+            "detected": php_runtime_info.detected,
+            "version": php_runtime_info.version,
+            "source": php_runtime_info.source,
+            "server": php_runtime_info.server,
+            "entrypoint": php_runtime_info.entrypoint,
+        }
         plugins = (
             detect_plugins(
                 target,
@@ -349,56 +362,58 @@ def main():
             },
             "plugins": plugins,
             "wordpress": wordpress_inventory,
+            "php": php_runtime,
             "results": [],
             "chains": [],
         }
-        if info.detected and info.name in {"joomla", "wordpress"}:
-            for cve_id in cves:
-                module = importlib.import_module(AVAILABLE_CVES[cve_id])
-                meta = getattr(module, "metadata", dict)()
-                if meta.get("cms", "joomla") != info.name:
-                    continue
-                run_exploit_check = cve_id in exploits
-                selected_exploit_mode = (
-                    effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
+        for cve_id in cves:
+            module = importlib.import_module(AVAILABLE_CVES[cve_id])
+            meta = getattr(module, "metadata", dict)()
+            module_scope = meta.get("cms", "joomla")
+            if module_scope not in {info.name, "php"}:
+                continue
+            run_exploit_check = cve_id in exploits
+            selected_exploit_mode = (
+                effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
+            )
+            try:
+                result = module.check(
+                    target,
+                    info.version,
+                    run_exploit_check=run_exploit_check,
+                    timeout=args.timeout,
+                    proxy=args.proxy,
+                    exploit_mode=selected_exploit_mode,
+                    aggressive_command=args.aggressive_command,
+                    plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
+                    php_runtime=php_runtime,
                 )
-                try:
-                    result = module.check(
-                        target,
-                        info.version,
-                        run_exploit_check=run_exploit_check,
-                        timeout=args.timeout,
-                        proxy=args.proxy,
-                        exploit_mode=selected_exploit_mode,
-                        aggressive_command=args.aggressive_command,
-                        plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
-                    )
-                    result_dict = result.as_dict()
-                    result_dict["exploit_requested"] = run_exploit_check
-                    result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
-                    result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
-                except Exception as exc:  # noqa: BLE001 - isolate third-party probe failures per target
-                    result_dict = {
-                        "cve": cve_id,
-                        "name": meta.get("name", cve_id),
-                        "component": meta.get("component", "Unknown"),
-                        "component_version": None,
-                        "affected_rule": meta.get("affected_rule", "unknown"),
-                        "status": "ERROR",
-                        "confidence": "LOW",
-                        "detail": f"Unexpected module error: {type(exc).__name__}: {exc}",
-                        "action": "Check module integrity and target connectivity.",
-                        "exploit_available": meta.get("exploit_available", False),
-                        "exploit_ran": False,
-                        "exploit_requested": run_exploit_check,
-                        "requested_exploit_mode": selected_exploit_mode if run_exploit_check else None,
-                        "requested_exploit_mode_input": args.exploit_mode if run_exploit_check else None,
-                    }
-                target_report["results"].append(result_dict)
+                result_dict = result.as_dict()
+                result_dict["exploit_requested"] = run_exploit_check
+                result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
+                result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
+            except Exception as exc:  # noqa: BLE001 - isolate third-party probe failures per target
+                result_dict = {
+                    "cve": cve_id,
+                    "name": meta.get("name", cve_id),
+                    "component": meta.get("component", "Unknown"),
+                    "component_version": None,
+                    "affected_rule": meta.get("affected_rule", "unknown"),
+                    "status": "ERROR",
+                    "confidence": "LOW",
+                    "detail": f"Unexpected module error: {type(exc).__name__}: {exc}",
+                    "action": "Check module integrity and target connectivity.",
+                    "exploit_available": meta.get("exploit_available", False),
+                    "exploit_ran": False,
+                    "exploit_requested": run_exploit_check,
+                    "requested_exploit_mode": selected_exploit_mode if run_exploit_check else None,
+                    "requested_exploit_mode_input": args.exploit_mode if run_exploit_check else None,
+                }
+            target_report["results"].append(result_dict)
         for chain_id in chains:
             aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
             target_report["chains"].append(aggregate(target_report["results"]))
-        print_result(target, info, target_report["results"], show_patched=args.show_patched)
+        print_result(target, info, target_report["results"], show_patched=args.show_patched, php_runtime=php_runtime)
         print_chain_results(target_report["chains"])
         if info.detected and info.name == "joomla":
             print_plugins(plugins)
@@ -474,7 +489,9 @@ def main():
 
     fail_criteria = {c.strip().lower() for c in args.fail_on.split(",") if c.strip()}
     if fail_criteria:
-        if "vulnerable" in fail_criteria and (summary.get("VULNERABLE", 0) > 0 or summary.get("VULNERABLE_UPLOAD_ONLY", 0) > 0):
+        if "vulnerable" in fail_criteria and (
+            summary.get("VULNERABLE", 0) > 0 or summary.get("VULNERABLE_UPLOAD_ONLY", 0) > 0
+        ):
             return 2
         if "likely" in fail_criteria and summary.get("LIKELY_VULNERABLE", 0) > 0:
             return 3
