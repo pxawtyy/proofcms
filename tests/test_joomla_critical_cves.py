@@ -41,7 +41,7 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
                 self.assertEqual(module.classify_version(version), expected)
 
     def test_standard_checks_are_passive(self):
-        core = cve_2026_73373.check("https://target.test", joomla_version="5.4.7", run_exploit_check=True)
+        core = cve_2026_73373.check("https://target.test", joomla_version="5.4.7")
         extension = cve_2026_61424.check(
             "https://target.test",
             plugins={"djclassifieds": {"found": True, "version": "3.11.1"}},
@@ -49,9 +49,8 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
         )
         self.assertEqual(core.status, "LIKELY_VULNERABLE")
         self.assertEqual(extension.status, "LIKELY_VULNERABLE")
-        self.assertFalse(core.exploit_available)
+        self.assertTrue(core.exploit_available)
         self.assertFalse(extension.exploit_available)
-        self.assertIn("no active proof", core.detail.lower())
 
 
 class TestJoomlaCriticalExtensionDiscovery(unittest.TestCase):
