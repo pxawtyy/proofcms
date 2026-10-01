@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .console import (
+    is_generic_web_result,
     is_joomla_core_result,
     is_php_runtime_result,
     is_wordpress_core_result,
@@ -98,16 +99,19 @@ def write_text_report(
         lines.append("")
         results, hidden = visible_results(target.get("results", []), show_patched)
         php_results = [result for result in results if is_php_runtime_result(result)]
-        cms_results = [result for result in results if not is_php_runtime_result(result)]
+        generic_results = [result for result in results if is_generic_web_result(result)]
+        cms_results = [result for result in results if not is_php_runtime_result(result) and not is_generic_web_result(result)]
         if cms.get("name") == "wordpress":
             sections = [
                 ("PHP runtime", php_results),
+                ("Generic web components", generic_results),
                 ("WordPress core", [result for result in cms_results if is_wordpress_core_result(result)]),
                 ("WordPress plugins", [result for result in cms_results if not is_wordpress_core_result(result)]),
             ]
         else:
             sections = [
                 ("PHP runtime", php_results),
+                ("Generic web components", generic_results),
                 ("Joomla core/framework", [result for result in cms_results if is_joomla_core_result(result)]),
                 ("Plugins/components", [result for result in cms_results if not is_joomla_core_result(result)]),
             ]

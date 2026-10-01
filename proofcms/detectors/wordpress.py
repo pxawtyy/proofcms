@@ -15,6 +15,7 @@ KNOWN_PLUGIN_MARKERS = {
     "woocommerce-payments": r"Woo(?:Commerce\s+)?Payments|WooPayments",
     "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
     "wp-file-manager": r"(?:WP\s+)?File\s+Manager",
+    "keydatas": r"keydatas|简数",
 }
 
 

@@ -115,6 +115,9 @@ proofcms -u https://lab.example.test \
 | `CVE-2012-1823` | PHP-CGI runtime | Before 5.3.13 and 5.4.0–5.4.2 | `safe` |
 | `CVE-2019-11043` | PHP-FPM with Nginx | Affected PHP 7.1–7.3 branches with vulnerable PATH_INFO configuration | passive |
 | `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1–8.3 releases | `safe` |
+| `CVE-2018-9206` | Blueimp jQuery File Upload sample handler | Through 9.22.0 with public PHP handler | `safe` |
+| `CVE-2021-23394` | elFinder | Before 2.1.58 | `safe` |
+| `CVE-2026-81891` | elFinder ZIP extraction | Before 2.1.70 | `safe` |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |
@@ -122,6 +125,7 @@ proofcms -u https://lab.example.test \
 | `CVE-2023-3460` | Ultimate Member | Before 2.6.7 | passive |
 | `CVE-2024-10924` | Really Simple Security | 9.0.0–9.1.1.1 | passive |
 | `CVE-2024-28000` | LiteSpeed Cache | 1.9–6.3.0.1 | passive |
+| `CVE-2024-6220` | Keydatas | Through 2.5.2 | passive |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
 | `CVE-2017-8917` | Joomla core `com_fields` | Joomla 3.7.0 | passive |

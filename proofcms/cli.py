@@ -116,11 +116,12 @@ __all__ = [
 TOOL_NAME = "ProofCMS"
 ROOT = Path(__file__).resolve().parent.parent
 
+from proofcms.modules.generic import AVAILABLE_CVES as GENERIC_CVES
 from proofcms.modules.joomla import AVAILABLE_CVES as JOOMLA_CVES
 from proofcms.modules.php import AVAILABLE_CVES as PHP_CVES
 from proofcms.modules.wordpress import AVAILABLE_CVES as WORDPRESS_CVES
 
-AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES, **PHP_CVES}
+AVAILABLE_CVES = {**JOOMLA_CVES, **WORDPRESS_CVES, **PHP_CVES, **GENERIC_CVES}
 
 
 def print_cve_catalog():
@@ -370,7 +371,7 @@ def main():
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
             meta = getattr(module, "metadata", dict)()
             module_scope = meta.get("cms", "joomla")
-            if module_scope not in {info.name, "php"}:
+            if module_scope not in {info.name, "php", "generic"}:
                 continue
             run_exploit_check = cve_id in exploits
             selected_exploit_mode = (
