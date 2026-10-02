@@ -1,0 +1,62 @@
+name: proofcms-wordpress-plugin-fixtures
+
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    volumes:
+      - db:/var/lib/mysql
+    networks: [lab]
+
+  wordpress:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    ports:
+      - "127.0.0.1:9210:80"
+    volumes:
+      - wordpress:/var/www/html
+      - "${PROOFCMS_ARCHIVES_ROOT:-D:/ProofCMS-Labs/archives}/wordpress/contact-form-7-5.3.1:/fixtures/contact-form-7:ro"
+      - "${PROOFCMS_ARCHIVES_ROOT:-D:/ProofCMS-Labs/archives}/wordpress/lscache_wp-6.3.0.1:/fixtures/litespeed-cache:ro"
+      - "${PROOFCMS_ARCHIVES_ROOT:-D:/ProofCMS-Labs/archives}/wordpress/ultimatemember-2.6.6:/fixtures/ultimate-member:ro"
+    networks: [lab, edge]
+
+  cli:
+    image: wordpress:cli-php8.1
+    profiles: [tools]
+    entrypoint: ["wp"]
+    depends_on:
+      - wordpress
+    user: "0:0"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress:/var/www/html
+    networks: [lab]
+
+networks:
+  lab:
+    internal: true
+  edge: {}
+
+volumes:
+  db:
+  wordpress:

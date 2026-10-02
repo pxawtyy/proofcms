@@ -86,6 +86,10 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-78079 | Helix Ultimate | 1.0-2.2.9 | 2.2.9 | Keep 2.2.6 too if sharing with CVE-2026-57830 |
 | CVE-2026-61424 | DJ-Classifieds | before 3.11.2 | 3.11.1 | Commercial archive likely required; configure public upload flow |
 
+The current `dj_classifieds_3.11` archive on this workstation is not an installable extension: it contains only
+eight XML data/export files and no PHP code or Joomla package manifest. A complete DJ-Classifieds 3.11.1 installer
+is still required for CVE-2026-61424.
+
 ## PHP runtime labs
 
 | CVE | Runtime required | Recommended fixture | Host/configuration requirements |
