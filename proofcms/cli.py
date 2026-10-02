@@ -245,7 +245,10 @@ def main():
         action="store_true",
         help="Required for aggressive probes, including --exploit-mode aggressive or auto when needed.",
     )
-    parser.add_argument("--aggressive-command", help="Lab-only command for aggressive blind RCE modules.")
+    parser.add_argument(
+        "--aggressive-command",
+        help="Optional lab-only command for aggressive blind RCE modules; CVE-2015-8562 defaults to uname -a.",
+    )
     parser.add_argument("--timeout", type=int, default=12, help="HTTP timeout in seconds")
     parser.add_argument("--concurrency", type=int, default=5, help="Concurrency limit for detector probes. Default: 5")
     parser.add_argument("--proxy", help="Proxy URL passed to CVE modules")

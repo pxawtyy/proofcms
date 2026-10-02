@@ -108,6 +108,21 @@ proofcms -u https://lab.example.test \
   --i-understand-lab-only
 ```
 
+Run the legacy Joomla proofs individually. CVE-2015-8562 uses `uname -a` by default; pass
+`--aggressive-command` only when a different lab command is needed:
+
+```bash
+proofcms -u http://127.0.0.1:8081 --cms joomla \
+  --cve CVE-2015-8562 --run-exploit CVE-2015-8562 \
+  --exploit-mode aggressive \
+  --i-understand-authorized --i-understand-lab-only
+
+proofcms -u http://joomla-3-8-11.lab --cms joomla \
+  --cve CVE-2018-15882 --run-exploit CVE-2018-15882 \
+  --exploit-mode aggressive \
+  --i-understand-authorized --i-understand-lab-only
+```
+
 ## Implemented vulnerability checks
 
 | CVE | Component | Affected rule | Verification modes |
@@ -129,7 +144,7 @@ proofcms -u https://lab.example.test \
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
 | `CVE-2017-8917` | Joomla core `com_fields` | Joomla 3.7.0 | passive |
-| `CVE-2018-15882` | Joomla core `InputFilter` | Before 3.8.12 | passive |
+| `CVE-2018-15882` | Joomla core `InputFilter` | Before 3.8.12 | `aggressive` inert PHAR-stub upload |
 | `CVE-2024-40744` | Convert Forms | Before 4.4.8 | `safe` |
 | `CVE-2025-26854` | Articles Good Search | 1.0.0–1.2.4.0011 | passive |
 | `CVE-2026-21627` | Novarain/Tassos Framework and bundled extensions | Framework 4.10.14–6.0.37; product-specific ranges | `safe` |

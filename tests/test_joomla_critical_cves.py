@@ -52,6 +52,31 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
         self.assertTrue(core.exploit_available)
         self.assertFalse(extension.exploit_available)
 
+    def test_phar_stub_payload_is_inert(self):
+        payload = cve_2018_15882.build_inert_phar_stub("PROOFCMS_TEST")
+        self.assertIn(b"GIF89a", payload)
+        self.assertIn(b"__HALT_COMPILER()", payload)
+        self.assertNotIn(b"system(", payload)
+        self.assertNotIn(b"eval(", payload)
+
+    def test_phar_upload_confirmation(self):
+        proof = {
+            "accepted": True,
+            "proof_url": "https://target.test/images/proofcms.gif",
+            "uploaded_filename": "images/proofcms.gif",
+            "attempts": [],
+        }
+        with patch.object(cve_2018_15882, "probe_upload", return_value=proof):
+            result = cve_2018_15882.check(
+                "https://target.test",
+                "3.8.11",
+                run_exploit_check=True,
+                exploit_mode="aggressive",
+            )
+        self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
+        self.assertEqual(result.confidence, "CONFIRMED")
+        self.assertTrue(result.exploit_ran)
+
 
 class TestJoomlaCriticalExtensionDiscovery(unittest.TestCase):
     @staticmethod
