@@ -43,7 +43,14 @@ def discover(target: str, timeout: int, proxy: str | None) -> dict[str, Any] | N
             match = re.search(r"elFinder\s*\((2\.1\.\d+)\)", changelog.get("body", ""), re.IGNORECASE)
             if match:
                 version = match.group(1)
-            result = {"client": client, "endpoint": path, "target": cwd["hash"], "version": version, "api": data.get("api")}
+            result = {
+                "client": client,
+                "endpoint": path,
+                "target": cwd["hash"],
+                "version": version,
+                "api": data.get("api"),
+                "csrf": data.get("csrf"),
+            }
             _DISCOVERY_CACHE[cache_key] = result
             return result
     _DISCOVERY_CACHE[cache_key] = None
@@ -51,15 +58,18 @@ def discover(target: str, timeout: int, proxy: str | None) -> dict[str, Any] | N
 
 
 def command(conn: dict[str, Any], fields: dict[str, Any]) -> dict[str, Any]:
-    response = conn["client"].post(conn["endpoint"], fields=fields)
+    headers = {"X-elFinder-CSRF": conn["csrf"]} if conn.get("csrf") else None
+    response = conn["client"].post(conn["endpoint"], fields=fields, headers=headers)
     return _json(response)
 
 
 def upload(conn: dict[str, Any], filename: str, content: bytes, content_type: str) -> dict[str, Any]:
+    headers = {"X-elFinder-CSRF": conn["csrf"]} if conn.get("csrf") else None
     response = conn["client"].post(
         conn["endpoint"],
         fields={"cmd": "upload", "target": conn["target"]},
         files={"upload[]": (filename, content, content_type)},
+        headers=headers,
     )
     return _json(response)
 

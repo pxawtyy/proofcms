@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from proofcms.modules.generic import cve_2018_9206, cve_2021_23394, cve_2026_81891
+from proofcms.modules.generic import cve_2018_9206, cve_2021_23394, cve_2026_81891, elfinder
 from proofcms.modules.wordpress import cve_2024_6220
 
 
@@ -53,3 +53,22 @@ def test_keydatas_passive_detection():
         plugins={"keydatas": {"found": True, "version": "2.5.2", "source": "readme.txt"}},
     )
     assert result.status == "LIKELY_VULNERABLE"
+
+
+def test_elfinder_mutating_requests_forward_discovery_csrf_token():
+    class Client:
+        def __init__(self):
+            self.calls = []
+
+        def post(self, url, **kwargs):
+            self.calls.append((url, kwargs))
+            return {"body": "{}"}
+
+    client = Client()
+    conn = {"client": client, "endpoint": "/connector.php", "target": "root", "csrf": "token-value"}
+
+    elfinder.command(conn, {"cmd": "rm", "targets[]": "file"})
+    elfinder.upload(conn, "proof.txt", b"proof", "text/plain")
+
+    assert client.calls[0][1]["headers"] == {"X-elFinder-CSRF": "token-value"}
+    assert client.calls[1][1]["headers"] == {"X-elFinder-CSRF": "token-value"}
