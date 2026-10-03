@@ -103,7 +103,7 @@ def visible_results(
     show_not_detected: bool = False,
     show_all: bool = False,
 ) -> tuple[list[dict | Any], dict[str, int]]:
-    hidden = {"PATCHED": 0, "NOT_DETECTED": 0}
+    hidden = {"PATCHED": 0, "NOT_DETECTED": 0, "NOT_AFFECTED": 0}
     visible = []
     for result in results:
         status = result.get("status") if isinstance(result, dict) else getattr(result, "status", None)
@@ -112,6 +112,9 @@ def visible_results(
             continue
         if status == "NOT_DETECTED" and not (show_not_detected or show_all):
             hidden["NOT_DETECTED"] += 1
+            continue
+        if status == "NOT_AFFECTED" and not show_all:
+            hidden["NOT_AFFECTED"] += 1
             continue
         visible.append(result)
     return visible, hidden
@@ -123,6 +126,8 @@ def hidden_results_note(hidden: dict[str, int]) -> str | None:
         labels.append(f"{hidden['PATCHED']} PATCHED")
     if hidden.get("NOT_DETECTED"):
         labels.append(f"{hidden['NOT_DETECTED']} NOT_DETECTED")
+    if hidden.get("NOT_AFFECTED"):
+        labels.append(f"{hidden['NOT_AFFECTED']} NOT_AFFECTED")
     if not labels:
         return None
     return f"{', '.join(labels)} result(s) hidden. Use --show-all to display everything."
