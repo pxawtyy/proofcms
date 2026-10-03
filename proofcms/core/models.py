@@ -97,6 +97,7 @@ class PluginInfo:
     found: bool
     version: str | None
     source: str
+    edition: str | None = None
 
 
 @dataclass

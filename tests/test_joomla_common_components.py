@@ -81,6 +81,44 @@ class TestCommonJoomlaComponents(unittest.TestCase):
         self.assertTrue(set(joomla.COMMON_COMPONENTS).issubset(results))
         self.assertTrue(all(results[key]["source"] == "not-detected" for key in joomla.COMMON_COMPONENTS))
 
+    def test_acymailing_legacy_manifest_detects_version_and_enterprise_edition(self):
+        manifest = """<extension type="component">
+        <name>AcyMailing Enterprise</name><version>5.8.1</version></extension>"""
+        with (
+            patch.object(joomla, "fetch_url", return_value=self._response(body=manifest)),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component("https://example.test", "acymailing", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "5.8.1")
+        self.assertEqual(result.edition, "enterprise")
+
+    def test_requested_third_party_system_plugins_have_manifest_probes(self):
+        expected = {
+            "akeeba_update_check",
+            "backup_on_update",
+            "convertforms_uploaded_files_cleaner",
+            "dropfiles",
+            "k2",
+            "login_popup",
+            "rsform_delete_submissions",
+            "rsfp_campaignmonitor",
+            "rsfp_google",
+            "rsfp_google_calendar",
+            "rsfp_google_sheets",
+            "rsfp_hcaptcha",
+            "rsfp_ideal",
+            "rsfp_legacy_layouts",
+            "rsfp_pdf",
+            "rsfp_registration",
+            "smartslider3",
+            "sppagebuilder_pro_updater",
+            "tassos_geoip",
+        }
+        self.assertTrue(expected.issubset(joomla.COMMON_COMPONENTS))
+        for key in expected:
+            self.assertTrue(joomla.COMMON_COMPONENTS[key]["manifests"])
+
 
 if __name__ == "__main__":
     unittest.main()

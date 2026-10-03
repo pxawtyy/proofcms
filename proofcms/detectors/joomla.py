@@ -604,12 +604,19 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "markers": r"com_jsitemap|JSitemap",
     },
     "jce": {
-        "manifests": ["/administrator/components/com_jce/jce.xml"],
+        "manifests": [
+            "/administrator/components/com_jce/jce.xml",
+            "/plugins/system/jce/jce.xml",
+            "/plugins/editors/jce/jce.xml",
+        ],
         "routes": ["/?option=com_jce"],
         "markers": r"com_jce|JCE\s+(?:Editor|Administration|Component)",
     },
     "convertforms": {
-        "manifests": ["/administrator/components/com_convertforms/convertforms.xml"],
+        "manifests": [
+            "/administrator/components/com_convertforms/convertforms.xml",
+            "/plugins/system/convertforms/convertforms.xml",
+        ],
         "routes": ["/?option=com_convertforms"],
         "markers": r"com_convertforms|Convert\s+Forms",
     },
@@ -666,6 +673,8 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "manifests": [
             "/administrator/components/com_rstbox/rstbox.xml",
             "/administrator/components/com_engagebox/engagebox.xml",
+            "/plugins/system/rstbox/rstbox.xml",
+            "/plugins/engagebox/engagebox.xml",
         ],
         "routes": ["/?option=com_rstbox", "/?option=com_engagebox"],
         "markers": r"com_rstbox|com_engagebox|EngageBox",
@@ -674,6 +683,133 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "manifests": ["/administrator/components/com_djclassifieds/djclassifieds.xml"],
         "routes": ["/?option=com_djclassifieds"],
         "markers": r"com_djclassifieds|DJ-?Classifieds",
+    },
+    "acymailing": {
+        "manifests": [
+            "/administrator/components/com_acymailing/acymailing.xml",
+            "/administrator/components/com_acym/acym.xml",
+            "/components/com_acymailing/acymailing.xml",
+            "/components/com_acym/acym.xml",
+        ],
+        "routes": ["/?option=com_acymailing", "/?option=com_acym"],
+        "markers": r"com_acymailing|com_acym|AcyMailing",
+    },
+    "akeeba_update_check": {
+        "manifests": ["/plugins/system/akeebaupdatecheck/akeebaupdatecheck.xml"],
+        "routes": [],
+        "markers": r"akeebaupdatecheck|Akeeba\s+Update\s+Check",
+    },
+    "backup_on_update": {
+        "manifests": ["/plugins/system/backuponupdate/backuponupdate.xml"],
+        "routes": [],
+        "markers": r"backuponupdate|Backup\s+on\s+Update",
+    },
+    "convertforms_uploaded_files_cleaner": {
+        "manifests": ["/plugins/system/cfuploadedfilescleaner/cfuploadedfilescleaner.xml"],
+        "routes": [],
+        "markers": r"cfuploadedfilescleaner|Convert\s+Forms.*Uploaded\s+Files\s+Cleaner",
+    },
+    "convertforms_tools": {
+        "manifests": [
+            "/plugins/convertformstools/convertformstools.xml",
+            "/plugins/convertformstools/tools/tools.xml",
+        ],
+        "routes": [],
+        "markers": r"convertformstools|Convert\s+Forms\s+Tools",
+    },
+    "dropfiles": {
+        "manifests": [
+            "/plugins/system/dropfiles/dropfiles.xml",
+            "/administrator/components/com_dropfiles/dropfiles.xml",
+        ],
+        "routes": ["/?option=com_dropfiles"],
+        "markers": r"com_dropfiles|plg_system_dropfiles|Dropfiles",
+    },
+    "dropfiles_themes": {
+        "manifests": ["/plugins/dropfilesthemes/dropfilesthemes.xml"],
+        "routes": [],
+        "markers": r"dropfilesthemes|Dropfiles\s+Themes",
+    },
+    "k2": {
+        "manifests": [
+            "/administrator/components/com_k2/k2.xml",
+            "/plugins/system/k2/k2.xml",
+        ],
+        "routes": ["/?option=com_k2"],
+        "markers": r"com_k2|plg_system_k2|K2(?:\s+Component)?",
+    },
+    "login_popup": {
+        "manifests": ["/plugins/system/loginpopup/loginpopup.xml"],
+        "routes": [],
+        "markers": r"loginpopup|Login\s+Popup",
+    },
+    "rsform_delete_submissions": {
+        "manifests": ["/plugins/system/rsformdeletesubmissions/rsformdeletesubmissions.xml"],
+        "routes": [],
+        "markers": r"rsformdeletesubmissions|RSForm.*Delete\s+Submissions",
+    },
+    "rsfp_campaignmonitor": {
+        "manifests": ["/plugins/system/rsfpcampaignmonitor/rsfpcampaignmonitor.xml"],
+        "routes": [],
+        "markers": r"rsfpcampaignmonitor|RSForm.*Campaign\s+Monitor",
+    },
+    "rsfp_google": {
+        "manifests": ["/plugins/system/rsfpgoogle/rsfpgoogle.xml"],
+        "routes": [],
+        "markers": r"rsfpgoogle|RSForm.*Google",
+    },
+    "rsfp_google_calendar": {
+        "manifests": ["/plugins/system/rsfpgooglecalendar/rsfpgooglecalendar.xml"],
+        "routes": [],
+        "markers": r"rsfpgooglecalendar|RSForm.*Google\s+Calendar",
+    },
+    "rsfp_google_sheets": {
+        "manifests": ["/plugins/system/rsfpgooglesheets/rsfpgooglesheets.xml"],
+        "routes": [],
+        "markers": r"rsfpgooglesheets|RSForm.*Google\s+Sheets",
+    },
+    "rsfp_hcaptcha": {
+        "manifests": ["/plugins/system/rsfphcaptcha/rsfphcaptcha.xml"],
+        "routes": [],
+        "markers": r"rsfphcaptcha|RSForm.*hCaptcha",
+    },
+    "rsfp_ideal": {
+        "manifests": ["/plugins/system/rsfpideal/rsfpideal.xml"],
+        "routes": [],
+        "markers": r"rsfpideal|RSForm.*iDEAL",
+    },
+    "rsfp_legacy_layouts": {
+        "manifests": ["/plugins/system/rsfplegacylayouts/rsfplegacylayouts.xml"],
+        "routes": [],
+        "markers": r"rsfplegacylayouts|RSForm.*Legacy\s+Layouts",
+    },
+    "rsfp_pdf": {
+        "manifests": ["/plugins/system/rsfppdf/rsfppdf.xml"],
+        "routes": [],
+        "markers": r"rsfppdf|RSForm.*PDF",
+    },
+    "rsfp_registration": {
+        "manifests": ["/plugins/system/rsfpregistration/rsfpregistration.xml"],
+        "routes": [],
+        "markers": r"rsfpregistration|RSForm.*Registration",
+    },
+    "smartslider3": {
+        "manifests": [
+            "/plugins/system/smartslider3/smartslider3.xml",
+            "/administrator/components/com_smartslider3/smartslider3.xml",
+        ],
+        "routes": ["/?option=com_smartslider3"],
+        "markers": r"com_smartslider3|plg_system_smartslider3|Smart\s*Slider\s*3",
+    },
+    "sppagebuilder_pro_updater": {
+        "manifests": ["/plugins/system/sppagebuilderproupdater/sppagebuilderproupdater.xml"],
+        "routes": [],
+        "markers": r"sppagebuilderproupdater|SP\s+Page\s+Builder.*Pro.*Updater",
+    },
+    "tassos_geoip": {
+        "manifests": ["/plugins/system/tgeoip/tgeoip.xml"],
+        "routes": [],
+        "markers": r"tgeoip|Tassos.*GeoIP",
     },
 }
 
@@ -696,7 +832,12 @@ def detect_common_component(
         is_manifest = bool(re.search(r"<(?:extension|install)\b", body, re.IGNORECASE))
         if is_manifest and re.search(marker, body, re.IGNORECASE):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
-            return PluginInfo(True, match.group(1).strip() if match else None, path)
+            edition = (
+                "enterprise"
+                if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE)
+                else None
+            )
+            return PluginInfo(True, match.group(1).strip() if match else None, path, edition)
 
     for path in definition["routes"]:
         response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
@@ -707,7 +848,12 @@ def detect_common_component(
             version_match = re.search(
                 rf"(?:{marker})[^0-9]{{0,40}}([0-9]+(?:\.[0-9]+)+)", body, re.IGNORECASE
             )
-            return PluginInfo(True, version_match.group(1) if version_match else None, path)
+            edition = (
+                "enterprise"
+                if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE)
+                else None
+            )
+            return PluginInfo(True, version_match.group(1) if version_match else None, path, edition)
 
     return PluginInfo(False, None, "not-detected")
 
@@ -765,6 +911,7 @@ def detect_plugins(
                             "found": info.found,
                             "version": info.version,
                             "source": info.source,
+                            "edition": info.edition,
                         }
                     except Exception as exc:  # noqa: BLE001
                         results[k] = {
@@ -780,6 +927,7 @@ def detect_plugins(
                         "found": info.found,
                         "version": info.version,
                         "source": info.source,
+                        "edition": info.edition,
                     }
                 except Exception as exc:  # noqa: BLE001
                     results[k] = {
