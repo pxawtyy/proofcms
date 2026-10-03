@@ -129,3 +129,29 @@ def test_jce_generic_200_does_not_create_phantom_cleanup_file():
     assert result.status == "NOT_CONFIRMED"
     assert result.uploaded_filename is None
     assert result.evidence["handler_reached"] is False
+
+
+def test_jce_redirect_is_reported_as_externally_blocked():
+    passive = cve_2026_48907.Finding(
+        cve=cve_2026_48907.CVE_ID,
+        name=cve_2026_48907.NAME,
+        status="LIKELY_VULNERABLE",
+        confidence="HIGH",
+        component=cve_2026_48907.COMPONENT,
+        component_version="2.5.15",
+        affected_rule=cve_2026_48907.AFFECTED_RULE,
+    )
+    with (
+        patch.object(cve_2026_48907, "passive_check", return_value=passive),
+        patch.object(cve_2026_48907, "_extract_csrf", return_value=("a" * 32, "/", [])),
+        patch.object(
+            cve_2026_48907.HttpSession,
+            "post",
+            return_value={"status": 200, "body": "homepage", "redirected": True},
+        ),
+    ):
+        result = cve_2026_48907.run_exploit("https://target.test", "3.4.8")
+
+    assert result.status == "BLOCKED_EXTERNAL"
+    assert "external validation is blocked" in result.detail
+    assert result.uploaded_filename is None

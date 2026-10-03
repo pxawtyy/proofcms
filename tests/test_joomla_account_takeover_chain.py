@@ -30,3 +30,14 @@ def test_chain_is_not_affected_when_one_prerequisite_is_patched():
 def test_chain_is_inconclusive_when_component_is_missing():
     result = aggregate([_result("CVE-2016-8870", "LIKELY_VULNERABLE")])
     assert result["status"] == "INCONCLUSIVE"
+
+
+def test_chain_handles_confirmed_account_and_likely_privilege_assignment():
+    result = aggregate(
+        [
+            _result("CVE-2016-8870", "VULNERABLE"),
+            _result("CVE-2016-8869", "LIKELY_VULNERABLE"),
+        ]
+    )
+    assert result["status"] == "LIKELY_VULNERABLE"
+    assert result["confidence"] == "HIGH"

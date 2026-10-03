@@ -69,6 +69,7 @@ def status_color(status: str) -> str:
         "NOT_AFFECTED": "\033[94m",
         "NOT_DETECTED": "\033[36m",
         "NOT_CONFIRMED": "\033[93m",
+        "BLOCKED_EXTERNAL": "\033[33m",
         "AGGRESSIVE_READY": "\033[95m",
         "AGGRESSIVE_SENT": "\033[95m",
         "NOT_JOOMLA": "\033[90m",

@@ -50,23 +50,31 @@ def check(
         finding.status = "NOT_CONFIRMED"
         finding.confidence = "LOW"
         finding.detail = proof["reason"]
-    elif proof.get("login_verified"):
-        finding.status = "VULNERABLE"
-        finding.confidence = "CONFIRMED"
+    elif proof.get("account_created"):
+        finding.status = "LIKELY_VULNERABLE"
+        finding.confidence = "HIGH"
         finding.detail = (
-            "The generated group-7 account successfully authenticated to Joomla administrator, confirming account "
-            f"creation with elevated privileges. Disposable account: {proof['username']} / {proof['password']} "
-            f"({proof['email']})."
+            "The corrected registration.register request delivered top-level groups[]=7 and persisted a user, "
+            "confirmed by a same-session username/e-mail collision. Group-7 assignment is not externally observable, "
+            "so Super User privileges are not claimed as confirmed. "
+            f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); an administrator "
+            "must inspect and remove it."
         )
-    elif proof["accepted"]:
+        finding.evidence = {
+            "account_created": True,
+            "group_requested": 7,
+            "group_field": proof.get("group_field"),
+            "privilege_confirmed": False,
+            "collision_markers": proof.get("collision_markers", []),
+        }
+    elif proof.get("sent"):
         finding.status = "AGGRESSIVE_SENT"
-        finding.confidence = "MEDIUM"
+        finding.confidence = "LOW"
         finding.detail = (
-            "The legacy user.register request with user[groups][]=7 was sent and produced no explicit rejection, "
-            "but its redirect/status is not evidence of account creation. "
-            f"Disposable administrator candidate: {proof['username']} / {proof['password']} ({proof['email']}). "
-            f"Administrator login was not verified; candidate/control response differential="
-            f"{proof.get('account_response_differential', False)}."
+            "The corrected registration.register request with top-level groups[]=7 was sent, but the collision "
+            "oracle did not confirm persistence. "
+            f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); collision markers: "
+            f"{proof.get('collision_markers', [])}."
         )
     else:
         finding.status = "NOT_CONFIRMED"
@@ -86,7 +94,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": True,
         "exploit_modes": ["aggressive"],
         "intrusive": True,
-        "module_version": "1.1.0",
+        "module_version": "1.2.0",
         "last_reviewed": "2026-10-03",
         "updated": "2026-10-03",
         "required_detectors": [],

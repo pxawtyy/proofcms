@@ -9,7 +9,16 @@ CVES = ("CVE-2016-8870", "CVE-2016-8869")
 def aggregate(results: list[dict[str, Any]]) -> dict[str, Any]:
     selected = {result.get("cve"): result for result in results if result.get("cve") in CVES}
     statuses = {cve: selected.get(cve, {}).get("status", "MISSING") for cve in CVES}
-    if all(statuses[cve] == "LIKELY_VULNERABLE" for cve in CVES):
+    account_status = statuses["CVE-2016-8870"]
+    privilege_status = statuses["CVE-2016-8869"]
+    if account_status == "VULNERABLE" and privilege_status in {"LIKELY_VULNERABLE", "VULNERABLE"}:
+        status, confidence = "LIKELY_VULNERABLE", "HIGH"
+        detail = (
+            "Unauthenticated account persistence was confirmed and attacker-controlled group assignment reached the "
+            "affected registration path. The resulting privileged membership is not externally observable without "
+            "activation or administrator access."
+        )
+    elif all(statuses[cve] == "LIKELY_VULNERABLE" for cve in CVES):
         status, confidence = "LIKELY_VULNERABLE", "HIGH"
         detail = (
             "Both historical registration flaws match the detected Joomla version: disabled-registration account "

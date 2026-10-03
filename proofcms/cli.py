@@ -435,6 +435,7 @@ def main():
         "VULNERABLE_UPLOAD_ONLY": 0,
         "LIKELY_VULNERABLE": 0,
         "INCONCLUSIVE": 0,
+        "BLOCKED_EXTERNAL": 0,
         "NOT_AFFECTED": 0,
         "NOT_DETECTED": 0,
         "ERROR": 0,

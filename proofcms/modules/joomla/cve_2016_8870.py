@@ -50,23 +50,29 @@ def check(
         finding.status = "NOT_CONFIRMED"
         finding.confidence = "LOW"
         finding.detail = proof["reason"]
-    elif proof.get("frontend_login_verified") or proof.get("login_verified"):
+    elif proof.get("account_created"):
         finding.status = "VULNERABLE"
         finding.confidence = "CONFIRMED"
         finding.detail = (
-            "The generated account successfully authenticated to Joomla administrator, confirming that the legacy "
-            f"registration request created a usable account. Disposable account: {proof['username']} / "
-            f"{proof['password']} ({proof['email']})."
+            "The registration.register request persisted a user: a same-session repeat with the identical username "
+            "and e-mail was rejected by Joomla's uniqueness checks. "
+            f"Disposable account: {proof['username']} / {proof['password']} ({proof['email']}). The account may be "
+            "blocked pending activation and must be removed by an administrator."
         )
-    elif proof["accepted"]:
+        finding.evidence = {
+            "account_created": True,
+            "confirmation": "username_email_collision",
+            "collision_markers": proof.get("collision_markers", []),
+            "registration_task": proof.get("registration_task"),
+        }
+    elif proof.get("sent"):
         finding.status = "AGGRESSIVE_SENT"
-        finding.confidence = "MEDIUM"
+        finding.confidence = "LOW"
         finding.detail = (
-            "The legacy user.register request was sent and produced no explicit rejection, but its redirect/status "
-            "is not evidence of account creation. "
+            "The registration.register request was sent, but the repeat submission did not produce both username "
+            "and e-mail uniqueness errors, so account persistence is not confirmed. "
             f"Disposable account candidate: {proof['username']} / {proof['password']} ({proof['email']}). "
-            f"Login was not verified; candidate/control response differential="
-            f"{proof.get('account_response_differential', False)}."
+            f"Collision markers: {proof.get('collision_markers', [])}."
         )
     else:
         finding.status = "NOT_CONFIRMED"
@@ -86,7 +92,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": True,
         "exploit_modes": ["aggressive"],
         "intrusive": True,
-        "module_version": "1.1.0",
+        "module_version": "1.2.0",
         "last_reviewed": "2026-10-03",
         "updated": "2026-10-03",
         "required_detectors": [],

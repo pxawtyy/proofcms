@@ -174,11 +174,17 @@ def run_exploit(
         or upload.get("redirected")
         or not handler_specific
     ):
-        passive.status = "NOT_CONFIRMED"
+        externally_blocked = bool(upload and upload.get("redirected"))
+        passive.status = "BLOCKED_EXTERNAL" if externally_blocked else "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
         passive.detail = (
             f"JCE {passive.component_version or 'version unknown'} is in the affected range, but the profile-import "
-            "request did not return a JCE-specific acceptance response. No write is claimed and no cleanup filename "
+            + (
+                "request was redirected before a JCE-specific handler response; external validation is blocked. "
+                if externally_blocked
+                else "request did not return a JCE-specific acceptance response. "
+            )
+            + "No write is claimed and no cleanup filename "
             f"is reported. CSRF token source: {token_source}; upload status: "
             f"{upload.get('status') if upload else 0}; redirected={upload.get('redirected') if upload else False}."
         )
@@ -276,7 +282,7 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.3.0",
+        "module_version": "1.4.0",
         "last_reviewed": "2026-03-20",
         "updated": "2026-03-20",
         "required_detectors": [],
