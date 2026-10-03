@@ -143,9 +143,9 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
 | `CVE-2024-6220` | Keydatas | Through 2.5.2 | passive |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
-| `CVE-2015-7857` | Joomla core content history | Joomla 3.2.0–3.4.4 | passive |
-| `CVE-2016-8869` | Joomla registration privileges | Joomla 3.4.4–3.6.3 | passive |
-| `CVE-2016-8870` | Joomla disabled-registration account creation | Joomla 3.4.4–3.6.3 | passive |
+| `CVE-2015-7857` | Joomla core content history | Joomla 3.2.0–3.4.4 | `safe` SQL-error differential |
+| `CVE-2016-8869` | Joomla registration privileges | Joomla 3.4.4–3.6.3 | `aggressive` account creation |
+| `CVE-2016-8870` | Joomla disabled-registration account creation | Joomla 3.4.4–3.6.3 | `aggressive` account creation |
 | `CVE-2017-8917` | Joomla core `com_fields` | Joomla 3.7.0 | passive |
 | `CVE-2018-15882` | Joomla core `InputFilter` | Before 3.8.12 | `aggressive` inert PHAR-stub upload |
 | `CVE-2024-40744` | Convert Forms | Before 4.4.8 | `safe` |
