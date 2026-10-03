@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .console import (
+    hidden_results_note,
     is_generic_web_result,
     is_joomla_core_result,
     is_php_runtime_result,
@@ -50,6 +51,8 @@ def write_text_report(
     report: dict,
     argv: list[str],
     show_patched: bool = False,
+    show_not_detected: bool = False,
+    show_all: bool = False,
     tool_name: str = "ProofCMS",
 ):
     report_path = Path(path)
@@ -95,13 +98,20 @@ def write_text_report(
                 lines.append("  - none detected from public assets/probes")
         else:
             lines.append("Plugins/components:")
-            for name, data in (target.get("plugins") or {}).items():
+            visible_plugins = {
+                name: data
+                for name, data in (target.get("plugins") or {}).items()
+                if data.get("found") or show_not_detected or show_all
+            }
+            for name, data in visible_plugins.items():
                 lines.append(
                     f"  - {name}: {'yes' if data.get('found') else 'no'} | "
                     f"version: {data.get('version') or 'unknown'} | source: {data.get('source') or 'unknown'}"
                 )
         lines.append("")
-        results, hidden = visible_results(target.get("results", []), show_patched)
+        results, hidden = visible_results(
+            target.get("results", []), show_patched, show_not_detected, show_all
+        )
         php_results = [result for result in results if is_php_runtime_result(result)]
         generic_results = [result for result in results if is_generic_web_result(result)]
         cms_results = [result for result in results if not is_php_runtime_result(result) and not is_generic_web_result(result)]
@@ -120,8 +130,9 @@ def write_text_report(
                 ("Plugins/components", [result for result in cms_results if not is_joomla_core_result(result)]),
             ]
         lines.append("CVE results:")
-        if hidden:
-            lines.append(f"Note: {hidden} PATCHED result(s) hidden. Use --show-patched to include them.")
+        note = hidden_results_note(hidden)
+        if note:
+            lines.append(f"Note: {note}")
         for title, section_results in sections:
             if not section_results:
                 continue

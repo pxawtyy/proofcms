@@ -164,6 +164,8 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
 | `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
 | `CVE-2026-90915` | Joomla cache purge | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3 | passive |
 | `CVE-2026-92222` | Joomla core extensions SSRF | Joomla 3.0.0–5.4.8 and 6.0.0–6.1.3 | passive |
+| `CVE-2026-56292` | AcyMailing SQL injection | 1.0–10.11.0 | passive |
+| `CVE-2026-94132` | AcyMailing Enterprise mailbox attachment RCE | 1.0.0–11.0.5 | passive |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
 | `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |
@@ -175,7 +177,9 @@ An ambiguous or unavailable version produces an inconclusive result instead of a
 
 ## Joomla component inventory
 
-Every Joomla scan checks public manifests and front-end component routes for commonly deployed extensions. The inventory currently includes Akeeba Backup (current `com_akeebabackup` and legacy `com_akeeba`), JSitemap, JCE, Convert Forms, RSForm! Pro, Event Booking, and EngageBox, in addition to components required by vulnerability modules. Detection requires extension-specific content; a generic HTTP `200` response is rejected.
+Every Joomla scan checks public manifests and front-end component routes for commonly deployed extensions. The inventory includes AcyMailing, Akeeba extensions, JSitemap, JCE, K2, Convert Forms and its add-ons, Dropfiles, RSForm! Pro add-ons, Event Booking, EngageBox, Smart Slider 3, SP Page Builder extensions, and Tassos GeoIP, in addition to components required by vulnerability modules. Detection requires extension-specific content; a generic HTTP `200` response is rejected.
+
+To keep large scans readable, `PATCHED` and `NOT_DETECTED` CVEs and undetected plugin inventory entries are hidden by default. Use `--show-patched` or `--show-not-detected` for either category, or `--show-all` to disable both filters. JSON reports retain every result regardless of terminal filtering.
 
 ## Named attack chains
 

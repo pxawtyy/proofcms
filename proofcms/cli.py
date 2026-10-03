@@ -257,6 +257,16 @@ def main():
     parser.add_argument("--no-text-report", action="store_true", help="Disable automatic timestamped text report")
     parser.add_argument("--show-patched", action="store_true", help="Show PATCHED CVEs in terminal and text report")
     parser.add_argument(
+        "--show-not-detected",
+        action="store_true",
+        help="Show NOT_DETECTED CVEs and undetected plugin inventory entries",
+    )
+    parser.add_argument(
+        "--show-all",
+        action="store_true",
+        help="Show all CVE results and plugin inventory entries, including PATCHED and NOT_DETECTED",
+    )
+    parser.add_argument(
         "--fail-on",
         default="",
         help=(
@@ -417,10 +427,22 @@ def main():
         for chain_id in chains:
             aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
             target_report["chains"].append(aggregate(target_report["results"]))
-        print_result(target, info, target_report["results"], show_patched=args.show_patched, php_runtime=php_runtime)
+        print_result(
+            target,
+            info,
+            target_report["results"],
+            show_patched=args.show_patched,
+            show_not_detected=args.show_not_detected,
+            show_all=args.show_all,
+            php_runtime=php_runtime,
+        )
         print_chain_results(target_report["chains"])
         if info.detected and info.name == "joomla":
-            print_plugins(plugins)
+            print_plugins(
+                plugins,
+                show_not_detected=args.show_not_detected,
+                show_all=args.show_all,
+            )
             print()
         elif info.detected and info.name == "wordpress":
             print_wordpress_inventory(wordpress_inventory)
@@ -464,6 +486,9 @@ def main():
             "concurrency": args.concurrency,
             "fail_on": args.fail_on,
             "command_provided": bool(args.aggressive_command),
+            "show_patched": args.show_patched,
+            "show_not_detected": args.show_not_detected,
+            "show_all": args.show_all,
         },
         "tls_policy": "insecure_skip_verify",
         "modules_loaded": list(AVAILABLE_CVES.keys()),
@@ -480,12 +505,26 @@ def main():
         stamp = start_time.strftime("%Y%m%d_%H%M%S_%f")
         out = Path(args.report_dir) / f"proofcms_{stamp}_{run_id}.txt"
         try:
-            saved_out = write_text_report(out, full_report, sys.argv, show_patched=args.show_patched)
+            saved_out = write_text_report(
+                out,
+                full_report,
+                sys.argv,
+                show_patched=args.show_patched,
+                show_not_detected=args.show_not_detected,
+                show_all=args.show_all,
+            )
             print(f"Detailed report saved to: {saved_out}")
         except OSError as exc:
             fallback = Path(tempfile.gettempdir()) / "proofcms-reports" / f"proofcms_{stamp}_{run_id}.txt"
             try:
-                saved_fallback = write_text_report(fallback, full_report, sys.argv, show_patched=args.show_patched)
+                saved_fallback = write_text_report(
+                    fallback,
+                    full_report,
+                    sys.argv,
+                    show_patched=args.show_patched,
+                    show_not_detected=args.show_not_detected,
+                    show_all=args.show_all,
+                )
                 print(f"Warning: could not save the detailed report to {out}: {exc}")
                 print(f"Detailed report saved to fallback path: {saved_fallback}")
             except OSError as fallback_exc:

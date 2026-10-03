@@ -97,16 +97,35 @@ def is_generic_web_result(result: dict | Any) -> bool:
     return str(comp).lower().startswith("web library")
 
 
-def visible_results(results: list[dict | Any], show_patched: bool) -> tuple[list[dict | Any], int]:
-    hidden = 0
+def visible_results(
+    results: list[dict | Any],
+    show_patched: bool = False,
+    show_not_detected: bool = False,
+    show_all: bool = False,
+) -> tuple[list[dict | Any], dict[str, int]]:
+    hidden = {"PATCHED": 0, "NOT_DETECTED": 0}
     visible = []
     for result in results:
         status = result.get("status") if isinstance(result, dict) else getattr(result, "status", None)
-        if status == "PATCHED" and not show_patched:
-            hidden += 1
+        if status == "PATCHED" and not (show_patched or show_all):
+            hidden["PATCHED"] += 1
+            continue
+        if status == "NOT_DETECTED" and not (show_not_detected or show_all):
+            hidden["NOT_DETECTED"] += 1
             continue
         visible.append(result)
     return visible, hidden
+
+
+def hidden_results_note(hidden: dict[str, int]) -> str | None:
+    labels = []
+    if hidden.get("PATCHED"):
+        labels.append(f"{hidden['PATCHED']} PATCHED")
+    if hidden.get("NOT_DETECTED"):
+        labels.append(f"{hidden['NOT_DETECTED']} NOT_DETECTED")
+    if not labels:
+        return None
+    return f"{', '.join(labels)} result(s) hidden. Use --show-all to display everything."
 
 
 def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str, dict] | None = None):
@@ -179,6 +198,8 @@ def print_result(
     info: CMSInfo,
     results: list[dict | Any],
     show_patched: bool = False,
+    show_not_detected: bool = False,
+    show_all: bool = False,
     php_runtime: dict[str, Any] | None = None,
 ):
     reset = "\033[0m"
@@ -195,7 +216,7 @@ def print_result(
     )
     if not info.detected:
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")
-    filtered, hidden = visible_results(results, show_patched)
+    filtered, hidden = visible_results(results, show_patched, show_not_detected, show_all)
     php_results = [result for result in filtered if is_php_runtime_result(result)]
     generic_results = [result for result in filtered if is_generic_web_result(result)]
     cms_results = [result for result in filtered if not is_php_runtime_result(result) and not is_generic_web_result(result)]
@@ -219,20 +240,35 @@ def print_result(
         print(f"\n[{title}]")
         for result in section_results:
             print_one_result(result)
-    if hidden:
-        print(f"\n({hidden} PATCHED result(s) hidden. Use --show-patched to display.)")
+    note = hidden_results_note(hidden)
+    if note:
+        print(f"\n({note})")
     print()
 
 
-def print_plugins(plugins: dict, title: str = "Plugins/components"):
+def print_plugins(
+    plugins: dict,
+    title: str = "Plugins/components",
+    show_not_detected: bool = False,
+    show_all: bool = False,
+):
     if not plugins:
         return
+    visible = {
+        name: data
+        for name, data in plugins.items()
+        if data.get("found") or show_not_detected or show_all
+    }
+    if not visible:
+        print(f"{title}: none detected from public manifests/routes")
+        return
     print(f"{title}:")
-    for name, data in plugins.items():
+    for name, data in visible.items():
         found = "yes" if data.get("found") else "no"
         version = data.get("version") or "unknown"
         source = data.get("source") or "unknown"
-        print(f"  {name}: {found} | version: {version} | source: {source}")
+        edition = f" | edition: {data.get('edition')}" if data.get("edition") else ""
+        print(f"  {name}: {found} | version: {version} | source: {source}{edition}")
 
 
 def print_wordpress_inventory(inventory: dict):
