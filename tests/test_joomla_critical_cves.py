@@ -3,11 +3,16 @@ from unittest.mock import patch
 
 from proofcms.detectors import joomla
 from proofcms.modules.joomla import (
+    cve_2015_7857,
+    cve_2016_8869,
+    cve_2016_8870,
     cve_2017_8917,
     cve_2018_15882,
     cve_2025_26854,
     cve_2026_61424,
     cve_2026_73373,
+    cve_2026_90915,
+    cve_2026_92222,
 )
 
 
@@ -15,6 +20,14 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
     def test_core_boundaries(self):
         cases = (
             (cve_2017_8917, "3.6.5", "NOT_AFFECTED"),
+            (cve_2015_7857, "3.1.6", "NOT_AFFECTED"),
+            (cve_2015_7857, "3.4.4", "LIKELY_VULNERABLE"),
+            (cve_2015_7857, "3.4.5", "PATCHED"),
+            (cve_2016_8869, "3.4.3", "NOT_AFFECTED"),
+            (cve_2016_8869, "3.4.4", "LIKELY_VULNERABLE"),
+            (cve_2016_8869, "3.6.4", "PATCHED"),
+            (cve_2016_8870, "3.6.3", "LIKELY_VULNERABLE"),
+            (cve_2016_8870, "3.6.4", "PATCHED"),
             (cve_2017_8917, "3.7.0", "LIKELY_VULNERABLE"),
             (cve_2017_8917, "3.7.1", "PATCHED"),
             (cve_2018_15882, "3.8.11", "LIKELY_VULNERABLE"),
@@ -23,6 +36,16 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
             (cve_2026_73373, "5.4.8", "PATCHED"),
             (cve_2026_73373, "6.1.2", "LIKELY_VULNERABLE"),
             (cve_2026_73373, "6.1.3", "PATCHED"),
+            (cve_2026_90915, "3.10.12", "NOT_AFFECTED"),
+            (cve_2026_90915, "5.4.8", "LIKELY_VULNERABLE"),
+            (cve_2026_90915, "5.4.9", "PATCHED"),
+            (cve_2026_90915, "6.1.3", "LIKELY_VULNERABLE"),
+            (cve_2026_90915, "6.1.4", "PATCHED"),
+            (cve_2026_92222, "2.5.28", "NOT_AFFECTED"),
+            (cve_2026_92222, "3.10.12", "LIKELY_VULNERABLE"),
+            (cve_2026_92222, "5.4.9", "PATCHED"),
+            (cve_2026_92222, "6.1.3", "LIKELY_VULNERABLE"),
+            (cve_2026_92222, "6.1.4", "PATCHED"),
         )
         for module, version, expected in cases:
             with self.subTest(cve=module.CVE_ID, version=version):
