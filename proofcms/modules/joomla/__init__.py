@@ -17,6 +17,7 @@ from . import (
     cve_2026_49049,
     cve_2026_56290,
     cve_2026_56291,
+    cve_2026_56292,
     cve_2026_57827,
     cve_2026_57830,
     cve_2026_61424,
@@ -24,6 +25,7 @@ from . import (
     cve_2026_78079,
     cve_2026_90915,
     cve_2026_92222,
+    cve_2026_94132,
 )
 
 AVAILABLE_CVES: dict[str, str] = {
@@ -49,6 +51,8 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2026-78079": "proofcms.modules.joomla.cve_2026_78079",
     "CVE-2026-90915": "proofcms.modules.joomla.cve_2026_90915",
     "CVE-2026-92222": "proofcms.modules.joomla.cve_2026_92222",
+    "CVE-2026-94132": "proofcms.modules.joomla.cve_2026_94132",
+    "CVE-2026-56292": "proofcms.modules.joomla.cve_2026_56292",
     "CVE-2026-48907": "proofcms.modules.joomla.cve_2026_48907",
 }
 
@@ -70,6 +74,7 @@ __all__ = [
     "cve_2026_49049",
     "cve_2026_56290",
     "cve_2026_56291",
+    "cve_2026_56292",
     "cve_2026_57827",
     "cve_2026_57830",
     "cve_2026_61424",
@@ -77,4 +82,5 @@ __all__ = [
     "cve_2026_78079",
     "cve_2026_90915",
     "cve_2026_92222",
+    "cve_2026_94132",
 ]
