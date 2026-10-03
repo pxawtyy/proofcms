@@ -60,7 +60,9 @@ def test_registration_probe_uses_session_token_and_optional_group():
     with (
         patch.object(registration_probe, "HttpClient", return_value=client),
         patch.object(registration_probe, "extract_csrf_from_html", return_value="a" * 32),
-        patch.object(registration_probe, "rand_str", side_effect=["abcdefghij", "abcdefghijklmn"]),
+        patch.object(registration_probe, "rand_str", side_effect=["abcdefghij", "abcdefghijklmn", "missing1"]),
+        patch.object(registration_probe, "_administrator_login", return_value={"verified": False}),
+        patch.object(registration_probe, "_frontend_login", return_value=False),
     ):
         proof = registration_probe.submit_registration("http://target.test", group=7)
 
@@ -103,4 +105,4 @@ def test_privilege_probe_reports_sent_without_claiming_confirmation():
     assert result.status == "AGGRESSIVE_SENT"
     assert result.confidence == "MEDIUM"
     assert submit.call_args.kwargs["group"] == 7
-    assert "was not claimed" in result.detail
+    assert "Administrator login was not verified" in result.detail

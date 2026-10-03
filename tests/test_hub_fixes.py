@@ -65,7 +65,7 @@ class TestPhpExecutionProof(unittest.TestCase):
         )
         with patch.object(cve_2026_48907, "passive_check", return_value=fake_passive), \
              patch.object(cve_2026_48907, "_extract_csrf", return_value=("csrf_token", "/", ["/"])), \
-             patch.object(cve_2026_48907.HttpSession, "post", return_value={"status": 200, "body": "OK"}), \
+             patch.object(cve_2026_48907.HttpSession, "post", return_value={"status": 200, "body": "JCE profile import success", "redirected": False}), \
              patch.object(cve_2026_48907.HttpSession, "get", return_value={"status": 200, "body": "<?php echo 'source'; ?>"}), \
              patch("time.sleep"):
             result = cve_2026_48907.run_exploit("http://target", joomla_version="3.9.0")

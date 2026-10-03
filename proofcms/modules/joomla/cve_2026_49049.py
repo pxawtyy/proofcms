@@ -164,7 +164,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
             proof_url=ajax_url,
-            uploaded_filename=saved_name,
+            uploaded_filename=None,
             detail=(
                 "Safe Helix3 AJAX probe received Helix-style success responses for save and remove, "
                 "but no public proof file was observed. Treating this as not confirmed to avoid custom-200 false positives. "
@@ -203,7 +203,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         exploit_available=HAS_EXPLOIT,
         exploit_ran=True,
         proof_url=ajax_url,
-        uploaded_filename=saved_name,
+        uploaded_filename=None,
         detail=(
             "Safe Helix3 AJAX probe did not confirm unauthenticated save access. "
             f"Save status: {save_response.get('status')}; remove was {'attempted' if save_ok else 'skipped'}."
@@ -488,6 +488,9 @@ def check(
 ) -> Finding:
     result = passive_result(plugins)
     if not run_exploit_check:
+        return result
+    if result.status == "NOT_DETECTED":
+        result.detail += " Active proof skipped because no Helix3-specific installation evidence was found."
         return result
     if exploit_mode == "aggressive":
         visual_match = re.fullmatch(r"helix3-import:(\d+):([A-Za-z0-9+/=_-]+)", aggressive_command or "")

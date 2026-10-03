@@ -50,13 +50,23 @@ def check(
         finding.status = "NOT_CONFIRMED"
         finding.confidence = "LOW"
         finding.detail = proof["reason"]
+    elif proof.get("frontend_login_verified") or proof.get("login_verified"):
+        finding.status = "VULNERABLE"
+        finding.confidence = "CONFIRMED"
+        finding.detail = (
+            "The generated account successfully authenticated to Joomla administrator, confirming that the legacy "
+            f"registration request created a usable account. Disposable account: {proof['username']} / "
+            f"{proof['password']} ({proof['email']})."
+        )
     elif proof["accepted"]:
         finding.status = "AGGRESSIVE_SENT"
         finding.confidence = "MEDIUM"
         finding.detail = (
-            "The legacy user.register request was accepted without an explicit rejection. "
+            "The legacy user.register request was sent and produced no explicit rejection, but its redirect/status "
+            "is not evidence of account creation. "
             f"Disposable account candidate: {proof['username']} / {proof['password']} ({proof['email']}). "
-            "External verification cannot distinguish a pending or blocked account from a usable account."
+            f"Login was not verified; candidate/control response differential="
+            f"{proof.get('account_response_differential', False)}."
         )
     else:
         finding.status = "NOT_CONFIRMED"
