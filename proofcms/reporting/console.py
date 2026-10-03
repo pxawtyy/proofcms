@@ -167,6 +167,10 @@ def print_one_result(result: dict | Any):
             print(f"  Cleanup: delete uploaded file {res_dict['uploaded_filename']}")
         else:
             print(f"  Cleanup: if present, delete uploaded file {res_dict['uploaded_filename']}")
+    if res_dict.get("cleanup_attempted"):
+        print(f"  Cleanup verified: {'yes' if res_dict.get('cleanup_verified') else 'no'}")
+    if res_dict.get("evidence"):
+        print(f"  Evidence: {res_dict['evidence']}")
 
 
 def print_result(

@@ -44,6 +44,9 @@ class Finding:
     requested_exploit_mode_input: str | None = None
     proof_url: str | None = None
     uploaded_filename: str | None = None
+    evidence: dict | None = None
+    cleanup_attempted: bool = False
+    cleanup_verified: bool = False
 
     def as_dict(self) -> dict:
         return {
@@ -61,6 +64,9 @@ class Finding:
             "requested_exploit_mode_input": self.requested_exploit_mode_input,
             "proof_url": self.proof_url,
             "uploaded_filename": self.uploaded_filename,
+            "evidence": self.evidence,
+            "cleanup_attempted": self.cleanup_attempted,
+            "cleanup_verified": self.cleanup_verified,
             "detail": self.detail,
             "action": self.action,
         }

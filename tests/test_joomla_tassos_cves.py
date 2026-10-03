@@ -89,6 +89,35 @@ class TestJoomlaTassosCVEs(unittest.TestCase):
         )
         self.assertEqual(result, (name, path))
 
+    def test_empty_valid_preflight_uses_invalid_token_differential(self):
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def request(self, url, **kwargs):
+                if kwargs.get("method") == "POST":
+                    return {"status": 200, "body": "", "redirected": False}
+                if "plugin=proofcmsnosuchplugin" in url:
+                    return {"status": 200, "body": "", "redirected": False}
+                if "plugin=nrframework" in url and "task=include" not in url:
+                    return {"status": 200, "body": "JINVALID_TOKEN", "redirected": False}
+                if "plugin=nrframework" in url and "task=include" in url:
+                    return {"status": 200, "body": "", "redirected": False}
+                return {
+                    "status": 200,
+                    "body": f'<input name="{"a" * 32}" value="1">',
+                    "final_url": "https://target.test/",
+                    "redirected": False,
+                }
+
+        with patch.object(cve_2026_21627, "HttpClient", FakeClient):
+            result = cve_2026_21627.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+        self.assertTrue(result.exploit_ran)
+        self.assertTrue(result.evidence["component_present"])
+        self.assertTrue(result.evidence["token_accepted"])
+        self.assertFalse(result.evidence["write_reported"])
+
     def test_csrf_candidates_use_only_frontend_session_tokens(self):
         class FakeClient:
             def request(self, url, **kwargs):

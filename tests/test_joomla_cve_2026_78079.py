@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch
 
@@ -46,6 +47,52 @@ class TestCVE202678079(unittest.TestCase):
         meta = cve_2026_57830.metadata()
         self.assertIn("file deletion", meta["name"])
         self.assertIn("2.2.6", meta["affected_rule"])
+
+    def test_helix_generic_joomla_success_is_not_confirmation(self):
+        response = {
+            "status": 200,
+            "body": '{"success":true,"message":null,"data":null}',
+            "redirected": False,
+        }
+        with (
+            patch.object(cve_2026_57830.HttpClient, "request", return_value=response),
+            patch.object(cve_2026_57830, "find_anon_csrf_token", return_value=("a" * 32, "/")),
+        ):
+            result = cve_2026_57830.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+        self.assertFalse(result.evidence["handler_reached"])
+
+    def test_helix_confirms_listing_and_bounded_webroot_escape(self):
+        def listing(path, folders, images):
+            return {
+                "status": 200,
+                "redirected": False,
+                "body": json.dumps(
+                    {
+                        "status": True,
+                        "output": '<div id="helix-ultimate-media-manager"></div>',
+                        "path": path,
+                        "folders": folders,
+                        "images": images,
+                    }
+                ),
+            }
+
+        responses = [
+            {"status": 200, "redirected": False, "body": '{"success":true,"data":null}'},
+            listing("/images", ["banners"], ["/srv/www/images/a.png"]),
+            listing("/", ["plugins", "images"], []),
+            listing("/", ["plugins", "images"], []),
+        ]
+        with (
+            patch.object(cve_2026_57830.HttpClient, "request", side_effect=responses),
+            patch.object(cve_2026_57830, "find_anon_csrf_token", return_value=("a" * 32, "/")),
+        ):
+            result = cve_2026_57830.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "VULNERABLE")
+        self.assertTrue(result.evidence["webroot_boundary_escape"])
+        self.assertTrue(result.evidence["absolute_paths_disclosed"])
+        self.assertIn("File deletion was not tested", result.detail)
 
 
 if __name__ == "__main__":

