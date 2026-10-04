@@ -38,7 +38,7 @@ def acymailing_finding(
     parsed = parse_version_safe(version)
     fixed = parse_version_safe(fixed_version)
     minimum = parse_version_safe(minimum_version)
-    if parsed is None:
+    if parsed is None or fixed is None:
         status, confidence = "DETECTED_VERSION_UNKNOWN", "MEDIUM"
         detail = "AcyMailing was detected, but its version could not be determined."
     elif minimum is not None and parsed < minimum:

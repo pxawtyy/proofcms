@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_component_finding, passive_only_check
 
 CVE_ID = "CVE-2025-26854"
@@ -16,8 +16,8 @@ def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
     if parsed is None:
         return "INCONCLUSIVE"
-    minimum = parse_version_safe("1.0.0")
-    maximum = parse_version_safe("1.2.4.0011")
+    minimum = parse_version_required("1.0.0")
+    maximum = parse_version_required("1.2.4.0011")
     return "LIKELY_VULNERABLE" if minimum <= parsed <= maximum else "NOT_AFFECTED"
 
 

@@ -31,7 +31,8 @@ def classify_version(version: str | None) -> str:
 
 
 def _plugin_info(plugins: dict[str, Any] | None) -> dict[str, Any]:
-    return (plugins or {}).get("elementor-pro", {})
+    value = (plugins or {}).get("elementor-pro", {})
+    return value if isinstance(value, dict) else {}
 
 
 def passive_result(plugins: dict[str, Any] | None) -> Finding:
@@ -239,8 +240,7 @@ def run_safe_probe(
         executed, source_leaked = verify_php_execution(proof.get("body", ""), expected)
         if executed:
             cleanup_check = request(proof_url, timeout=timeout, proxy=proxy)
-            cleanup_verified, _ = verify_php_execution(cleanup_check.get("body", ""), expected)
-            cleaned = cleanup_check.get("status") in {404, 410} or not cleanup_verified
+            cleaned = cleanup_check.get("status") in {404, 410}
             return Finding(
                 cve=CVE_ID,
                 name=NAME,
@@ -252,6 +252,8 @@ def run_safe_probe(
                 exploit_ran=True,
                 proof_url=proof_url,
                 uploaded_filename=None if cleaned else filename,
+                cleanup_attempted=True,
+                cleanup_verified=cleaned,
                 detail=(
                     "A randomized arithmetic marker executed successfully. The one-shot proof file was removed "
                     "after execution."

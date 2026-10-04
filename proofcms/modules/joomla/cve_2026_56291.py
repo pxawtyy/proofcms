@@ -198,7 +198,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         uploaded_filename=filename,
         detail=(
             "Aggressive lab upload probe did not confirm execution. "
-            f"Upload status: {upload.get('status')}; proof status: {proof.get('status')}."
+            f"Upload status: {upload.get('status')}; proof status: {proof.get('status') if proof else 'not-found'}."
         ),
         action=(
             f"If the file was uploaded, delete {filename}. Verify server logs and upgrade Balbooa Forms to {FIXED_RULE}."

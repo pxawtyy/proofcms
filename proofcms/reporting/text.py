@@ -10,13 +10,16 @@ from .console import (
     is_joomla_core_result,
     is_php_runtime_result,
     is_wordpress_core_result,
+    redact_output,
+    redact_text,
+    redact_url,
     sanitize_argv,
     visible_results,
 )
 
 
 def append_text_result(lines: list[str], result: dict | Any):
-    res = result if isinstance(result, dict) else result.as_dict()
+    res = redact_output(result if isinstance(result, dict) else result.as_dict())
     lines.append("-" * 80)
     lines.append(f"{res['cve']}: {res['status']} ({res['confidence']})")
     lines.append(f"Name       : {res.get('name')}")
@@ -65,12 +68,16 @@ def write_text_report(
     lines.append("")
     for target in report.get("targets", []):
         cms = target.get("cms") or target.get("joomla", {})
-        lines.append(f"Target: {target.get('target')}")
+        lines.append(f"Target: {redact_url(str(target.get('target') or ''))}")
         lines.append(
             f"CMS: {cms.get('name') or 'unknown'} | detected: {'yes' if cms.get('detected') else 'no'} | "
             f"version: {cms.get('version') or 'unknown'} | source: {cms.get('source')}"
         )
         lines.append("")
+        for error in target.get("errors", []):
+            lines.append(f"Error: {redact_text(str(error))}")
+        if target.get("errors"):
+            lines.append("")
         runtime = target.get("php") or {}
         lines.append(
             f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
@@ -101,7 +108,7 @@ def write_text_report(
             visible_plugins = {
                 name: data
                 for name, data in (target.get("plugins") or {}).items()
-                if data.get("found") or show_not_detected or show_all
+                if data.get("found") or data.get("state") == "error" or show_not_detected or show_all
             }
             for name, data in visible_plugins.items():
                 lines.append(

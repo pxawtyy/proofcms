@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.models import Status
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .common import runtime_finding
 
 CVE_ID = "CVE-2019-11043"
@@ -19,9 +19,9 @@ def classify_version(version: str | None) -> str:
     if value is None:
         return Status.DETECTED_VERSION_UNKNOWN
     ranges = (("7.1.0", "7.1.33"), ("7.2.0", "7.2.24"), ("7.3.0", "7.3.11"))
-    if any(parse_version_safe(low) <= value < parse_version_safe(high) for low, high in ranges):
+    if any(parse_version_required(low) <= value < parse_version_required(high) for low, high in ranges):
         return Status.LIKELY_VULNERABLE
-    return Status.PATCHED if value >= parse_version_safe("7.1.33") else Status.NOT_AFFECTED
+    return Status.PATCHED if value >= parse_version_required("7.1.33") else Status.NOT_AFFECTED
 
 
 def check(

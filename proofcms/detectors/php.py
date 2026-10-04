@@ -15,29 +15,33 @@ def detect_php_runtime(
 ) -> PHPRuntimeInfo:
     """Fingerprint the web-facing PHP runtime without creating files or invoking phpinfo()."""
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
-    observations: list[tuple[str, dict]] = []
-    for path in ("/", "/index.php", "/administrator/index.php", "/wp-login.php"):
-        response = client.get(path)
-        if response.get("status", 0):
-            observations.append((path, response))
-
     server: str | None = None
     first_php_path = "/index.php"
     php_session_source: str | None = None
-    for path, response in observations:
-        headers = response.get("headers") or {}
-        powered = str(headers.get("X-Powered-By", headers.get("x-powered-by", "")))
-        server_header = str(headers.get("Server", headers.get("server", "")))
+    for path in ("/", "/index.php", "/administrator/index.php", "/wp-login.php"):
+        response = client.get(path)
+        if not response.get("status", 0):
+            continue
+        lowered_headers = {str(key).lower(): value for key, value in (response.get("headers") or {}).items()}
+        server_header = str(lowered_headers.get("server", ""))
         server = server or server_header or None
-        for source_name, value in (("X-Powered-By", powered), ("Server", server_header)):
+        for source_name, value in (
+            ("X-Powered-By", str(lowered_headers.get("x-powered-by", ""))),
+            ("Server", server_header),
+        ):
             match = re.search(r"PHP/(\d+\.\d+(?:\.\d+)?)", value, re.IGNORECASE)
             if match:
                 return PHPRuntimeInfo(True, match.group(1), f"{path}:{source_name}", server, path)
         body = str(response.get("body", ""))
-        match = _PHP_VERSION.search(body[:256_000])
+        error_context = re.search(
+            r"(?:fatal error|warning|stack trace|php version|powered by php).{0,160}",
+            body[:256_000],
+            re.IGNORECASE | re.DOTALL,
+        )
+        match = _PHP_VERSION.search(error_context.group(0)) if error_context else None
         if match:
             return PHPRuntimeInfo(True, match.group(1), f"{path}:body", server, path)
-        if "PHPSESSID" in str(headers.get("Set-Cookie", headers.get("set-cookie", ""))):
+        if "PHPSESSID" in str(lowered_headers.get("set-cookie", "")):
             first_php_path = path
             php_session_source = f"{path}:PHPSESSID"
 

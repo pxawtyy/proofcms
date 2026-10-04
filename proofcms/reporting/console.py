@@ -2,9 +2,60 @@ from __future__ import annotations
 
 import importlib
 import re
+import urllib.parse
+from copy import deepcopy
 from typing import Any
 
 from ..core.models import CMSInfo
+
+SENSITIVE_QUERY_KEYS = {
+    "access_token", "api_key", "apikey", "auth", "authorization", "key", "nonce",
+    "password", "passwd", "secret", "sig", "signature", "token",
+}
+
+
+def redact_url(value: str) -> str:
+    """Redact URL credentials and commonly sensitive query parameters."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError:
+        return value
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return value
+    host = parsed.hostname or ""
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = ("***@" if parsed.username is not None else "") + host + (f":{port}" if port else "")
+    query = urllib.parse.urlencode(
+        [(key, "***" if key.lower() in SENSITIVE_QUERY_KEYS else item) for key, item in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)],
+        doseq=True,
+    )
+    return urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
+
+
+def redact_text(value: str) -> str:
+    """Redact every HTTP(S) URL embedded in free-form text."""
+    return re.sub(r"https?://[^\s'\"<>]+", lambda match: redact_url(match.group(0)), value)
+
+
+def redact_output(value: Any) -> Any:
+    """Return a report-safe copy with URLs and sensitive mapping keys redacted."""
+    if isinstance(value, dict):
+        return {
+            key: "***" if str(key).lower() in SENSITIVE_QUERY_KEYS else redact_output(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_output(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_output(item) for item in value)
+    if isinstance(value, str):
+        return redact_text(value)
+    return deepcopy(value)
 
 
 def strip_ansi(text: str) -> str:
@@ -41,8 +92,13 @@ def sanitize_argv(argv: list[str]) -> list[str]:
         ):
             prefix, _ = arg.split("=", 1)
             sanitized.append(f"{prefix}=***")
+        elif arg in {"-u", "--url"} and i + 1 < len(argv):
+            sanitized.extend([arg, redact_url(argv[i + 1])])
+            skip_next = True
+        elif arg.startswith("--url="):
+            sanitized.append("--url=" + redact_url(arg.split("=", 1)[1]))
         else:
-            sanitized.append(arg)
+            sanitized.append(redact_url(arg))
     return sanitized
 
 
@@ -140,13 +196,13 @@ def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str
         meta = module.metadata()
         modes = ",".join(meta.get("exploit_modes", [])) or "none"
         exploit = "yes" if meta.get("exploit_available") else "no"
-        intrusive = "intrusive" if meta.get("intrusive") else "passive"
+        proof_kind = "intrusive" if meta.get("intrusive") else ("active-safe" if modes != "none" else "passive")
         cms_key = str(meta.get("cms", "joomla")).lower()
         cms = {"joomla": "Joomla", "wordpress": "WordPress"}.get(cms_key, cms_key.title())
         versions = ",".join(meta.get("affected_joomla_versions", meta.get("affected_versions", ["unknown"])))
         print(
             f"- {cve_id}: {meta.get('name')} | {cms}: {versions} | "
-            f"rule: {meta.get('affected_rule')} | exploit: {exploit} ({intrusive}; modes: {modes})"
+            f"rule: {meta.get('affected_rule')} | exploit: {exploit} ({proof_kind}; modes: {modes})"
         )
     if available_chains:
         print("\nAvailable attack chains:")
@@ -186,7 +242,7 @@ def print_one_result(result: dict | Any):
             state = "available, not run"
         print(f"  Exploit: {state}")
     if res_dict.get("proof_url"):
-        print(f"  Proof URL: {res_dict['proof_url']}")
+        print(f"  Proof URL: {redact_url(res_dict['proof_url'])}")
     if res_dict.get("uploaded_filename"):
         if res_dict["status"] in {"VULNERABLE", "VULNERABLE_UPLOAD_ONLY"}:
             print(f"  Cleanup: delete uploaded file {res_dict['uploaded_filename']}")
@@ -195,7 +251,7 @@ def print_one_result(result: dict | Any):
     if res_dict.get("cleanup_attempted"):
         print(f"  Cleanup verified: {'yes' if res_dict.get('cleanup_verified') else 'no'}")
     if res_dict.get("evidence"):
-        print(f"  Evidence: {res_dict['evidence']}")
+        print(f"  Evidence: {redact_output(res_dict['evidence'])}")
 
 
 def print_result(
@@ -206,14 +262,17 @@ def print_result(
     show_not_detected: bool = False,
     show_all: bool = False,
     php_runtime: dict[str, Any] | None = None,
+    errors: list[str] | None = None,
 ):
     reset = "\033[0m"
-    print(f"Target: {target}")
+    print(f"Target: {redact_url(target)}")
     cms_name = info.name if info.detected else "unknown"
     print(
         f"CMS: {cms_name} | detected: {'yes' if info.detected else 'no'} | "
         f"version: {info.version or 'unknown'} | source: {info.source}"
     )
+    for error in errors or []:
+        print(f"{status_color('ERROR')}Error: {redact_text(error)}{reset}")
     runtime = php_runtime or {}
     print(
         f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
@@ -262,7 +321,7 @@ def print_plugins(
     visible = {
         name: data
         for name, data in plugins.items()
-        if data.get("found") or show_not_detected or show_all
+        if data.get("found") or data.get("state") == "error" or show_not_detected or show_all
     }
     if not visible:
         print(f"{title}: none detected from public manifests/routes")

@@ -17,6 +17,7 @@ from .models import CMSInfo, Confidence, CVECheckResult, Finding, JoomlaInfo, Pl
 from .probes import extract_csrf_from_html, find_anon_csrf_token, rand_str
 from .versions import (
     normalize_version_string,
+    parse_version_required,
     parse_version_safe,
     version_gt,
     version_gte,
@@ -46,6 +47,7 @@ __all__ = [
     "is_baseline_match",
     "normalize_url",
     "normalize_version_string",
+    "parse_version_required",
     "parse_version_safe",
     "poll_paths",
     "probe_target_baseline",

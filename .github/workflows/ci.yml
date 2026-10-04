@@ -22,6 +22,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - run: python -m ruff check .
-      - run: python -m unittest discover -s tests -v
+      - run: python -m pytest
+      - run: python -m mypy proofcms
       - run: python -m proofcms --list-cves
       - run: python -m proofcms --help

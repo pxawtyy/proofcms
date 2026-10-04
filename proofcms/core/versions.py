@@ -36,6 +36,14 @@ def parse_version_safe(version: str | None) -> Version | None:
         return None
 
 
+def parse_version_required(version: str) -> Version:
+    """Parse a trusted version constant, raising if the source code contains an invalid value."""
+    parsed = parse_version_safe(version)
+    if parsed is None:
+        raise ValueError(f"invalid required version: {version!r}")
+    return parsed
+
+
 def version_parts(version: str | None) -> list[int] | None:
     """Legacy helper: returns integer parts of version, or None."""
     parsed = parse_version_safe(version)

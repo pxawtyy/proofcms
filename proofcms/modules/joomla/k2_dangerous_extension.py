@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.models import Finding
-from ...core.versions import version_lt
+from ...core.versions import parse_version_safe, version_lt
 from .k2_upload_probe import probe_inert_extension
 
 FIXED_K2_VERSION = "2.11.20240911"
@@ -41,7 +41,16 @@ def check_k2_dangerous_extension(
             detail="K2 was not detected through its public manifest or routes.",
             action="Verify manually if K2 is installed under a non-standard path.",
         )
-    if version and not version_lt(version, FIXED_K2_VERSION):
+    parsed_version = parse_version_safe(version)
+    if version and parsed_version is None:
+        return Finding(
+            **base,
+            status="INCONCLUSIVE",
+            confidence="MEDIUM",
+            detail=f"K2 was detected, but version value {version!r} could not be parsed.",
+            action=f"Manually verify K2 and upgrade to {FIXED_K2_VERSION} or newer if needed.",
+        )
+    if parsed_version is not None and not version_lt(version, FIXED_K2_VERSION):
         return Finding(
             **base,
             status="PATCHED",
@@ -52,8 +61,8 @@ def check_k2_dangerous_extension(
 
     result = Finding(
         **base,
-        status="LIKELY_VULNERABLE" if version else "INCONCLUSIVE",
-        confidence="HIGH" if version else "MEDIUM",
+        status="LIKELY_VULNERABLE" if parsed_version is not None else "INCONCLUSIVE",
+        confidence="HIGH" if parsed_version is not None else "MEDIUM",
         detail=(
             f"Detected K2 {version}, which bundles the affected upload library. "
             "Exploitation additionally requires a K2 item-creation upload surface and sufficient author permissions."

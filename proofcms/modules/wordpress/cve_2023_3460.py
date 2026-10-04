@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .plugin_advisory import passive_only_check, passive_plugin_finding
 
 CVE_ID = "CVE-2023-3460"
@@ -16,7 +16,7 @@ def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
     if parsed is None:
         return "DETECTED_VERSION_UNKNOWN"
-    return "LIKELY_VULNERABLE" if parsed < parse_version_safe("2.6.7") else "PATCHED"
+    return "LIKELY_VULNERABLE" if parsed < parse_version_required("2.6.7") else "PATCHED"
 
 
 def check(

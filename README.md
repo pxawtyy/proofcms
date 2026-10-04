@@ -20,6 +20,7 @@ and separately fingerprints the web-facing PHP runtime.
 - Runtime evidence that distinguishes successful PHP execution from source-code disclosure
 - Per-module error isolation
 - Proxy-aware HTTP transport
+- Verified TLS by default, with an explicit `--insecure` lab override
 - Concurrent Joomla component inventory with on-demand vulnerability-specific detectors
 - Console, JSON, and timestamped text reports
 - CI-oriented exit codes
@@ -66,6 +67,9 @@ Scan targets from a file:
 ```bash
 proofcms -l targets.txt
 ```
+
+Targets must be HTTP(S) application roots or CMS subdirectories. Query strings and fragments are rejected. TLS
+certificates are verified by default; use `--insecure` only for isolated lab targets with self-signed certificates.
 
 Select one or more CVEs:
 
@@ -179,6 +183,9 @@ An ambiguous or unavailable version produces an inconclusive result instead of a
 
 Every Joomla scan checks public manifests and front-end component routes for commonly deployed extensions. The inventory includes AcyMailing, Akeeba extensions, JSitemap, JCE, K2, Convert Forms and its add-ons, Dropfiles, RSForm! Pro add-ons, Event Booking, EngageBox, Smart Slider 3, SP Page Builder extensions, and Tassos GeoIP, in addition to components required by vulnerability modules. Detection requires extension-specific content; a generic HTTP `200` response is rejected.
 
+Use `--inventory required` for narrow scans that should run only component detectors required by the selected CVEs.
+The default `--inventory full` preserves the complete Joomla inventory.
+
 To keep large scans readable, `PATCHED`, `NOT_DETECTED`, and `NOT_AFFECTED` CVEs and undetected plugin inventory entries are hidden by default. Use `--show-patched` or `--show-not-detected` for their respective categories, or `--show-all` to disable every display filter. JSON reports retain every result regardless of terminal filtering.
 
 ## Named attack chains
@@ -225,6 +232,9 @@ Write a JSON report:
 proofcms -u https://example.test --json results.json
 ```
 
+JSON creation is atomic and refuses to overwrite an existing file. Pass `--overwrite-json` when replacement is
+intentional. Report output redacts URL credentials and common sensitive query parameters.
+
 Text reports are written to `reports/proofcms_<timestamp>_<run-id>.txt` unless `--no-text-report` is used. Proxy credentials, commands, tokens, and other sensitive command-line values are redacted from text reports.
 
 Use `--fail-on` to integrate results into a pipeline:
@@ -267,7 +277,7 @@ Isolated, loopback-only WordPress reproduction environments are available under
 Run the complete test suite:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest
 ```
 
 Run static checks:

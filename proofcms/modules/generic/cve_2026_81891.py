@@ -4,7 +4,7 @@ import secrets
 from typing import Any
 
 from ...core.models import Confidence, Finding, Status
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .elfinder import cleanup, command, discover, endpoint_url, first_added, read_file, upload, zip_payload
 
 CVE_ID = "CVE-2026-81891"
@@ -15,7 +15,7 @@ def classify_version(version: str | None) -> str:
     value = parse_version_safe(version)
     if value is None:
         return Status.DETECTED_VERSION_UNKNOWN
-    return Status.LIKELY_VULNERABLE if value < parse_version_safe("2.1.70") else Status.PATCHED
+    return Status.LIKELY_VULNERABLE if value < parse_version_required("2.1.70") else Status.PATCHED
 
 
 def check(target_url: str, cms_version: str | None = None, run_exploit_check: bool = False,

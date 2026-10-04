@@ -19,6 +19,18 @@ def passive_plugin_finding(
     exploit_available: bool = False,
 ) -> Finding:
     plugin = (plugins or {}).get(plugin_slug, {})
+    if plugin.get("state") == "error" or str(plugin.get("source", "")).startswith("error:"):
+        return Finding(
+            cve=cve,
+            name=name,
+            status="ERROR",
+            confidence="LOW",
+            component=component,
+            affected_rule=affected_rule,
+            exploit_available=exploit_available,
+            detail=f"Plugin detection failed: {plugin.get('source', 'unknown detector error')}",
+            action="Resolve target connectivity or detector failure, then scan again.",
+        )
     if not plugin.get("found"):
         return Finding(
             cve=cve,
@@ -36,13 +48,13 @@ def passive_plugin_finding(
     status = classify(version)
     if status == "LIKELY_VULNERABLE":
         detail = f"Detected {component.removeprefix('WordPress plugin ')} {version}, which is in the affected range."
-        confidence = "HIGH"
+        confidence = "HIGH" if plugin.get("version_confidence", "HIGH") == "HIGH" else "MEDIUM"
     elif status == "PATCHED":
         detail = f"Detected {component.removeprefix('WordPress plugin ')} {version}, which includes the published fix."
-        confidence = "HIGH"
+        confidence = "HIGH" if plugin.get("version_confidence", "HIGH") == "HIGH" else "MEDIUM"
     elif status == "NOT_AFFECTED":
         detail = f"Detected {component.removeprefix('WordPress plugin ')} {version}, outside the published affected range."
-        confidence = "HIGH"
+        confidence = "HIGH" if plugin.get("version_confidence", "HIGH") == "HIGH" else "MEDIUM"
     else:
         detail = f"The {component.removeprefix('WordPress plugin ')} plugin was detected, but its version is unknown."
         confidence = "MEDIUM"

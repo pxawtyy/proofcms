@@ -433,19 +433,19 @@ class TestSupervisorSevenRefinements(unittest.TestCase):
             result = normalize_url("https://secure.example.com", timeout=5)
             self.assertEqual(result, "https://secure.example.com")
 
-        # Transport/TLS failure (e.g. URLError) SHOULD downgrade to HTTP
+        # URL normalization is pure and must never silently downgrade HTTPS.
         mock_opener_transport = MagicMock()
         mock_opener_transport.open.side_effect = urllib.error.URLError("Connection refused")
         with patch("urllib.request.build_opener", return_value=mock_opener_transport):
             result = normalize_url("https://legacy.example.com", timeout=5)
-            self.assertEqual(result, "http://legacy.example.com")
+            self.assertEqual(result, "https://legacy.example.com")
 
-        # SSLError SHOULD downgrade to HTTP
+        # TLS failures likewise preserve the explicitly requested scheme.
         mock_opener_ssl = MagicMock()
         mock_opener_ssl.open.side_effect = ssl.SSLError("Certificate verify failed")
         with patch("urllib.request.build_opener", return_value=mock_opener_ssl):
             result = normalize_url("https://broken-ssl.example.com", timeout=5)
-            self.assertEqual(result, "http://broken-ssl.example.com")
+            self.assertEqual(result, "https://broken-ssl.example.com")
 
     def test_item_2_pyproject_python_310_requirements(self):
         """2. pyproject.toml requires Python >= 3.10 and configures Ruff for py310."""

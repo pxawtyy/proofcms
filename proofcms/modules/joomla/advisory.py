@@ -58,6 +58,18 @@ def passive_component_finding(
     remediation: str,
 ) -> Finding:
     extension = (plugins or {}).get(detector_key, {})
+    if extension.get("state") == "error" or str(extension.get("source", "")).startswith("error:"):
+        return Finding(
+            cve=cve,
+            name=name,
+            status="ERROR",
+            confidence="LOW",
+            component=component,
+            affected_rule=affected_rule,
+            exploit_available=False,
+            detail=f"{component} detection failed: {extension.get('source', 'unknown detector error')}",
+            action="Resolve target connectivity or detector failure, then scan again.",
+        )
     if not extension.get("found"):
         return Finding(
             cve=cve,

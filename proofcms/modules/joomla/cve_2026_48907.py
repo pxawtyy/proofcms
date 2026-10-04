@@ -8,7 +8,7 @@ from ...core.models import Finding
 
 CVECheckResult = Finding
 from ...core.probes import CSRF_CANDIDATE_PATHS, extract_csrf_candidates_from_html, rand_str
-from ...core.versions import version_lt
+from ...core.versions import parse_version_safe, version_lt
 
 CVE_ID = "CVE-2026-48907"
 NAME = "JCE Extension unauthenticated arbitrary file upload to RCE"
@@ -87,7 +87,22 @@ def passive_check(target_url: str, joomla_version: str | None, timeout: int = 12
             action="Component not detected via standard public routes; verify manually if installed in non-standard location.",
         )
 
-    if jce_version and version_lt(jce_version, PATCHED_VERSION):
+    parsed_jce_version = parse_version_safe(jce_version)
+    if jce_version and parsed_jce_version is None:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="INCONCLUSIVE",
+            confidence="MEDIUM",
+            component=COMPONENT,
+            component_version=jce_version,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail=f"JCE was detected, but version value {jce_version!r} could not be parsed.",
+            action=f"Manually verify JCE and upgrade to {PATCHED_VERSION} or later if needed.",
+        )
+
+    if parsed_jce_version is not None and version_lt(jce_version, PATCHED_VERSION):
         return Finding(
             cve=CVE_ID,
             name=NAME,
@@ -104,7 +119,7 @@ def passive_check(target_url: str, joomla_version: str | None, timeout: int = 12
             action=f"Upgrade JCE to {PATCHED_VERSION} or later.",
         )
 
-    if jce_version:
+    if parsed_jce_version is not None:
         return Finding(
             cve=CVE_ID,
             name=NAME,

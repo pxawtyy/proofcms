@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_core_finding
 from .registration_probe import submit_registration
 
@@ -15,9 +15,9 @@ def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
     if parsed is None:
         return "INCONCLUSIVE"
-    if parsed < parse_version_safe("3.4.4"):
+    if parsed < parse_version_required("3.4.4"):
         return "NOT_AFFECTED"
-    return "LIKELY_VULNERABLE" if parsed < parse_version_safe("3.6.4") else "PATCHED"
+    return "LIKELY_VULNERABLE" if parsed < parse_version_required("3.6.4") else "PATCHED"
 
 
 def check(

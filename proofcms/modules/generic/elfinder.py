@@ -84,7 +84,7 @@ def first_added(data: dict[str, Any], name: str | None = None) -> dict[str, Any]
 
 def read_file(conn: dict[str, Any], file_hash: str) -> str:
     query = urlencode({"cmd": "file", "target": file_hash, "download": "1"})
-    return conn["client"].get(f"{conn['endpoint']}?{query}").get("body", "")
+    return str(conn["client"].get(f"{conn['endpoint']}?{query}").get("body", ""))
 
 
 def cleanup(conn: dict[str, Any], hashes: list[str]) -> None:

@@ -4,16 +4,19 @@ import argparse
 import importlib
 import sys
 import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from proofcms.chains import AVAILABLE_CHAINS
 from proofcms.core.http import (
+    configure_tls,
     fetch_url,
     is_baseline_match,
     normalize_url,
     probe_target_baseline,
+    reset_transport_state,
 )
 from proofcms.core.models import (
     CMSInfo,
@@ -131,6 +134,7 @@ def print_cve_catalog():
 
 
 def selected_cves(selection: str) -> list[str]:
+    selection = selection.strip()
     if selection.lower() in {"none", "no", "off"}:
         return []
     if selection.lower() == "all":
@@ -139,7 +143,7 @@ def selected_cves(selection: str) -> list[str]:
     unknown = [item for item in requested if item not in AVAILABLE_CVES]
     if unknown:
         raise SystemExit(f"Unknown CVE: {', '.join(unknown)}")
-    return requested
+    return list(dict.fromkeys(requested))
 
 
 def exploit_selection(value: str) -> set[str]:
@@ -197,10 +201,12 @@ def load_targets(args) -> list[str]:
     if args.list:
         with open(args.list, "r", encoding="utf-8") as fh:
             targets.extend(line.strip() for line in fh if line.strip())
-    return list(dict.fromkeys(normalize_url(target, timeout=args.timeout, proxy=args.proxy) for target in targets))
+    return list(dict.fromkeys(normalize_url(target) for target in targets))
 
 
 def main():
+    monotonic_start = time.monotonic()
+    start_time = datetime.now(timezone.utc)
     parser = argparse.ArgumentParser(description=f"{TOOL_NAME} - CMS vulnerability validation hub")
     parser.add_argument("-u", "--url", help="Single target URL")
     parser.add_argument("-l", "--list", help="File with one target URL per line")
@@ -251,8 +257,20 @@ def main():
     )
     parser.add_argument("--timeout", type=int, default=12, help="HTTP timeout in seconds")
     parser.add_argument("--concurrency", type=int, default=5, help="Concurrency limit for detector probes. Default: 5")
+    parser.add_argument(
+        "--inventory",
+        choices=["full", "required"],
+        default="full",
+        help="Joomla inventory scope: full or only detectors required by selected checks.",
+    )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable TLS certificate verification for isolated lab targets.",
+    )
     parser.add_argument("--proxy", help="Proxy URL passed to CVE modules")
     parser.add_argument("--json", dest="json_path", help="Write JSON report to this path")
+    parser.add_argument("--overwrite-json", action="store_true", help="Replace an existing --json report atomically")
     parser.add_argument("--report-dir", default=str(ROOT / "reports"), help="Directory for timestamped text reports")
     parser.add_argument("--no-text-report", action="store_true", help="Disable automatic timestamped text report")
     parser.add_argument("--show-patched", action="store_true", help="Show PATCHED CVEs in terminal and text report")
@@ -289,11 +307,6 @@ def main():
         args.run_exploit = "all"
         args.exploit_mode = "aggressive"
 
-    targets = load_targets(args)
-    if not targets:
-        parser.print_help()
-        return 2
-
     chains = selected_chains(args.chain)
     cves = selected_cves(args.cve or ("none" if chains else "all"))
     for chain_id in chains:
@@ -321,28 +334,75 @@ def main():
         print("Use aggressive mode only in an isolated lab you control.")
         return 2
 
-    start_time = datetime.now(timezone.utc)
+    fail_criteria = {c.strip().lower() for c in args.fail_on.split(",") if c.strip()}
+    supported_fail_criteria = {"vulnerable", "likely", "inconclusive", "error"}
+    unknown_fail_criteria = sorted(fail_criteria - supported_fail_criteria)
+    if unknown_fail_criteria:
+        print(f"Error: unsupported --fail-on value(s): {', '.join(unknown_fail_criteria)}")
+        return 1
+    if args.timeout <= 0:
+        print("Error: --timeout must be greater than zero.")
+        return 1
+    if args.concurrency <= 0:
+        print("Error: --concurrency must be greater than zero.")
+        return 1
+
+    configure_tls(verify=not args.insecure)
+    try:
+        targets = load_targets(args)
+    except (OSError, ValueError) as exc:
+        print(f"Error: could not load targets: {exc}")
+        return 1
+    if not targets:
+        parser.print_help()
+        return 1
+
     run_id = uuid.uuid4().hex[:8]
 
     # Calculate union of required detectors for the selected CVEs
     needed_detectors: set[str] = set()
+    module_setup_errors: dict[str, str] = {}
     for cve_id in cves:
-        module = importlib.import_module(AVAILABLE_CVES[cve_id])
-        meta = getattr(module, "metadata", dict)()
-        for det in meta.get("required_detectors", []):
-            needed_detectors.add(det)
+        try:
+            module = importlib.import_module(AVAILABLE_CVES[cve_id])
+            meta = getattr(module, "metadata", dict)()
+            for det in meta.get("required_detectors", []):
+                needed_detectors.add(det)
+        except Exception as exc:  # noqa: BLE001
+            module_setup_errors[cve_id] = f"{type(exc).__name__}: {exc}"
 
     targets_reports: list[dict] = []
 
     for target in targets:
-        baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
+        target_started = time.monotonic()
+        reset_transport_state()
+        target_errors: list[str] = []
+        try:
+            baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
+        except Exception as exc:  # noqa: BLE001
+            baseline = {"status": 0, "target_root": target, "error": {"type": type(exc).__name__, "message": str(exc)}}
+            target_errors.append(f"Baseline detection failed: {type(exc).__name__}: {exc}")
+        if baseline.get("status", 0) == 0:
+            message = "Target baseline request failed; CMS and component absence cannot be established."
+            if message not in target_errors:
+                target_errors.append(message)
         if baseline.get("edge_interstitial"):
             print(
                 f"Warning: {target} returned a {baseline['edge_interstitial']} challenge page. "
                 "CMS and vulnerability results may describe the edge page rather than the origin."
             )
-        info = detect_cms(target, args, baseline=baseline)
-        php_runtime_info = detect_php_runtime(target, timeout=args.timeout, proxy=args.proxy)
+        try:
+            info = detect_cms(target, args, baseline=baseline)
+        except Exception as exc:  # noqa: BLE001
+            target_errors.append(f"CMS detection failed: {type(exc).__name__}: {exc}")
+            info = CMSInfo("unknown", False, None, "error")
+        try:
+            php_runtime_info = detect_php_runtime(target, timeout=args.timeout, proxy=args.proxy)
+        except Exception as exc:  # noqa: BLE001
+            target_errors.append(f"PHP detection failed: {type(exc).__name__}: {exc}")
+            from proofcms.core.models import PHPRuntimeInfo
+
+            php_runtime_info = PHPRuntimeInfo(False, None, "error")
         php_runtime = {
             "detected": php_runtime_info.detected,
             "version": php_runtime_info.version,
@@ -350,22 +410,32 @@ def main():
             "server": php_runtime_info.server,
             "entrypoint": php_runtime_info.entrypoint,
         }
-        plugins = (
-            detect_plugins(
-                target,
-                args,
-                baseline=baseline,
-                required_plugins=needed_detectors,
-                concurrency=args.concurrency,
+        try:
+            plugins = (
+                detect_plugins(
+                    target,
+                    args,
+                    baseline=baseline,
+                    required_plugins=needed_detectors,
+                    concurrency=args.concurrency,
+                )
+                if info.detected and info.name == "joomla"
+                else {}
             )
-            if info.detected and info.name == "joomla"
-            else {}
-        )
-        wordpress_inventory = (
-            detect_wordpress_plugins(target, args.timeout, proxy=args.proxy, baseline=baseline)
-            if info.detected and info.name == "wordpress"
-            else {}
-        )
+        except Exception as exc:  # noqa: BLE001
+            plugins = {}
+            target_errors.append(f"Joomla inventory failed: {type(exc).__name__}: {exc}")
+        try:
+            wordpress_inventory = (
+                detect_wordpress_plugins(target, args.timeout, proxy=args.proxy, baseline=baseline)
+                if info.detected and info.name == "wordpress"
+                else {}
+            )
+        except Exception as exc:  # noqa: BLE001
+            wordpress_inventory = {}
+            target_errors.append(f"WordPress inventory failed: {type(exc).__name__}: {exc}")
+        for inventory_error in wordpress_inventory.get("errors", []):
+            target_errors.append(f"WordPress inventory failed: {inventory_error}")
         target_report = {
             "target": target,
             "cms": {
@@ -385,8 +455,21 @@ def main():
             "results": [],
             "chains": [],
             "edge_interstitial": baseline.get("edge_interstitial"),
+            "errors": target_errors,
+            "selected_modules": list(cves),
         }
         for cve_id in cves:
+            if cve_id in module_setup_errors:
+                target_report["results"].append({
+                    "cve": cve_id,
+                    "name": cve_id,
+                    "component": "Unknown",
+                    "status": "ERROR",
+                    "confidence": "LOW",
+                    "detail": f"Module setup failed: {module_setup_errors[cve_id]}",
+                    "action": "Check module integrity.",
+                })
+                continue
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
             meta = getattr(module, "metadata", dict)()
             module_scope = meta.get("cms", "joomla")
@@ -431,8 +514,18 @@ def main():
                 }
             target_report["results"].append(result_dict)
         for chain_id in chains:
-            aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
-            target_report["chains"].append(aggregate(target_report["results"]))
+            try:
+                aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
+                target_report["chains"].append(aggregate(target_report["results"]))
+            except Exception as exc:  # noqa: BLE001
+                target_report["chains"].append({
+                    "chain": chain_id,
+                    "status": "ERROR",
+                    "confidence": "LOW",
+                    "components": AVAILABLE_CHAINS[chain_id].get("cves", []),
+                    "detail": f"Chain aggregation failed: {type(exc).__name__}: {exc}",
+                    "action": "Check chain integrity.",
+                })
         print_result(
             target,
             info,
@@ -441,6 +534,7 @@ def main():
             show_not_detected=args.show_not_detected,
             show_all=args.show_all,
             php_runtime=php_runtime,
+            errors=target_errors,
         )
         print_chain_results(target_report["chains"])
         if info.detected and info.name == "joomla":
@@ -453,10 +547,11 @@ def main():
         elif info.detected and info.name == "wordpress":
             print_wordpress_inventory(wordpress_inventory)
             print()
+        target_report["duration_seconds"] = round(time.monotonic() - target_started, 3)
         targets_reports.append(target_report)
 
     end_time = datetime.now(timezone.utc)
-    duration = (end_time - start_time).total_seconds()
+    duration = time.monotonic() - monotonic_start
 
     summary = {
         "VULNERABLE": 0,
@@ -469,9 +564,16 @@ def main():
         "ERROR": 0,
     }
     for t in targets_reports:
+        if t.get("errors"):
+            summary["ERROR"] += len(t["errors"])
         for r in t.get("results", []):
             st = r.get("status", "ERROR")
             summary[st] = summary.get(st, 0) + 1
+    chain_summary: dict[str, int] = {}
+    for target_report in targets_reports:
+        for chain in target_report.get("chains", []):
+            status = chain.get("status", "ERROR")
+            chain_summary[status] = chain_summary.get(status, 0) + 1
 
     full_report = {
         "schema_version": "2.1.0",
@@ -490,22 +592,31 @@ def main():
             "timeout": args.timeout,
             "proxy": "***" if args.proxy else None,
             "concurrency": args.concurrency,
+            "inventory": args.inventory,
             "fail_on": args.fail_on,
             "command_provided": bool(args.aggressive_command),
             "show_patched": args.show_patched,
             "show_not_detected": args.show_not_detected,
             "show_all": args.show_all,
         },
-        "tls_policy": "insecure_skip_verify",
-        "modules_loaded": list(AVAILABLE_CVES.keys()),
+        "tls_policy": "insecure_skip_verify" if args.insecure else "verify",
+        "modules_selected": cves,
+        "modules_setup_failed": module_setup_errors,
         "summary_by_status": summary,
+        "summary_by_chain_status": chain_summary,
         "targets": targets_reports,
     }
 
+    report_write_error = False
     if args.json_path:
         out = Path(args.json_path)
-        write_json_report(out, full_report)
-        print(f"JSON report saved to: {out}")
+        try:
+            saved_json = write_json_report(out, full_report, overwrite=args.overwrite_json)
+            print(f"JSON report saved to: {saved_json}")
+        except OSError as exc:
+            print(f"Error: could not save JSON report to {out}: {exc}")
+            summary["ERROR"] += 1
+            report_write_error = True
 
     if not args.no_text_report:
         stamp = start_time.strftime("%Y%m%d_%H%M%S_%f")
@@ -536,21 +647,32 @@ def main():
             except OSError as fallback_exc:
                 print(f"Warning: could not save the detailed report to {out}: {exc}")
                 print(f"Warning: fallback also failed at {fallback}: {fallback_exc}")
+                report_write_error = True
 
-    fail_criteria = {c.strip().lower() for c in args.fail_on.split(",") if c.strip()}
     if fail_criteria:
         if "vulnerable" in fail_criteria and (
             summary.get("VULNERABLE", 0) > 0 or summary.get("VULNERABLE_UPLOAD_ONLY", 0) > 0
+            or chain_summary.get("VULNERABLE", 0) > 0
         ):
             return 2
-        if "likely" in fail_criteria and summary.get("LIKELY_VULNERABLE", 0) > 0:
+        if "likely" in fail_criteria and (
+            summary.get("LIKELY_VULNERABLE", 0) > 0 or chain_summary.get("LIKELY_VULNERABLE", 0) > 0
+        ):
             return 3
-        if "inconclusive" in fail_criteria and summary.get("INCONCLUSIVE", 0) > 0:
+        if "inconclusive" in fail_criteria and (
+            summary.get("INCONCLUSIVE", 0) > 0
+            or summary.get("DETECTED_VERSION_UNKNOWN", 0) > 0
+            or summary.get("BLOCKED_EXTERNAL", 0) > 0
+            or chain_summary.get("INCONCLUSIVE", 0) > 0
+            or chain_summary.get("BLOCKED_EXTERNAL", 0) > 0
+        ):
             return 4
-        if "error" in fail_criteria and summary.get("ERROR", 0) > 0:
+        if "error" in fail_criteria and (
+            summary.get("ERROR", 0) > 0 or chain_summary.get("ERROR", 0) > 0
+        ):
             return 5
 
-    return 0
+    return 1 if report_write_error else 0
 
 
 if __name__ == "__main__":

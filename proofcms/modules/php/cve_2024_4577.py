@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.models import Confidence, Status
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .common import harmless_cgi_marker_probe, runtime_finding
 
 CVE_ID = "CVE-2024-4577"
@@ -19,8 +19,8 @@ def classify_version(version: str | None) -> str:
     major_minor = value.release[:2]
     fixed = {(8, 1): "8.1.29", (8, 2): "8.2.20", (8, 3): "8.3.8"}
     if major_minor in fixed:
-        return Status.LIKELY_VULNERABLE if value < parse_version_safe(fixed[major_minor]) else Status.PATCHED
-    if value < parse_version_safe("8.1.0"):
+        return Status.LIKELY_VULNERABLE if value < parse_version_required(fixed[major_minor]) else Status.PATCHED
+    if value < parse_version_required("8.1.0"):
         return Status.LIKELY_VULNERABLE
     return Status.NOT_AFFECTED
 

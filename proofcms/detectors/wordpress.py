@@ -44,6 +44,7 @@ def detect_wordpress(
         r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
         r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})",
     ]
+    best: CMSInfo | None = None
     for path in paths:
         response = _fetch(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
@@ -54,32 +55,41 @@ def detect_wordpress(
         source = f"wordpress:{path}"
 
         version = None
-        for pattern in version_patterns:
+        patterns = version_patterns if path in {"/", "/readme.html"} else version_patterns[:3]
+        for pattern in patterns:
             match = re.search(pattern, body, re.IGNORECASE)
             if match:
                 version = match.group(1).strip()
                 break
 
-        if version:
+        has_wp_signature = bool(
+            "wp-content/" in lowered
+            or "wp-includes/" in lowered
+            or re.search(r"wordpress|wp-json|wp-login|wp-admin", body, re.IGNORECASE)
+        )
+        if status == 200 and version and has_wp_signature:
             return CMSInfo("wordpress", True, version, source, body[:2000])
 
         if path == "/wp-json/" and status == 200 and re.search(r'"namespaces"\s*:|wp/v2|wp-site-health', body, re.IGNORECASE):
-            return CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            continue
 
         if path == "/wp-login.php" and status in (200, 302) and re.search(r"wp-login|wordpress|loginform", body, re.IGNORECASE):
-            return CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            continue
 
         if path == "/wp-admin/" and status in (200, 302) and re.search(r"wp-admin|wordpress|wp-login", body, re.IGNORECASE):
-            return CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            continue
 
         if path == "/" and (
             "wp-content/" in lowered
             or "wp-includes/" in lowered
             or re.search(r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress', body, re.IGNORECASE)
         ):
-            return CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
 
-    return CMSInfo("wordpress", False, None, "wordpress:fallback", "")
+    return best or CMSInfo("wordpress", False, None, "wordpress:fallback", "")
 
 
 def wordpress_signal_score(info: CMSInfo) -> int:
@@ -145,7 +155,7 @@ def detect_wordpress_theme(
         )
         if asset_match:
             version = asset_match.group(1)
-            source = f"{source}asset-query"
+            source = f"{source}asset-query-tentative"
 
     return {"found": True, "name": slug, "version": version, "source": source}
 
@@ -157,6 +167,12 @@ def detect_wordpress_plugins(
     baseline: dict | None = None,
 ) -> dict:
     home = _fetch(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
+    if home.get("status", 0) == 0:
+        return {
+            "plugins": {},
+            "theme": {"found": False, "name": None, "version": None, "source": "error"},
+            "errors": [home.get("error") or {"type": "TransportError", "message": "homepage request failed"}],
+        }
     if is_baseline_match(home, baseline):
         return {"plugins": {}, "theme": {"found": False, "name": None, "version": None, "source": "not-detected"}}
     html = home.get("body", "")
@@ -200,9 +216,11 @@ def detect_wordpress_plugins(
                 "found": True,
                 "version": version,
                 "source": source,
+                "version_confidence": "LOW" if "asset-query" in source else "HIGH",
             }
 
     return {
         "plugins": plugins,
         "theme": detect_wordpress_theme(target, html, timeout, proxy=proxy, baseline=baseline),
+        "errors": [],
     }

@@ -7,7 +7,7 @@ from typing import Any
 
 from ...core.http import HttpClient
 from ...core.models import Confidence, Finding, Status
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 
 CVE_ID = "CVE-2018-9206"
 RULE = "Blueimp jQuery File Upload through 9.22.0 with the public PHP sample handler"
@@ -18,7 +18,7 @@ def classify_version(version: str | None) -> str:
     value = parse_version_safe(version)
     if value is None:
         return Status.DETECTED_VERSION_UNKNOWN
-    return Status.LIKELY_VULNERABLE if value <= parse_version_safe("9.22.0") else Status.PATCHED
+    return Status.LIKELY_VULNERABLE if value <= parse_version_required("9.22.0") else Status.PATCHED
 
 
 def _json(body: str) -> dict[str, Any]:

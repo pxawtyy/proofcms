@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import urllib.parse
+from typing import Any
 
 from ...core.http import build_multipart, normalize_url, poll_paths, request
 from ...core.models import Finding
@@ -40,7 +41,7 @@ FORM_DISCOVERY_PATHS = [
     "/index.php?option=com_icagenda&view=registration",
     "/component/icagenda/submit/",
 ]
-UPLOAD_PROFILES = [
+UPLOAD_PROFILES: list[dict[str, Any]] = [
     {
         "name": "jform_attachment",
         "fields": {
@@ -236,7 +237,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             proxy=proxy,
         )
         candidate_urls = list(candidate_proof_urls(base, filename, upload.get("body", "")))
-        proof, found_url, attempts = poll_paths(
+        proof, found_url, poll_attempts = poll_paths(
             lambda u: request(u, timeout=timeout, proxy=proxy),
             candidate_urls,
             deadline=3.0,
@@ -260,7 +261,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     uploaded_filename=filename,
                     detail=(
                         f"Aggressive lab upload executed benign PHP marker via {endpoint_label} "
-                        f"using field {profile['file_field']} after {attempts} attempt(s). "
+                        f"using field {profile['file_field']} after {poll_attempts} attempt(s). "
                         "The attachment directory may have been created by this first upload."
                     ),
                     action=(
@@ -282,7 +283,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     uploaded_filename=filename,
                     detail=(
                         f"File write confirmed via {endpoint_label} using field {profile['file_field']} "
-                        f"(verified in {attempts} attempt(s)), but PHP execution was not confirmed because the server returned raw PHP source."
+                        f"(verified in {poll_attempts} attempt(s)), but PHP execution was not confirmed because the server returned raw PHP source."
                     ),
                     action=f"Delete {filename} from the iCagenda attachment directory and upgrade iCagenda to {FIXED_RULE}.",
                 )

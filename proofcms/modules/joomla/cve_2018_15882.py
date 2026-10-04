@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.probes import rand_str
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_core_finding
 from .joomla_media_probe import probe_media_upload
 
@@ -16,7 +16,7 @@ def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
     if parsed is None:
         return "INCONCLUSIVE"
-    return "LIKELY_VULNERABLE" if parsed < parse_version_safe("3.8.12") else "PATCHED"
+    return "LIKELY_VULNERABLE" if parsed < parse_version_required("3.8.12") else "PATCHED"
 
 
 def passive_check(joomla_version: str | None):

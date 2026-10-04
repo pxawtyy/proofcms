@@ -68,7 +68,7 @@ def verify_php_execution(body: str, expected_product: str) -> tuple[bool, bool]:
 
 def find_sql_errors(body: str) -> list[str]:
     """Returns any matched SQL error strings found in the given response body."""
-    matches = []
+    matches: list[str] = []
     if not body:
         return matches
     for pattern in SQL_ERROR_PATTERNS:

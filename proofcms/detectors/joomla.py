@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from ..core.http import fetch_url, is_baseline_match
@@ -115,6 +117,7 @@ def scan_joomla(
         "/README.txt",
         "/",
     ]
+    best: JoomlaInfo | None = None
     for path in paths:
         url = f"{target.rstrip('/')}{path}"
         response = fetch_url(url, timeout=timeout, proxy=proxy)
@@ -138,7 +141,8 @@ def scan_joomla(
             if readme_match:
                 return JoomlaInfo(True, readme_match.group(1), f"native:{path}", body[:2000])
             if "joomla" in body.lower():
-                return JoomlaInfo(True, None, f"native:{path}", body[:2000])
+                best = best or JoomlaInfo(True, None, f"native:{path}", body[:2000])
+                continue
 
         elif path == "/":
             meta_match = re.search(
@@ -148,10 +152,17 @@ def scan_joomla(
             )
             if meta_match:
                 return JoomlaInfo(True, meta_match.group(1), f"native:{path}", body[:2000])
-            if re.search(r"/templates/|/media/system/|csrf\.token|Joomla!", body, re.IGNORECASE):
-                return JoomlaInfo(True, None, f"native:{path}", body[:2000])
+            strong_markers = (
+                r"/media/system/",
+                r"csrf\.token",
+                r"Joomla!",
+                r"/administrator/templates/",
+                r"[?&]option=com_[a-z0-9_]+",
+            )
+            if any(re.search(marker, body, re.IGNORECASE) for marker in strong_markers):
+                best = best or JoomlaInfo(True, None, f"native:{path}", body[:2000])
 
-    return JoomlaInfo(False, None, "native", "")
+    return best or JoomlaInfo(False, None, "native", "")
 
 
 def detect_joomla(target: str, args, baseline: dict | None = None) -> JoomlaInfo:
@@ -203,10 +214,7 @@ def detect_icagenda(
         if is_baseline_match(response, baseline):
             continue
         body = response.get("body", "")
-        if (
-            path.endswith(".xml")
-            and _valid_extension_manifest(response, r"icagenda|com_icagenda")
-        ):
+        if path.endswith(".xml") and _valid_extension_manifest(response, r"icagenda|com_icagenda"):
             version = None
             version_match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             if version_match:
@@ -215,9 +223,7 @@ def detect_icagenda(
         if path.endswith(".xml"):
             continue
         route_body = _without_request_reflections(body, target, path)
-        if response["status"] == 200 and re.search(
-            r"icagenda|com_icagenda|joomlic", route_body, re.IGNORECASE
-        ):
+        if response["status"] == 200 and re.search(r"icagenda|com_icagenda|joomlic", route_body, re.IGNORECASE):
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
@@ -388,9 +394,8 @@ def detect_pagebuilderck(
             if version or re.search(r"pagebuilderck|com_pagebuilderck", body, re.IGNORECASE):
                 return PluginInfo(True, version, f"{path} (403)")
             continue
-        if (
-            response["status"] == 200
-            and re.search(r"pagebuilderck|com_pagebuilderck|Page\s*Builder\s*CK", body, re.IGNORECASE)
+        if response["status"] == 200 and re.search(
+            r"pagebuilderck|com_pagebuilderck|Page\s*Builder\s*CK", body, re.IGNORECASE
         ):
             version = None
             for pattern in version_patterns:
@@ -519,9 +524,8 @@ def detect_helix3(
             and re.search(r"helix3|shaper_helix3|JoomShaper", body, re.IGNORECASE)
         ):
             return PluginInfo(True, None, path)
-        if (
-            response["status"] == 200
-            and re.search(r"helix3|shaper_helix3|templates/shaper_helix3", body, re.IGNORECASE)
+        if response["status"] == 200 and re.search(
+            r"helix3|shaper_helix3|templates/shaper_helix3", body, re.IGNORECASE
         ):
             version = None
             for pattern in version_patterns[1:]:
@@ -603,9 +607,8 @@ def detect_helixultimate(
         ):
             fallback = PluginInfo(True, None, f"{path} (403)")
             continue
-        if (
-            response["status"] == 200
-            and re.search(r"helixultimate|shaper_helixultimate|Helix\s*Ultimate", body, re.IGNORECASE)
+        if response["status"] == 200 and re.search(
+            r"helixultimate|shaper_helixultimate|Helix\s*Ultimate", body, re.IGNORECASE
         ):
             version = None
             for pattern in version_patterns[1:]:
@@ -871,9 +874,7 @@ def detect_common_component(
         if is_manifest and re.search(marker, body, re.IGNORECASE):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             edition = (
-                "enterprise"
-                if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE)
-                else None
+                "enterprise" if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE) else None
             )
             return PluginInfo(True, match.group(1).strip() if match else None, path, edition)
 
@@ -883,13 +884,9 @@ def detect_common_component(
             continue
         body = _without_request_reflections(response.get("body", ""), target, path)
         if re.search(marker, body, re.IGNORECASE):
-            version_match = re.search(
-                rf"(?:{marker})[^0-9]{{0,40}}([0-9]+(?:\.[0-9]+)+)", body, re.IGNORECASE
-            )
+            version_match = re.search(rf"(?:{marker})[^0-9]{{0,40}}([0-9]+(?:\.[0-9]+)+)", body, re.IGNORECASE)
             edition = (
-                "enterprise"
-                if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE)
-                else None
+                "enterprise" if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE) else None
             )
             return PluginInfo(True, version_match.group(1) if version_match else None, path, edition)
 
@@ -910,7 +907,7 @@ def detect_plugins(
     proxy = getattr(args, "proxy", None)
     max_workers = concurrency if concurrency is not None else getattr(args, "concurrency", 5)
 
-    all_detectors = {
+    all_detectors: dict[str, Callable[[], PluginInfo]] = {
         "icagenda": lambda: detect_icagenda(target, timeout, proxy=proxy, baseline=baseline),
         "baforms": lambda: detect_baforms(target, timeout, proxy=proxy, baseline=baseline),
         "sppagebuilder": lambda: detect_sppagebuilder(target, timeout, proxy=proxy, baseline=baseline),
@@ -920,11 +917,11 @@ def detect_plugins(
         "helixultimate": lambda: detect_helixultimate(target, timeout, proxy=proxy, baseline=baseline),
     }
     for component in COMMON_COMPONENTS:
-        all_detectors[component] = lambda component=component: detect_common_component(
-            target, component, timeout, proxy=proxy, baseline=baseline
+        all_detectors[component] = partial(
+            detect_common_component, target, component, timeout, proxy=proxy, baseline=baseline
         )
 
-    inventory_keys = set(COMMON_COMPONENTS)
+    inventory_keys = set(COMMON_COMPONENTS) if getattr(args, "inventory", "full") == "full" else set()
     needed_keys = set(all_detectors) if required_plugins is None else set(required_plugins) | inventory_keys
 
     results: dict[str, dict] = {}
@@ -942,7 +939,10 @@ def detect_plugins(
         if max_workers > 1 and len(keys_to_run) > 1:
             with ThreadPoolExecutor(max_workers=min(max_workers, len(keys_to_run))) as executor:
                 future_map = {executor.submit(all_detectors[k]): k for k in keys_to_run}
-                for fut, k in future_map.items():
+                from concurrent.futures import as_completed
+
+                for fut in as_completed(future_map):
+                    k = future_map[fut]
                     try:
                         info = fut.result()
                         results[k] = {
@@ -956,6 +956,7 @@ def detect_plugins(
                             "found": False,
                             "version": None,
                             "source": f"error: {exc}",
+                            "state": "error",
                         }
         else:
             for k in keys_to_run:
@@ -972,6 +973,7 @@ def detect_plugins(
                         "found": False,
                         "version": None,
                         "source": f"error: {exc}",
+                        "state": "error",
                     }
 
     return results

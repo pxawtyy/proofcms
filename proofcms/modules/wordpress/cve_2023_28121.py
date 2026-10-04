@@ -5,7 +5,7 @@ from typing import Any
 
 from ...core.http import normalize_url, request
 from ...core.models import Finding
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .plugin_advisory import passive_plugin_finding
 
 CVE_ID = "CVE-2023-28121"
@@ -35,9 +35,9 @@ KNOWN_PATCHED_RELEASES = {"6.3.0"}
 
 def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
-    minimum = parse_version_safe("4.8.0")
-    globally_fixed = parse_version_safe("6.4.0")
-    if parsed is None or minimum is None or globally_fixed is None:
+    minimum = parse_version_required("4.8.0")
+    globally_fixed = parse_version_required("6.4.0")
+    if parsed is None:
         return "DETECTED_VERSION_UNKNOWN"
     if parsed < minimum:
         return "NOT_AFFECTED"
@@ -50,7 +50,7 @@ def classify_version(version: str | None) -> str:
     if fixed is None:
         # Releases after the 5.7.0 fix inherited the patch until the affected
         # 6.2 branch; do not guess for any other unlisted historical branch.
-        if parse_version_safe("5.7.0") <= parsed < parse_version_safe("6.2.0"):
+        if parse_version_required("5.7.0") <= parsed < parse_version_required("6.2.0"):
             return "PATCHED"
         return "DETECTED_VERSION_UNKNOWN"
     return "LIKELY_VULNERABLE" if parsed < fixed else "PATCHED"

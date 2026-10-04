@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.models import Confidence, Status
-from ...core.versions import parse_version_safe
+from ...core.versions import parse_version_required, parse_version_safe
 from .common import harmless_cgi_marker_probe, runtime_finding
 
 CVE_ID = "CVE-2012-1823"
@@ -16,7 +16,7 @@ def classify_version(version: str | None) -> str:
     value = parse_version_safe(version)
     if value is None:
         return Status.DETECTED_VERSION_UNKNOWN
-    if value < parse_version_safe("5.3.13") or parse_version_safe("5.4.0") <= value < parse_version_safe("5.4.3"):
+    if value < parse_version_required("5.3.13") or parse_version_required("5.4.0") <= value < parse_version_required("5.4.3"):
         return Status.LIKELY_VULNERABLE
     return Status.PATCHED
 
