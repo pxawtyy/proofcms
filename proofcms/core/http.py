@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import http.cookiejar
 import random
+import re
 import secrets
 import ssl
 import string
@@ -12,6 +13,25 @@ import urllib.request
 from typing import Any, cast
 
 DEFAULT_USER_AGENT = "ProofCMS/2.1 authorized-audit"
+
+
+def _normalize_dynamic_html(body: str) -> str:
+    """Remove common per-request values before comparing fake-200 pages."""
+    normalized = re.sub(r"\b[a-f0-9]{32}\b", "<joomla-token>", body, flags=re.IGNORECASE)
+    normalized = re.sub(
+        r"([?&](?:token|nonce|sid|session(?:id)?)=)[^&\"'<>\s]+",
+        r"\1<dynamic>",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _html_title(body: str) -> str:
+    match = re.search(r"<title\b[^>]*>(.*?)</title>", body, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return ""
+    return re.sub(r"\s+", " ", match.group(1)).strip().lower()
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -96,6 +116,7 @@ def _build_response_dict(
     headers_dict: dict[str, Any] = headers or {}
     content_type = headers_dict.get("Content-Type", "")
     body_hash = hashlib.sha256(raw_bytes if raw_bytes else body.encode("utf-8", errors="replace")).hexdigest()
+    normalized_body = _normalize_dynamic_html(body)
     return {
         "status": status,
         "body": body,
@@ -106,6 +127,9 @@ def _build_response_dict(
         "headers": headers_dict,
         "content_type": content_type,
         "body_hash": body_hash,
+        "normalized_body_hash": hashlib.sha256(normalized_body.encode("utf-8")).hexdigest(),
+        "body_len": len(body),
+        "title": _html_title(body),
     }
 
 
@@ -264,7 +288,9 @@ def probe_target_baseline(target: str, timeout: int = 8, proxy: str | None = Non
         "blanket_403": resp.get("status") == 403,
         "redirected_to_root": redirected_to_root,
         "body_hash": resp.get("body_hash", ""),
-        "body_len": len(resp.get("body", "")),
+        "normalized_body_hash": resp.get("normalized_body_hash", ""),
+        "body_len": resp.get("body_len", len(resp.get("body", ""))),
+        "title": resp.get("title", ""),
         "target_root": target_root,
     }
 
@@ -278,6 +304,22 @@ def is_baseline_match(response: dict, baseline: dict | None, allow_403: bool = F
     resp_hash = response.get("body_hash")
     base_hash = baseline.get("body_hash")
     if resp_hash and base_hash and resp_hash == base_hash:
+        return True
+    normalized_hash = response.get("normalized_body_hash")
+    baseline_normalized_hash = baseline.get("normalized_body_hash")
+    if normalized_hash and baseline_normalized_hash and normalized_hash == baseline_normalized_hash:
+        return True
+    response_title = response.get("title", "")
+    baseline_title = baseline.get("title", "")
+    response_len = response.get("body_len", len(response.get("body", "")))
+    baseline_len = baseline.get("body_len", 0)
+    if (
+        response.get("status") == baseline.get("status")
+        and response_title
+        and response_title == baseline_title
+        and baseline_len
+        and abs(response_len - baseline_len) / baseline_len <= 0.02
+    ):
         return True
     if response.get("redirected") and baseline.get("target_root"):
         final_url = response.get("final_url", "").rstrip("/")
@@ -294,6 +336,7 @@ def poll_paths(
     initial_delay: float = 0.1,
     backoff: float = 1.4,
     max_delay: float = 0.8,
+    accept_fn: Any = None,
 ) -> tuple[dict | None, str | None, int]:
     """
     Polls candidate paths with deadline and backoff to avoid false negatives
@@ -310,7 +353,7 @@ def poll_paths(
         for path in paths:
             attempts += 1
             resp = fetch_fn(path)
-            if resp and resp.get("status") == 200:
+            if resp and resp.get("status") == 200 and (accept_fn is None or accept_fn(resp)):
                 return resp, path, attempts
         time.sleep(current_delay)
         current_delay = min(current_delay * backoff, max_delay)

@@ -241,6 +241,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             candidate_urls,
             deadline=3.0,
             initial_delay=0.1,
+            accept_fn=lambda candidate: marker in candidate.get("body", ""),
         )
         if proof and proof.get("status") == 200 and found_url:
             proof_body = proof.get("body", "")

@@ -118,7 +118,7 @@ def test_jce_generic_200_does_not_create_phantom_cleanup_file():
     )
     with (
         patch.object(cve_2026_48907, "passive_check", return_value=passive),
-        patch.object(cve_2026_48907, "_extract_csrf", return_value=("a" * 32, "/login", [])),
+        patch.object(cve_2026_48907, "_extract_csrf_candidates", return_value=([("a" * 32, "/login")], [])),
         patch.object(
             cve_2026_48907.HttpSession,
             "post",
@@ -143,7 +143,7 @@ def test_jce_redirect_is_reported_as_externally_blocked():
     )
     with (
         patch.object(cve_2026_48907, "passive_check", return_value=passive),
-        patch.object(cve_2026_48907, "_extract_csrf", return_value=("a" * 32, "/", [])),
+        patch.object(cve_2026_48907, "_extract_csrf_candidates", return_value=([("a" * 32, "/")], [])),
         patch.object(
             cve_2026_48907.HttpSession,
             "post",
@@ -155,3 +155,47 @@ def test_jce_redirect_is_reported_as_externally_blocked():
     assert result.status == "BLOCKED_EXTERNAL"
     assert "external validation is blocked" in result.detail
     assert result.uploaded_filename is None
+
+
+def test_jce_retries_after_stale_javascript_csrf_token():
+    passive = cve_2026_48907.Finding(
+        cve=cve_2026_48907.CVE_ID,
+        name=cve_2026_48907.NAME,
+        status="LIKELY_VULNERABLE",
+        confidence="HIGH",
+        component=cve_2026_48907.COMPONENT,
+        component_version="2.9.80",
+        affected_rule=cve_2026_48907.AFFECTED_RULE,
+    )
+    invalid = "A última solicitação foi negada por conter um token de segurança inválido."
+    with (
+        patch.object(cve_2026_48907, "passive_check", return_value=passive),
+        patch.object(
+            cve_2026_48907,
+            "_extract_csrf_candidates",
+            return_value=([("a" * 32, "/"), ("b" * 32, "/login")], []),
+        ),
+        patch.object(
+            cve_2026_48907.HttpSession,
+            "post",
+            side_effect=[
+                {"status": 200, "body": invalid, "redirected": False},
+                {
+                    "status": 200,
+                    "body": '{"success":true,"messages":{"message":["0 Profile(s) imported successfully"]}}',
+                    "redirected": False,
+                },
+            ],
+        ) as post,
+        patch.object(cve_2026_48907, "generate_php_math_payload", return_value=("<?php echo 42; ?>", "42")),
+        patch.object(
+            cve_2026_48907.HttpSession,
+            "get",
+            return_value={"status": 200, "body": "JVH_MATH_42_END"},
+        ),
+    ):
+        result = cve_2026_48907.run_exploit("https://target.test", "3.10.12")
+
+    assert post.call_count == 2
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"

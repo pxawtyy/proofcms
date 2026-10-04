@@ -277,6 +277,42 @@ class TestMandatoryRegressionCases(unittest.TestCase):
             "Custom 200 matching baseline hash must be flagged as non-existent route match",
         )
 
+    def test_dynamic_token_homepage_matches_fake_200_baseline(self):
+        from proofcms.core.http import _build_response_dict, is_baseline_match
+
+        first = _build_response_dict(
+            200,
+            '<html><title>Portal</title><input name="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" value="1"></html>',
+            "https://target/missing-one",
+            "https://target/missing-one",
+        )
+        second = _build_response_dict(
+            200,
+            '<html><title>Portal</title><input name="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" value="1"></html>',
+            "https://target/missing-two",
+            "https://target/missing-two",
+        )
+        baseline = {
+            "status": first["status"],
+            "body_hash": first["body_hash"],
+            "normalized_body_hash": first["normalized_body_hash"],
+            "body_len": first["body_len"],
+            "title": first["title"],
+        }
+        self.assertTrue(is_baseline_match(second, baseline))
+
+    def test_hidden_csrf_token_precedes_javascript_cache_token(self):
+        from proofcms.core.probes import extract_csrf_candidates_from_html
+
+        html = (
+            '<script>Joomla = {"csrf.token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}</script>'
+            '<input type="hidden" name="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" value="1">'
+        )
+        self.assertEqual(
+            extract_csrf_candidates_from_html(html),
+            ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+        )
+
     def test_regression_3_blanket_403_never_confirms_component(self):
         """3. Blanket-403 does not independently confirm a component."""
         from proofcms.core.http import is_baseline_match
@@ -409,14 +445,14 @@ class TestSupervisorSevenRefinements(unittest.TestCase):
         self.assertNotIn("Programming Language :: Python :: 3.9", pyproject_content)
 
     def test_item_3_balbooa_403_and_200_detection(self):
-        """3. Balbooa 403 on /images/baforms/uploads/ confirms presence; 200 checks baseline."""
+        """3. Generic 403 is insufficient; a component-specific directory response is required."""
         from unittest.mock import patch
 
         from proofcms.detectors.joomla import detect_baforms
 
         baseline = {"status": 404, "body": "Not found", "final_url": "http://target/404"}
 
-        # Case A: 403 on uploads and different from baseline -> 403-public-exec-blocked
+        # Case A: a generic 403 is not evidence that the requested component exists.
         def mock_fetch_403(url, **kwargs):
             if "/images/baforms/uploads/" in url:
                 return {"status": 403, "body": "Forbidden", "final_url": url}
@@ -424,8 +460,7 @@ class TestSupervisorSevenRefinements(unittest.TestCase):
 
         with patch("proofcms.detectors.joomla.fetch_url", side_effect=mock_fetch_403):
             info = detect_baforms("http://target", timeout=5, baseline=baseline)
-            self.assertTrue(info.found)
-            self.assertIn("403-public-exec-blocked", info.source)
+            self.assertFalse(info.found)
 
         # Case B: 200 on uploads and different from baseline -> 200-uploads-open
         def mock_fetch_200(url, **kwargs):

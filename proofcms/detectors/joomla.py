@@ -7,6 +7,21 @@ from ..core.http import fetch_url, is_baseline_match
 from ..core.models import JoomlaInfo, PluginInfo
 
 
+def _valid_extension_manifest(response: dict, marker_pattern: str) -> bool:
+    """Reject HTML fake-200 pages masquerading as public extension manifests."""
+    if response.get("status") != 200:
+        return False
+    body = response.get("body", "")
+    content_type = str(response.get("content_type", "")).lower()
+    if "text/html" in content_type:
+        return False
+    return bool(
+        re.search(r"<(?:extension|install)\b", body, re.IGNORECASE)
+        and re.search(r"<version>\s*[^<\s]+\s*</version>", body, re.IGNORECASE)
+        and re.search(marker_pattern, body, re.IGNORECASE)
+    )
+
+
 def validate_joomla_manifest(body: str, path: str) -> bool:
     """
     Validates that an XML file or README.txt actually belongs to an authentic Joomla installation.
@@ -176,8 +191,7 @@ def detect_icagenda(
         body = response.get("body", "")
         if (
             path.endswith(".xml")
-            and response["status"] == 200
-            and re.search(r"icagenda|com_icagenda", body, re.IGNORECASE)
+            and _valid_extension_manifest(response, r"icagenda|com_icagenda")
         ):
             version = None
             version_match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
@@ -217,7 +231,7 @@ def detect_baforms(
         if is_baseline_match(response, baseline):
             continue
         body = response.get("body", "")
-        if response["status"] == 200 and re.search(r"baforms|balbooa", body, re.IGNORECASE):
+        if _valid_extension_manifest(response, r"baforms|balbooa"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             version = match.group(1).strip() if match else None
             return PluginInfo(True, version, path)
@@ -238,9 +252,10 @@ def detect_baforms(
             continue
         body = response.get("body", "")
         if source == "uploads":
-            if response["status"] == 403:
+            has_specific_marker = bool(re.search(r"baforms|balbooa", body, re.IGNORECASE))
+            if response["status"] == 403 and has_specific_marker:
                 return PluginInfo(True, None, f"{path} (403-public-exec-blocked)")
-            if response["status"] == 200:
+            if response["status"] == 200 and has_specific_marker:
                 return PluginInfo(True, None, f"{path} (200-uploads-open)")
             continue
         if response["status"] == 200 and re.search(r"baforms|balbooa", body, re.IGNORECASE):
@@ -277,8 +292,7 @@ def detect_sppagebuilder(
             continue
         body = response.get("body", "")
         if (
-            response["status"] == 200
-            and re.search(r"sppagebuilder|sp page builder|com_sppagebuilder", body, re.IGNORECASE)
+            _valid_extension_manifest(response, r"sppagebuilder|sp page builder|com_sppagebuilder")
         ):
             version = None
             for pattern in version_patterns:
@@ -325,7 +339,7 @@ def detect_pagebuilderck(
         if is_baseline_match(response, baseline):
             continue
         body = response.get("body", "")
-        if response["status"] == 200 and re.search(r"pagebuilderck|Page\s*Builder\s*CK", body, re.IGNORECASE):
+        if _valid_extension_manifest(response, r"pagebuilderck|Page\s*Builder\s*CK"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
 
@@ -407,7 +421,7 @@ def detect_rsfiles(
         ):
             fallback = PluginInfo(True, None, f"{path} (403)")
             continue
-        if response["status"] == 200 and re.search(r"rsfiles|com_rsfiles", body, re.IGNORECASE):
+        if _valid_extension_manifest(response, r"rsfiles|com_rsfiles"):
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
@@ -468,7 +482,7 @@ def detect_helix3(
         ):
             fallback = PluginInfo(True, None, f"{path} (403)")
             continue
-        if response["status"] == 200 and re.search(r"helix3|shaper_helix3|JoomShaper", body, re.IGNORECASE):
+        if _valid_extension_manifest(response, r"helix3|shaper_helix3|JoomShaper"):
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
@@ -544,10 +558,13 @@ def detect_helixultimate(
         ):
             fallback = PluginInfo(True, None, f"{path} (403)")
             continue
-        if (
-            response["status"] == 200
+        manifest_valid = (
+            _valid_extension_manifest(response, r"helixultimate|shaper_helixultimate|Helix\s*Ultimate")
+            if path.endswith(".xml")
+            else response["status"] == 200
             and re.search(r"helixultimate|shaper_helixultimate|Helix\s*Ultimate", body, re.IGNORECASE)
-        ):
+        )
+        if manifest_valid:
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
