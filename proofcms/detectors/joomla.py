@@ -212,7 +212,12 @@ def detect_icagenda(
             if version_match:
                 version = version_match.group(1)
             return PluginInfo(True, version, path)
-        if response["status"] == 200 and re.search(r"icagenda|com_icagenda|joomlic", body, re.IGNORECASE):
+        if path.endswith(".xml"):
+            continue
+        route_body = _without_request_reflections(body, target, path)
+        if response["status"] == 200 and re.search(
+            r"icagenda|com_icagenda|joomlic", route_body, re.IGNORECASE
+        ):
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
@@ -304,9 +309,9 @@ def detect_sppagebuilder(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
-        if (
-            _valid_extension_manifest(response, r"sppagebuilder|sp page builder|com_sppagebuilder")
+        body = _without_request_reflections(response.get("body", ""), target, path)
+        if response["status"] == 200 and re.search(
+            r"sppagebuilder|sp page builder|com_sppagebuilder", body, re.IGNORECASE
         ):
             version = None
             for pattern in version_patterns:
@@ -327,10 +332,7 @@ def detect_sppagebuilder(
         if is_baseline_match(response, baseline):
             continue
         body = response.get("body", "")
-        if (
-            response["status"] == 200
-            and re.search(r"sppagebuilder|sp page builder|com_sppagebuilder", body, re.IGNORECASE)
-        ):
+        if _valid_extension_manifest(response, r"sppagebuilder|sp page builder|com_sppagebuilder"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
     return PluginInfo(False, None, "not-detected")
@@ -352,7 +354,7 @@ def detect_pagebuilderck(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if _valid_extension_manifest(response, r"pagebuilderck|Page\s*Builder\s*CK"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
@@ -424,7 +426,7 @@ def detect_rsfiles(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if re.search(r"<title>\s*Index of\s+/components/com_rsfiles/?\s*</title>", body, re.IGNORECASE):
             continue
         if (
@@ -435,7 +437,7 @@ def detect_rsfiles(
         ):
             fallback = PluginInfo(True, None, f"{path} (403)")
             continue
-        if _valid_extension_manifest(response, r"rsfiles|com_rsfiles"):
+        if response["status"] == 200 and re.search(r"rsfiles|com_rsfiles", body, re.IGNORECASE):
             version = None
             for pattern in version_patterns:
                 match = re.search(pattern, body, re.IGNORECASE)
@@ -454,7 +456,7 @@ def detect_rsfiles(
         if is_baseline_match(response, baseline):
             continue
         body = response.get("body", "")
-        if response["status"] == 200 and re.search(r"rsfiles|com_rsfiles", body, re.IGNORECASE):
+        if _valid_extension_manifest(response, r"rsfiles|com_rsfiles"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
     return fallback

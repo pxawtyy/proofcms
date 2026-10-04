@@ -89,6 +89,28 @@ class TestCommonJoomlaComponents(unittest.TestCase):
             result = joomla.detect_common_component("https://example.test", "k2", 2)
         self.assertFalse(result.found)
 
+    def test_specialized_detectors_reject_reflected_html_fallbacks(self):
+        def reflected_response(url, **kwargs):
+            return {
+                "status": 200,
+                "body": f"<html><title>Portal</title><body>requested {url}</body></html>",
+                "content_type": "text/html; charset=utf-8",
+                "body_hash": url,
+            }
+
+        detectors = (
+            joomla.detect_icagenda,
+            joomla.detect_sppagebuilder,
+            joomla.detect_rsfiles,
+        )
+        with (
+            patch.object(joomla, "fetch_url", side_effect=reflected_response),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            for detector in detectors:
+                with self.subTest(detector=detector.__name__):
+                    self.assertFalse(detector("https://example.test", 2).found)
+
     def test_common_inventory_runs_without_cve_dependency(self):
         args = SimpleNamespace(timeout=2, proxy=None, concurrency=1)
         absent = PluginInfo(False, None, "not-detected")

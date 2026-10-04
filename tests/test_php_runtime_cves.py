@@ -71,3 +71,12 @@ def test_fpm_rule_requires_nginx_when_server_is_disclosed():
         php_runtime={"detected": True, "version": "7.3.10", "server": "Apache/2.4"},
     )
     assert result.status == "NOT_AFFECTED"
+
+
+def test_fpm_unknown_version_is_not_affected_on_disclosed_apache_origin():
+    result = cve_2019_11043.check(
+        "https://example.test",
+        php_runtime={"detected": True, "version": None, "server": "Apache/2.4"},
+    )
+    assert result.status == "NOT_AFFECTED"
+    assert result.confidence == "HIGH"

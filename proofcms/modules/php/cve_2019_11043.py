@@ -41,8 +41,13 @@ def check(
         exploit_available=False,
     )
     server = str((php_runtime or {}).get("server") or "").lower()
-    if result.status == Status.LIKELY_VULNERABLE and server and "nginx" not in server:
+    if (
+        result.status in {Status.LIKELY_VULNERABLE, Status.DETECTED_VERSION_UNKNOWN}
+        and server
+        and "nginx" not in server
+    ):
         result.status = Status.NOT_AFFECTED
+        result.confidence = "HIGH"
         result.detail += (
             " The disclosed origin server is not Nginx, so the required deployment pattern was not observed."
         )

@@ -138,7 +138,10 @@ def _build_response_dict(
     raw_bytes: bytes = b"",
 ) -> dict[str, Any]:
     headers_dict: dict[str, Any] = headers or {}
-    content_type = headers_dict.get("Content-Type", "")
+    content_type = next(
+        (str(value) for key, value in headers_dict.items() if key.lower() == "content-type"),
+        "",
+    )
     body_hash = hashlib.sha256(raw_bytes if raw_bytes else body.encode("utf-8", errors="replace")).hexdigest()
     normalized_body = _normalize_dynamic_html(body)
     return {
