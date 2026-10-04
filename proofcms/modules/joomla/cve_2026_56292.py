@@ -10,7 +10,7 @@ from .acymailing_advisory import acymailing_finding, metadata_base
 
 CVE_ID = "CVE-2026-56292"
 NAME = "AcyMailing unauthenticated SQL injection"
-AFFECTED_RULE = "AcyMailing 1.0 through 10.11.0; fixed in 10.11.1"
+AFFECTED_RULE = "AcyMailing 6.0.0 through 10.11.0; fixed in 10.11.1"
 
 
 def _contains_element_id(body: str, expected: str) -> bool:
@@ -88,6 +88,7 @@ def check(
         name=NAME,
         affected_rule=AFFECTED_RULE,
         fixed_version="10.11.1",
+        minimum_version="6.0.0",
         plugins=plugins,
         enterprise_only=False,
         remediation="Upgrade AcyMailing to 10.11.1 or newer and review access logs for suspicious frontend queries.",

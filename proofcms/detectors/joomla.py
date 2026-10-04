@@ -22,6 +22,20 @@ def _valid_extension_manifest(response: dict, marker_pattern: str) -> bool:
     )
 
 
+def _without_request_reflections(body: str, target: str, path: str) -> str:
+    """Remove echoed request URLs before applying component marker regexes."""
+    variants = {
+        path,
+        path.replace("&", "&amp;"),
+        f"{target.rstrip('/')}{path}",
+        f"{target.rstrip('/')}{path}".replace("&", "&amp;"),
+    }
+    cleaned = body
+    for value in sorted(variants, key=len, reverse=True):
+        cleaned = cleaned.replace(value, "")
+    return cleaned
+
+
 def validate_joomla_manifest(body: str, path: str) -> bool:
     """
     Validates that an XML file or README.txt actually belongs to an authentic Joomla installation.
@@ -846,7 +860,12 @@ def detect_common_component(
         if is_baseline_match(response, baseline) or response.get("status") != 200:
             continue
         body = response.get("body", "")
-        is_manifest = bool(re.search(r"<(?:extension|install)\b", body, re.IGNORECASE))
+        content_type = str(response.get("content_type", "")).lower()
+        is_manifest = bool(
+            "text/html" not in content_type
+            and re.search(r"<(?:extension|install)\b", body, re.IGNORECASE)
+            and re.search(r"<version>\s*[^<\s]+\s*</version>", body, re.IGNORECASE)
+        )
         if is_manifest and re.search(marker, body, re.IGNORECASE):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             edition = (
@@ -860,7 +879,7 @@ def detect_common_component(
         response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline) or response.get("status") != 200:
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if re.search(marker, body, re.IGNORECASE):
             version_match = re.search(
                 rf"(?:{marker})[^0-9]{{0,40}}([0-9]+(?:\.[0-9]+)+)", body, re.IGNORECASE

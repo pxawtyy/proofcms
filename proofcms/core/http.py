@@ -13,6 +13,26 @@ import urllib.request
 from typing import Any, cast
 
 DEFAULT_USER_AGENT = "ProofCMS/2.1 authorized-audit"
+DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9,pt-BR;q=0.8"
+
+
+def detect_edge_interstitial(body: str, final_url: str = "") -> str | None:
+    """Identify known bot/WAF challenge pages that commonly return HTTP 200."""
+    haystack = f"{final_url}\n{body[:128 * 1024]}".lower()
+    markers = {
+        "radware-bot-manager": (
+            "validate.perfdrive.com",
+            "radware captcha page",
+            "shieldsquare",
+            "__uzma",
+            "__uzmb",
+        ),
+    }
+    for provider, provider_markers in markers.items():
+        if any(marker in haystack for marker in provider_markers):
+            return provider
+    return None
 
 
 def _normalize_dynamic_html(body: str) -> str:
@@ -51,7 +71,11 @@ def normalize_url(url: str, timeout: int = 0, proxy: str | None = None) -> str:
         try:
             req = urllib.request.Request(
                 normalized,
-                headers={"User-Agent": DEFAULT_USER_AGENT},
+                headers={
+                    "User-Agent": DEFAULT_USER_AGENT,
+                    "Accept": DEFAULT_ACCEPT,
+                    "Accept-Language": DEFAULT_ACCEPT_LANGUAGE,
+                },
             )
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -130,6 +154,7 @@ def _build_response_dict(
         "normalized_body_hash": hashlib.sha256(normalized_body.encode("utf-8")).hexdigest(),
         "body_len": len(body),
         "title": _html_title(body),
+        "edge_interstitial": detect_edge_interstitial(body, final_url),
     }
 
 
@@ -182,7 +207,11 @@ class HttpClient:
         follow_redirects: bool = True,
     ) -> dict[str, Any]:
         full_url = self._resolve_url(url)
-        req_headers: dict[str, Any] = {"User-Agent": self.user_agent}
+        req_headers: dict[str, Any] = {
+            "User-Agent": self.user_agent,
+            "Accept": DEFAULT_ACCEPT,
+            "Accept-Language": DEFAULT_ACCEPT_LANGUAGE,
+        }
         if headers:
             req_headers.update(headers)
 
@@ -279,6 +308,7 @@ def probe_target_baseline(target: str, timeout: int = 8, proxy: str | None = Non
     nonce = secrets.token_hex(6)
     canary_path = f"/_jvh_probe_{nonce}/"
     canary_url = f"{target.rstrip('/')}{canary_path}"
+    root_response = fetch_url(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
     resp = fetch_url(canary_url, timeout=timeout, proxy=proxy)
     target_root = target.rstrip("/")
     final = resp.get("final_url", "").rstrip("/")
@@ -292,6 +322,7 @@ def probe_target_baseline(target: str, timeout: int = 8, proxy: str | None = Non
         "body_len": resp.get("body_len", len(resp.get("body", ""))),
         "title": resp.get("title", ""),
         "target_root": target_root,
+        "edge_interstitial": root_response.get("edge_interstitial"),
     }
 
 

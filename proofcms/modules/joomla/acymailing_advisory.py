@@ -12,6 +12,7 @@ def acymailing_finding(
     name: str,
     affected_rule: str,
     fixed_version: str,
+    minimum_version: str | None = None,
     plugins: dict | None,
     enterprise_only: bool,
     remediation: str,
@@ -36,9 +37,13 @@ def acymailing_finding(
 
     parsed = parse_version_safe(version)
     fixed = parse_version_safe(fixed_version)
+    minimum = parse_version_safe(minimum_version)
     if parsed is None:
         status, confidence = "DETECTED_VERSION_UNKNOWN", "MEDIUM"
         detail = "AcyMailing was detected, but its version could not be determined."
+    elif minimum is not None and parsed < minimum:
+        status, confidence = "NOT_AFFECTED", "HIGH"
+        detail = f"Detected AcyMailing {version}, which predates the affected code introduced in {minimum_version}."
     elif parsed >= fixed:
         status, confidence = "PATCHED", "HIGH"
         detail = f"Detected AcyMailing {version}, which is at or above the fixed release {fixed_version}."
@@ -62,7 +67,11 @@ def acymailing_finding(
         component_version=version,
         affected_rule=affected_rule,
         detail=detail,
-        action=remediation if status not in {"PATCHED"} else f"Keep AcyMailing at {fixed_version} or newer.",
+        action=(
+            remediation
+            if status not in {"PATCHED", "NOT_AFFECTED"}
+            else "No action is required for this CVE if version detection is accurate; keep AcyMailing maintained."
+        ),
         evidence={"edition": edition or None, "source": info.get("source")},
     )
 

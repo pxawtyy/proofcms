@@ -336,6 +336,11 @@ def main():
 
     for target in targets:
         baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
+        if baseline.get("edge_interstitial"):
+            print(
+                f"Warning: {target} returned a {baseline['edge_interstitial']} challenge page. "
+                "CMS and vulnerability results may describe the edge page rather than the origin."
+            )
         info = detect_cms(target, args, baseline=baseline)
         php_runtime_info = detect_php_runtime(target, timeout=args.timeout, proxy=args.proxy)
         php_runtime = {
@@ -379,6 +384,7 @@ def main():
             "php": php_runtime,
             "results": [],
             "chains": [],
+            "edge_interstitial": baseline.get("edge_interstitial"),
         }
         for cve_id in cves:
             module = importlib.import_module(AVAILABLE_CVES[cve_id])

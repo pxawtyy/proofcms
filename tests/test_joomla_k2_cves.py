@@ -73,3 +73,14 @@ def test_k2_fixed_release_is_patched():
     plugins = {"k2": {"found": True, "version": "2.11.20240911", "source": "manifest"}}
     result = cve_2019_19576.check("https://target.test", plugins=plugins)
     assert result.status == "PATCHED"
+
+
+def test_k2_wrappers_accept_cli_joomla_version_positional_argument():
+    for module in (cve_2019_19576, cve_2019_19634):
+        result = module.check(
+            "https://target.test",
+            "3.4.8",
+            run_exploit_check=False,
+            plugins=K2_268,
+        )
+        assert result.status == "LIKELY_VULNERABLE"

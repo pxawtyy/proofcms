@@ -36,7 +36,15 @@ def probe_jce(target_url: str, timeout: int = 12, proxy: str | None = None) -> d
     for path in manifests:
         resp = sess.get(path, timeout=6)
         body = resp.get("body", "") if resp else ""
-        if resp and resp.get("status") == 200 and re.search(r"jce|com_jce|wf_editor|jcemediabox", body, re.IGNORECASE):
+        content_type = str(resp.get("content_type", "")).lower() if resp else ""
+        valid_manifest = bool(
+            resp
+            and resp.get("status") == 200
+            and "text/html" not in content_type
+            and re.search(r"<(?:extension|install)\b", body, re.IGNORECASE)
+            and re.search(r"<version>\s*[^<\s]+\s*</version>", body, re.IGNORECASE)
+        )
+        if valid_manifest and re.search(r"jce|com_jce|wf_editor|jcemediabox", body, re.IGNORECASE):
             match = re.search(r"<version>([^<]+)</version>", body, re.IGNORECASE)
             if match:
                 return {"found": True, "version": match.group(1).strip()}
@@ -46,12 +54,17 @@ def probe_jce(target_url: str, timeout: int = 12, proxy: str | None = None) -> d
         "/plugins/system/jcemediabox/js/jcemediabox.js",
         "/plugins/system/jce/css/content.css",
         "/media/editors/jce/js/editor.min.js",
-        "/index.php?option=com_jce&task=explorer",
     ]
     for path in fingerprints:
         resp = sess.get(path, timeout=6)
         body = resp.get("body", "") if resp else ""
-        if resp and resp.get("status") == 200 and re.search(r"jce|wf_editor|jcemediabox|tinymce", body, re.IGNORECASE):
+        content_type = str(resp.get("content_type", "")).lower() if resp else ""
+        if (
+            resp
+            and resp.get("status") == 200
+            and "text/html" not in content_type
+            and re.search(r"jce|wf_editor|jcemediabox|tinymce", body, re.IGNORECASE)
+        ):
             result["found"] = True
     return result
 

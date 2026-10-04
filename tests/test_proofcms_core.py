@@ -301,6 +301,17 @@ class TestMandatoryRegressionCases(unittest.TestCase):
         }
         self.assertTrue(is_baseline_match(second, baseline))
 
+    def test_radware_http_200_challenge_is_identified(self):
+        from proofcms.core.http import _build_response_dict
+
+        response = _build_response_dict(
+            200,
+            "<html><title>Radware Captcha Page</title><script>var __uzma='x';</script></html>",
+            "https://target.test/",
+            "https://target.test/",
+        )
+        self.assertEqual(response["edge_interstitial"], "radware-bot-manager")
+
     def test_hidden_csrf_token_precedes_javascript_cache_token(self):
         from proofcms.core.probes import extract_csrf_candidates_from_html
 

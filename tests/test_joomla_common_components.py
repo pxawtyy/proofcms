@@ -70,6 +70,25 @@ class TestCommonJoomlaComponents(unittest.TestCase):
             result = joomla.detect_common_component("https://example.test", "jsitemap", 2)
         self.assertFalse(result.found)
 
+    def test_html_fake_manifest_is_not_a_component(self):
+        homepage = """<html><body>
+        requested /administrator/components/com_k2/k2.xml
+        <extension type="component"><name>com_k2</name><version>2.6.8</version></extension>
+        </body></html>"""
+        response = self._response(body=homepage)
+        response["content_type"] = "text/html; charset=utf-8"
+        def reflected_response(url, **kwargs):
+            reflected = dict(response)
+            reflected["body"] = f"<html><body>requested {url}</body></html>"
+            return reflected
+
+        with (
+            patch.object(joomla, "fetch_url", side_effect=reflected_response),
+            patch.object(joomla, "is_baseline_match", return_value=False),
+        ):
+            result = joomla.detect_common_component("https://example.test", "k2", 2)
+        self.assertFalse(result.found)
+
     def test_common_inventory_runs_without_cve_dependency(self):
         args = SimpleNamespace(timeout=2, proxy=None, concurrency=1)
         absent = PluginInfo(False, None, "not-detected")

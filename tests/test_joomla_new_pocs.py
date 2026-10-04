@@ -113,7 +113,7 @@ def test_privilege_probe_reports_sent_without_claiming_confirmation():
 
     assert result.status == "AGGRESSIVE_SENT"
     assert result.confidence == "LOW"
-    assert submit.call_args.kwargs["group"] == 7
+    assert submit.call_args.kwargs["group"] == 8
     assert "collision oracle did not confirm" in result.detail
 
 
