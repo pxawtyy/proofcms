@@ -44,10 +44,17 @@ def response_looks_successful(response: dict, allow_empty: bool = False) -> bool
     except json.JSONDecodeError:
         return False
     if isinstance(parsed, dict):
+        # Joomla com_ajax returns this when no plugin/handler matched. It is not
+        # evidence that either Helix3 action ran.
+        if (
+            parsed.get("success") is True
+            and parsed.get("message") is None
+            and parsed.get("messages") is None
+            and parsed.get("data") in ([], None)
+        ):
+            return False
         if parsed.get("success") is True or parsed.get("status") is True:
             return True
-        if parsed.get("data") == [] and any(key in parsed for key in ("success", "message", "messages")):
-            return parsed.get("success") is True
     return False
 
 

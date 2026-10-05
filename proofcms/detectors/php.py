@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+import secrets
 
-from ..core.http import HttpClient
+from ..core.http import HttpClient, is_baseline_match, probe_target_baseline
 from ..core.models import PHPRuntimeInfo
 
 _PHP_VERSION = re.compile(r"(?:PHP/|PHP(?:\s+Version)?\s+)(\d+\.\d+(?:\.\d+)?)", re.IGNORECASE)
@@ -15,6 +16,7 @@ def detect_php_runtime(
 ) -> PHPRuntimeInfo:
     """Fingerprint the web-facing PHP runtime without creating files or invoking phpinfo()."""
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
+    baseline = probe_target_baseline(target_url, timeout=timeout, proxy=proxy)
     server: str | None = None
     first_php_path = "/index.php"
     php_session_source: str | None = None
@@ -47,4 +49,24 @@ def detect_php_runtime(
 
     if php_session_source:
         return PHPRuntimeInfo(True, None, php_session_source, server, first_php_path)
+
+    # Joomla's configuration.php normally executes to an empty response. A 200
+    # alone is not evidence because many Joomla deployments rewrite missing paths
+    # to the homepage, so compare it with a random .php file in the same directory.
+    configuration = client.get("/configuration.php")
+    missing = client.get(f"/_proofcms_missing_{secrets.token_hex(8)}.php")
+    configuration_body = str(configuration.get("body", ""))
+    missing_body = str(missing.get("body", ""))
+    if (
+        configuration.get("status") == 200
+        and not configuration.get("redirected")
+        and len(configuration_body.encode("utf-8", "replace")) <= 32
+        and not is_baseline_match(configuration, baseline)
+        and (
+            missing.get("status") != 200
+            or missing.get("body_hash") != configuration.get("body_hash")
+            or len(missing_body.encode("utf-8", "replace")) > 32
+        )
+    ):
+        return PHPRuntimeInfo(True, None, "/configuration.php:executed-empty", server, "/configuration.php")
     return PHPRuntimeInfo(False, None, "not-detected", server, first_php_path)

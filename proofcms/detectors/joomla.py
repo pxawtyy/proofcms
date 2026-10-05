@@ -275,7 +275,7 @@ def detect_baforms(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if source == "uploads":
             has_specific_marker = bool(re.search(r"baforms|balbooa", body, re.IGNORECASE))
             if response["status"] == 403 and has_specific_marker:
@@ -381,7 +381,7 @@ def detect_pagebuilderck(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if response["status"] == 403 and path.startswith(("/components/", "/media/")):
             if baseline and baseline.get("blanket_403"):
                 continue
@@ -460,7 +460,7 @@ def detect_rsfiles(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if _valid_extension_manifest(response, r"rsfiles|com_rsfiles"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
@@ -569,7 +569,7 @@ def detect_helixultimate(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if (
             response["status"] == 403
             and "helixultimate" in path.lower()
@@ -598,7 +598,7 @@ def detect_helixultimate(
         response = fetch_url(url, timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline):
             continue
-        body = response.get("body", "")
+        body = _without_request_reflections(response.get("body", ""), target, path)
         if (
             response["status"] == 403
             and ("helixultimate" in path.lower() or "shaper_helixultimate" in path.lower())

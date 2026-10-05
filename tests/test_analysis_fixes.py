@@ -160,3 +160,79 @@ def test_every_registered_module_has_consistent_metadata():
         assert metadata.get("name")
         assert metadata.get("affected_rule")
         assert callable(module.check)
+
+
+@pytest.mark.parametrize("detector", [joomla.detect_pagebuilderck, joomla.detect_helixultimate])
+def test_joomla_detectors_reject_reflected_probe_paths(detector):
+    def fake_fetch(url, timeout, proxy=None):
+        body = f'<html><title>Error</title><p>Requested URL: {url}</p></html>'
+        return {"status": 200, "body": body, "content_type": "text/html", "final_url": url}
+
+    with patch.object(joomla, "fetch_url", side_effect=fake_fetch):
+        info = detector("https://fixture.test", 1)
+    assert info.found is False
+
+
+def test_baforms_rejects_reflected_upload_path():
+    def fake_fetch(url, timeout, proxy=None):
+        body = f'<html><p>Missing resource {url}</p></html>'
+        return {"status": 200, "body": body, "content_type": "text/html", "final_url": url}
+
+    with patch.object(joomla, "fetch_url", side_effect=fake_fetch):
+        info = joomla.detect_baforms("https://fixture.test", 1)
+    assert info.found is False
+
+
+def test_php_runtime_detects_executed_empty_configuration():
+    responses = {
+        "/": {"status": 200, "body": "homepage", "body_hash": "home", "headers": {}},
+        "/index.php": {"status": 200, "body": "homepage", "body_hash": "home", "headers": {}},
+        "/administrator/index.php": {"status": 403, "body": "forbidden", "body_hash": "deny", "headers": {}},
+        "/wp-login.php": {"status": 404, "body": "missing", "body_hash": "missing", "headers": {}},
+        "/configuration.php": {"status": 200, "body": "", "body_hash": "empty", "headers": {}},
+    }
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, path):
+            if path.startswith("/_proofcms_missing_"):
+                return {"status": 404, "body": "missing", "body_hash": "missing", "headers": {}}
+            return responses[path]
+
+    baseline = {"status": 200, "body_hash": "home", "normalized_body_hash": "home"}
+    with (
+        patch.object(php, "HttpClient", FakeClient),
+        patch.object(php, "probe_target_baseline", return_value=baseline),
+    ):
+        info = php.detect_php_runtime("https://fixture.test", timeout=1)
+    assert info.detected is True
+    assert info.source == "/configuration.php:executed-empty"
+
+
+def test_php_runtime_rejects_uniform_empty_php_catch_all():
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, path):
+            return {"status": 200, "body": "", "body_hash": "empty", "headers": {}}
+
+    baseline = {"status": 200, "body_hash": "empty", "normalized_body_hash": "empty"}
+    with (
+        patch.object(php, "HttpClient", FakeClient),
+        patch.object(php, "probe_target_baseline", return_value=baseline),
+    ):
+        info = php.detect_php_runtime("https://fixture.test", timeout=1)
+    assert info.detected is False
+
+
+def test_helix3_generic_ajax_envelope_is_not_success():
+    from proofcms.modules.joomla.cve_2026_49049 import response_looks_successful
+
+    generic = {
+        "status": 200,
+        "body": '{"success":true,"message":null,"messages":null,"data":[]}',
+    }
+    assert response_looks_successful(generic) is False
