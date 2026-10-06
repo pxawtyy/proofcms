@@ -236,3 +236,72 @@ def test_helix3_generic_ajax_envelope_is_not_success():
         "body": '{"success":true,"message":null,"messages":null,"data":[]}',
     }
     assert response_looks_successful(generic) is False
+
+
+def test_k2_registration_avatar_surface_is_detected():
+    from proofcms.modules.joomla import k2_registration_avatar
+
+    body = """
+    <form action="/index.php" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="option" value="com_users">
+      <input type="hidden" name="task" value="registration.register">
+      <input type="hidden" name="K2UserForm" value="1">
+      <input type="file" name="image">
+    </form>
+    """
+    with patch.object(
+        k2_registration_avatar.HttpClient,
+        "get",
+        return_value={"status": 200, "body": body, "redirected": False},
+    ):
+        result = k2_registration_avatar.check(
+            "https://fixture.test/site",
+            plugins={"k2": {"found": True, "version": "2.6.8"}},
+        )
+    assert result.status == "INCONCLUSIVE"
+    assert result.component_version == "2.6.8"
+    assert result.evidence["avatar_upload_form"] is True
+    assert result.evidence["file_field"] == "image"
+
+
+def test_k2_manifest_consensus_prefers_corrobated_version():
+    manifests = {
+        "/administrator/components/com_k2/k2.xml": "2.9.0",
+        "/plugins/system/k2/k2.xml": "2.6.8",
+        "/plugins/user/k2/k2.xml": "2.6.8",
+    }
+
+    def fake_fetch(url, timeout, proxy=None):
+        path = url.removeprefix("https://fixture.test")
+        if path in manifests:
+            version = manifests[path]
+            body = f'<extension type="component"><name>com_k2</name><version>{version}</version></extension>'
+            return {"status": 200, "body": body, "content_type": "application/xml"}
+        return {"status": 404, "body": "missing", "content_type": "text/html"}
+
+    with patch.object(joomla, "fetch_url", side_effect=fake_fetch):
+        info = joomla.detect_common_component("https://fixture.test", "k2", 1)
+    assert info.found is True
+    assert info.version == "2.6.8"
+    assert "manifest conflict" in info.source
+
+
+def test_php_cgi_windows_cve_excludes_centos_origin():
+    from proofcms.modules.php import cve_2024_4577
+
+    result = cve_2024_4577.check(
+        "https://fixture.test",
+        php_runtime={
+            "detected": True,
+            "version": "7.4.33",
+            "server": "Apache/2.4.6 (CentOS) OpenSSL/1.0.2k-fips",
+            "source": "/:X-Powered-By",
+            "entrypoint": "/index.php",
+        },
+    )
+    assert result.status == "NOT_AFFECTED"
+
+
+def test_jce_homepage_marker_does_not_imply_handler_reached():
+    body = '<html><link href="/plugins/system/jcemediabox/css/jcemediabox.css"></html>'
+    assert cve_2026_48907._handler_specific_response(body) is False

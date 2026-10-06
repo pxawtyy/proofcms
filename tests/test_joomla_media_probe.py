@@ -71,6 +71,27 @@ def test_media_probe_requires_marker_readback_and_negative_control():
     assert result["file_field"] == "Filedata[]"
 
 
+def test_media_probe_distinguishes_denied_surface_from_absent_form():
+    class Session:
+        def __init__(self, **kwargs):
+            self.base_url = "https://target.test"
+
+        def get(self, path):
+            return {"status": 403, "body": "not authorized", "redirected": False}
+
+    with patch("proofcms.modules.joomla.joomla_media_probe.HttpSession", Session):
+        result = probe_media_upload(
+            "https://target.test",
+            filename="proof.txt",
+            payload=b"proof",
+            marker="proof",
+            content_type="text/plain",
+        )
+    assert result["surface_found"] is True
+    assert result["surface_state"] == "denied"
+    assert result["surface_status"] == 403
+
+
 def test_phar_probe_reports_exposed_surface_when_payload_is_rejected():
     with patch.object(
         cve_2018_15882,

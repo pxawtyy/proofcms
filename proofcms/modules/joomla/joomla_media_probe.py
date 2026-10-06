@@ -18,8 +18,10 @@ def _attrs(tag: str) -> dict[str, str]:
     }
 
 
-def discover_media_form(session: HttpSession) -> dict[str, Any] | None:
-    response = session.get(MEDIA_FORM_PATH)
+def discover_media_form(
+    session: HttpSession, response: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
+    response = response or session.get(MEDIA_FORM_PATH)
     if response.get("status") != 200 or response.get("redirected"):
         return None
     body = response.get("body", "")
@@ -64,9 +66,18 @@ def probe_media_upload(
 ) -> dict[str, Any]:
     base = normalize_url(target_url)
     session = HttpSession(base_url=base, timeout=timeout, proxy=proxy)
-    form = discover_media_form(session)
+    surface = session.get(MEDIA_FORM_PATH)
+    form = discover_media_form(session, surface)
     if not form:
-        return {"surface_found": False, "accepted": False, "attempts": ["media upload form not exposed"]}
+        status = surface.get("status", 0)
+        state = "denied" if status in {401, 403} else "redirected" if surface.get("redirected") else "absent"
+        return {
+            "surface_found": state in {"denied", "redirected"},
+            "surface_state": state,
+            "surface_status": status,
+            "accepted": False,
+            "attempts": [f"media upload surface {state} (HTTP {status})"],
+        }
 
     upload = session.post(
         form["action"],
@@ -84,6 +95,8 @@ def probe_media_upload(
     )
     return {
         "surface_found": True,
+        "surface_state": "form_exposed",
+        "surface_status": 200,
         "accepted": verified,
         "write_reported": upload.get("status") in {200, 201, 202, 204, 301, 302, 303},
         "upload_status": upload.get("status", 0),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -770,9 +771,26 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "manifests": [
             "/administrator/components/com_k2/k2.xml",
             "/plugins/system/k2/k2.xml",
+            "/plugins/user/k2/k2.xml",
         ],
-        "routes": ["/?option=com_k2"],
-        "markers": r"com_k2|plg_system_k2|K2(?:\s+Component)?",
+        "routes": ["/?option=com_k2", "/?option=com_users&view=registration", "/"],
+        "markers": r"com_k2|plg_(?:system|user)_k2|K2(?:\s+Component|UserForm)?|K2UserForm|components/com_k2/",
+    },
+    "docman": {
+        "manifests": [
+            "/administrator/components/com_docman/docman.xml",
+            "/components/com_docman/docman.xml",
+        ],
+        "routes": ["/?option=com_docman"],
+        "markers": r"com_docman|Joomlatools\s+Docman|DOCman",
+    },
+    "slideshowck": {
+        "manifests": [
+            "/administrator/components/com_slideshowck/slideshowck.xml",
+            "/modules/mod_slideshowck/mod_slideshowck.xml",
+        ],
+        "routes": ["/"],
+        "markers": r"com_slideshowck|mod_slideshowck|Slideshow\s*CK|media/com_slideshowck/",
     },
     "login_popup": {
         "manifests": ["/plugins/system/loginpopup/loginpopup.xml"],
@@ -860,6 +878,7 @@ def detect_common_component(
     """Detect a common Joomla component using public manifests and front-end routes."""
     definition = COMMON_COMPONENTS[component]
     marker = definition["markers"]
+    manifest_hits: list[tuple[str, str | None, str | None]] = []
     for path in definition["manifests"]:
         response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
         if is_baseline_match(response, baseline) or response.get("status") != 200:
@@ -876,7 +895,19 @@ def detect_common_component(
             edition = (
                 "enterprise" if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE) else None
             )
+            if component == "k2":
+                manifest_hits.append((path, match.group(1).strip() if match else None, edition))
+                continue
             return PluginInfo(True, match.group(1).strip() if match else None, path, edition)
+
+    if manifest_hits:
+        versions = [version for _, version, _ in manifest_hits if version]
+        version = Counter(versions).most_common(1)[0][0] if versions else None
+        agreeing = [path for path, candidate, _ in manifest_hits if candidate == version] if version else []
+        source = ", ".join(agreeing or [path for path, _, _ in manifest_hits])
+        if len(set(versions)) > 1:
+            source += f" (manifest conflict: {', '.join(sorted(set(versions)))})"
+        return PluginInfo(True, version, source)
 
     for path in definition["routes"]:
         response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)

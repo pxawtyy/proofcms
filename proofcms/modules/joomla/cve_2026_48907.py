@@ -173,7 +173,8 @@ def _handler_specific_response(body: str) -> bool:
     return bool(
         re.search(r'"success"\s*:\s*true', body, re.IGNORECASE)
         or re.search(r"\b\d+\s+profile\(s\)\s+imported\s+successfully", body, re.IGNORECASE)
-        or re.search(r"jce|profile.{0,40}(import|upload)|import.{0,40}(success|complete)", body, re.IGNORECASE)
+        or re.search(r"profile.{0,40}(import|upload).{0,80}(success|complete)", body, re.IGNORECASE)
+        or re.search(r"import.{0,40}(success|complete)", body, re.IGNORECASE)
     )
 
 
@@ -190,6 +191,14 @@ def run_exploit(
     if passive.status not in {"LIKELY_VULNERABLE", "INCONCLUSIVE"}:
         passive.detail += " Exploit verification skipped because passive validation did not indicate a vulnerable JCE version."
         return passive
+
+    routed = sess.get("/index.php?option=com_jce")
+    direct = sess.get("/components/com_jce/jce.php")
+    route_gate = bool(routed.get("redirected") or routed.get("status") in {401, 403})
+    direct_gate = bool(
+        direct.get("status") in {401, 403}
+        or re.search(r"\brestricted\b|not authorized|não autorizado", direct.get("body", ""), re.IGNORECASE)
+    )
 
     token_candidates, checked_token_paths = _extract_csrf_candidates(sess)
     if not token_candidates:
@@ -228,13 +237,13 @@ def run_exploit(
         or upload.get("redirected")
         or not handler_specific
     ):
-        externally_blocked = bool(upload and upload.get("redirected"))
+        externally_blocked = bool(upload and upload.get("redirected")) or route_gate or direct_gate
         passive.status = "BLOCKED_EXTERNAL" if externally_blocked else "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
         passive.detail = (
             f"JCE {passive.component_version or 'version unknown'} is in the affected range, but the profile-import "
             + (
-                "request was redirected before a JCE-specific handler response; external validation is blocked. "
+                "handler is authentication/access gated and was not reachable anonymously; external validation is blocked. "
                 if externally_blocked
                 else "request did not return a JCE-specific acceptance response. "
             )
@@ -245,8 +254,12 @@ def run_exploit(
         )
         passive.evidence = {
             "component_present": True,
-            "token_accepted": bool(upload) and not _invalid_token_response(upload_body),
+            "token_accepted": bool(handler_specific and upload and not upload.get("redirected")),
             "handler_reached": handler_specific,
+            "frontend_route_status": routed.get("status", 0),
+            "frontend_route_redirected": routed.get("redirected", False),
+            "direct_endpoint_status": direct.get("status", 0),
+            "direct_endpoint_gated": direct_gate,
             "write_reported": False,
             "readback_verified": False,
         }

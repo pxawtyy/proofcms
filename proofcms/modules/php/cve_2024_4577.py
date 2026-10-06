@@ -45,7 +45,22 @@ def check(
         exploit_available=True,
     )
     server = str((php_runtime or {}).get("server") or "").lower()
-    non_windows_origin = any(token in server for token in ("debian", "ubuntu", "linux", "unix", "freebsd"))
+    non_windows_origin = any(
+        token in server
+        for token in (
+            "debian",
+            "ubuntu",
+            "linux",
+            "unix",
+            "freebsd",
+            "centos",
+            "red hat",
+            "rhel",
+            "fedora",
+            "rocky",
+            "almalinux",
+        )
+    )
     incompatible_server = bool(server) and "apache" not in server and "iis" not in server
     if result.status == Status.LIKELY_VULNERABLE and (non_windows_origin or incompatible_server):
         result.status = Status.NOT_AFFECTED

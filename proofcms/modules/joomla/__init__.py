@@ -28,6 +28,7 @@ from . import (
     cve_2026_90915,
     cve_2026_92222,
     cve_2026_94132,
+    k2_registration_avatar,
 )
 
 AVAILABLE_CVES: dict[str, str] = {
@@ -58,6 +59,7 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2026-94132": "proofcms.modules.joomla.cve_2026_94132",
     "CVE-2026-56292": "proofcms.modules.joomla.cve_2026_56292",
     "CVE-2026-48907": "proofcms.modules.joomla.cve_2026_48907",
+    "PROOFCMS-K2-REGISTRATION-AVATAR": "proofcms.modules.joomla.k2_registration_avatar",
 }
 
 __all__ = [
@@ -89,4 +91,5 @@ __all__ = [
     "cve_2026_90915",
     "cve_2026_92222",
     "cve_2026_94132",
+    "k2_registration_avatar",
 ]
