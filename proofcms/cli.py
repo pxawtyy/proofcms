@@ -396,8 +396,9 @@ def main():
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"CMS detection failed: {type(exc).__name__}: {exc}")
             info = CMSInfo("unknown", False, None, "error")
+        operational_target = info.base_url or target
         try:
-            php_runtime_info = detect_php_runtime(target, timeout=args.timeout, proxy=args.proxy)
+            php_runtime_info = detect_php_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"PHP detection failed: {type(exc).__name__}: {exc}")
             from proofcms.core.models import PHPRuntimeInfo
@@ -413,7 +414,7 @@ def main():
         try:
             plugins = (
                 detect_plugins(
-                    target,
+                    operational_target,
                     args,
                     baseline=baseline,
                     required_plugins=needed_detectors,
@@ -427,7 +428,7 @@ def main():
             target_errors.append(f"Joomla inventory failed: {type(exc).__name__}: {exc}")
         try:
             wordpress_inventory = (
-                detect_wordpress_plugins(target, args.timeout, proxy=args.proxy, baseline=baseline)
+                detect_wordpress_plugins(operational_target, args.timeout, proxy=args.proxy, baseline=baseline)
                 if info.detected and info.name == "wordpress"
                 else {}
             )
@@ -438,6 +439,7 @@ def main():
             target_errors.append(f"WordPress inventory failed: {inventory_error}")
         target_report = {
             "target": target,
+            "scan_base_url": operational_target,
             "cms": {
                 "name": info.name,
                 "detected": info.detected,
@@ -481,7 +483,7 @@ def main():
             )
             try:
                 result = module.check(
-                    target,
+                    operational_target,
                     info.version,
                     run_exploit_check=run_exploit_check,
                     timeout=args.timeout,

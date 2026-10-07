@@ -93,6 +93,85 @@ def test_wordpress_weak_homepage_continues_to_version_evidence():
     assert len(calls) >= 3
 
 
+@pytest.mark.parametrize(
+    ("body", "headers"),
+    [
+        ('<meta name="Generator" content="DSpace 5.2">', {}),
+        ("repository", {"Set-Cookie": "JSESSIONID=fixture; Path=/; HttpOnly"}),
+        ("Apache Tomcat/8.5.39", {}),
+    ],
+)
+def test_wordpress_detection_is_vetoed_by_declared_java_platform(body, headers):
+    calls = []
+
+    def fetch(url, **kwargs):
+        calls.append(url)
+        return {**response(body), "headers": headers}
+
+    with patch.object(wordpress, "_fetch", side_effect=fetch):
+        info = wordpress.detect_wordpress("https://fixture.test", 1)
+    assert info.detected is False
+    assert info.source == "wordpress:vetoed-by-platform"
+    assert calls == ["https://fixture.test/"]
+
+
+def test_wordpress_cdn_version_and_redirected_install_base_are_detected():
+    home = response(
+        '<script src="https://c0.wp.com/c/7.1.3/wp-includes/js/jquery/jquery.min.js"></script>',
+        url="https://fixture.test/home/",
+    )
+
+    with patch.object(wordpress, "_fetch", return_value=home):
+        info = wordpress.detect_wordpress("https://fixture.test", 1)
+
+    assert info.detected is True
+    assert info.version == "7.1.3"
+    assert info.base_url == "https://fixture.test/home"
+
+
+def test_wordpress_rest_namespaces_expand_plugin_inventory():
+    homepage = response(
+        '<script>var pum_vars = {"version":"1.25.0"};</script>',
+        url="https://fixture.test/home/",
+    )
+    rest = response(
+        json.dumps(
+            {
+                "namespaces": [
+                    "popup-maker/v2",
+                    "elementor-ai/v1",
+                    "advanced-db-cleaner/v1",
+                    "wordfence-login-security/v1",
+                    "spc/v1",
+                    "cookieyes/v1",
+                    "jetpack-boost/v1",
+                    "webp-converter/v1",
+                ]
+            }
+        ),
+        url="https://fixture.test/home/wp-json/",
+    )
+
+    def fetch(url, **kwargs):
+        if url.endswith("/wp-json/"):
+            return rest
+        if url.endswith("/home/"):
+            return homepage
+        return response(status=404, url=url)
+
+    with patch.object(wordpress, "_fetch", side_effect=fetch):
+        inventory = wordpress.detect_wordpress_plugins("https://fixture.test/home", 1)
+
+    assert inventory["plugins"]["popup-maker"]["version"] == "1.25.0"
+    assert inventory["plugins"]["elementor-ai"]["found"] is True
+    assert inventory["plugins"]["advanced-db-cleaner"]["source"].startswith("/wp-json/:")
+    assert inventory["plugins"]["wordfence-login-security"]["found"] is True
+    assert inventory["plugins"]["wp-super-cache"]["found"] is True
+    assert inventory["plugins"]["cookieyes"]["found"] is True
+    assert inventory["plugins"]["jetpack"]["found"] is True
+    assert inventory["plugins"]["webp-converter"]["found"] is True
+
+
 def test_generic_template_path_does_not_detect_joomla():
     def fetch(url, **kwargs):
         return response('<img src="/templates/store/logo.png">') if url.endswith("/") else response(status=404)
@@ -305,3 +384,11 @@ def test_php_cgi_windows_cve_excludes_centos_origin():
 def test_jce_homepage_marker_does_not_imply_handler_reached():
     body = '<html><link href="/plugins/system/jcemediabox/css/jcemediabox.css"></html>'
     assert cve_2026_48907._handler_specific_response(body) is False
+
+
+def test_jce_component_failures_are_classified():
+    assert cve_2026_48907._component_failure("Erro 0 - Class 'Factory' not found") == "component-incompatible"
+    assert (
+        cve_2026_48907._component_failure("Erro 500 - Layout default não encontrado")
+        == "component-incomplete"
+    )

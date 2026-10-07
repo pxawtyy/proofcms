@@ -178,6 +178,46 @@ def test_jce_redirect_is_reported_as_externally_blocked():
     assert result.uploaded_filename is None
 
 
+def test_jce_missing_frontend_controller_reports_incomplete_component():
+    passive = cve_2026_48907.Finding(
+        cve=cve_2026_48907.CVE_ID,
+        name=cve_2026_48907.NAME,
+        status="LIKELY_VULNERABLE",
+        confidence="HIGH",
+        component=cve_2026_48907.COMPONENT,
+        component_version="2.9.20",
+        affected_rule=cve_2026_48907.AFFECTED_RULE,
+    )
+
+    def fake_get(_self, path, **kwargs):
+        if path == "/components/com_jce/controller.php":
+            return {"status": 404, "body": "missing", "redirected": False}
+        return {"status": 200, "body": "", "redirected": False}
+
+    with (
+        patch.object(cve_2026_48907, "passive_check", return_value=passive),
+        patch.object(cve_2026_48907, "_extract_csrf_candidates", return_value=([("a" * 32, "/")], [])),
+        patch.object(cve_2026_48907.HttpSession, "get", new=fake_get),
+        patch.object(
+            cve_2026_48907.HttpSession,
+            "post",
+            return_value={
+                "status": 500,
+                "body": "Erro 0 - Class 'Factory' not found",
+                "redirected": False,
+            },
+        ),
+    ):
+        result = cve_2026_48907.run_exploit("https://target.test", "3.10.12")
+
+    assert result.status == "BLOCKED_EXTERNAL"
+    assert result.evidence["component_state"] == "component-incompatible"
+    assert result.evidence["frontend_controller_status"] == 404
+    assert result.evidence["direct_endpoint_live"] is False
+    assert result.evidence["direct_endpoint_gated"] is None
+    assert result.evidence["token_state"] == "not-evaluated"
+
+
 def test_jce_retries_after_stale_javascript_csrf_token():
     passive = cve_2026_48907.Finding(
         cve=cve_2026_48907.CVE_ID,

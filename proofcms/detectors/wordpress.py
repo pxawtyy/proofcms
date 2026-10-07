@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import json
 import re
+import urllib.parse
 
 from ..core.http import fetch_url, is_baseline_match
 from ..core.models import CMSInfo
 
 KNOWN_PLUGIN_MARKERS = {
+    "advanced-db-cleaner": r"advanced[-_ ]db[-_ ]cleaner",
     "contact-form-7": r"Contact\s+Form\s+7",
+    "cookieyes": r"cookieyes|\bcky[-_/]",
     "drag-and-drop-multiple-file-upload-contact-form-7": r"Drag\s+and\s+Drop\s+Multiple\s+File\s+Upload",
     "essential-addons-for-elementor-lite": r"Essential\s+Addons\s+for\s+Elementor",
     "litespeed-cache": r"LiteSpeed\s+Cache",
@@ -16,11 +20,74 @@ KNOWN_PLUGIN_MARKERS = {
     "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
     "wp-file-manager": r"(?:WP\s+)?File\s+Manager",
     "keydatas": r"keydatas|简数",
+    "elementor": r"(?:^|/)elementor(?:/|$)|Elementor",
+    "google-site-kit": r"google[-_ ]site[-_ ]kit|Site\s+Kit",
+    "jetpack": r"Jetpack|my-jetpack|jetpack-boost",
+    "popup-maker": r"popup-maker|Popup\s+Maker|pum_vars",
+    "wordfence": r"wordfence",
+    "webp-converter": r"webp-converter|WebP\s+Converter",
+    "wp-accessibility": r"wp-accessibility|WP\s+Accessibility",
+    "wp-super-cache": r"wp-super-cache|X-WP-SPC",
+    "yoast": r"wordpress-seo|Yoast",
+}
+
+REST_NAMESPACE_PLUGINS = {
+    "advanced-db-cleaner": "advanced-db-cleaner",
+    "cky": "cookieyes",
+    "cookieyes": "cookieyes",
+    "ea11y": "pojo-accessibility",
+    "elementor-ai": "elementor-ai",
+    "elementor-mcp-composer": "elementor-mcp-composer",
+    "elementor-one": "elementor-one",
+    "elementor": "elementor",
+    "google-site-kit": "google-site-kit",
+    "jetpack": "jetpack",
+    "jetpack-boost": "jetpack",
+    "my-jetpack": "jetpack",
+    "popup-maker": "popup-maker",
+    "pum": "popup-maker",
+    "spc": "wp-super-cache",
+    "wordfence-login-security": "wordfence-login-security",
+    "wordfence": "wordfence",
+    "webp-converter": "webp-converter",
+    "wpcom": "jetpack",
+    "yoast": "yoast",
 }
 
 
 def _fetch(url: str, timeout: int, proxy: str | None = None) -> dict:
     return fetch_url(url, timeout=timeout, proxy=proxy)
+
+
+def _declares_non_wordpress_platform(response: dict) -> bool:
+    """Recognize authoritative Java/DSpace signals before considering WP-shaped assets."""
+    body = str(response.get("body", ""))
+    headers = response.get("headers") or {}
+    header_text = "\n".join(f"{key}: {value}" for key, value in headers.items())
+    combined = f"{header_text}\n{body}"
+    return bool(
+        re.search(
+            r'<meta\s+name=["\']generator["\']\s+content=["\']DSpace\b|'
+            r"\bX-Cocoon-Version\s*:|\bApache Tomcat/|\bJSESSIONID\b|;jsessionid=",
+            combined,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _installation_base(target: str, response: dict, requested_path: str) -> str:
+    final_url = str(response.get("final_url") or "")
+    if not final_url:
+        return target.rstrip("/")
+    parsed = urllib.parse.urlsplit(final_url)
+    final_path = parsed.path or "/"
+    if requested_path == "/":
+        base_path = final_path.rstrip("/")
+    elif final_path.lower().endswith(requested_path.lower()):
+        base_path = final_path[: -len(requested_path)].rstrip("/")
+    else:
+        return target.rstrip("/")
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, base_path, "", ""))
 
 
 def detect_wordpress(
@@ -42,17 +109,21 @@ def detect_wordpress(
         r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress\s+([^"\']+)',
         r"\bwp-emoji-release(?:\.min)?\.js\?ver=([0-9]+(?:\.[0-9]+){1,3})",
         r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
+        r"https?://c[0-9]+\.wp\.com/c/([0-9]+(?:\.[0-9]+){1,3})/",
         r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})",
     ]
     best: CMSInfo | None = None
     for path in paths:
         response = _fetch(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
+        if path == "/" and _declares_non_wordpress_platform(response):
+            return CMSInfo("wordpress", False, None, "wordpress:vetoed-by-platform", "")
         if is_baseline_match(response, baseline):
             continue
         status = response.get("status", 0)
         body = response.get("body", "")
         lowered = body.lower()
         source = f"wordpress:{path}"
+        base_url = _installation_base(target, response, path)
 
         version = None
         patterns = version_patterns if path in {"/", "/readme.html"} else version_patterns[:3]
@@ -68,18 +139,18 @@ def detect_wordpress(
             or re.search(r"wordpress|wp-json|wp-login|wp-admin", body, re.IGNORECASE)
         )
         if status == 200 and version and has_wp_signature:
-            return CMSInfo("wordpress", True, version, source, body[:2000])
+            return CMSInfo("wordpress", True, version, source, body[:2000], base_url)
 
         if path == "/wp-json/" and status == 200 and re.search(r'"namespaces"\s*:|wp/v2|wp-site-health', body, re.IGNORECASE):
-            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
             continue
 
         if path == "/wp-login.php" and status in (200, 302) and re.search(r"wp-login|wordpress|loginform", body, re.IGNORECASE):
-            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
             continue
 
         if path == "/wp-admin/" and status in (200, 302) and re.search(r"wp-admin|wordpress|wp-login", body, re.IGNORECASE):
-            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
             continue
 
         if path == "/" and (
@@ -87,7 +158,7 @@ def detect_wordpress(
             or "wp-includes/" in lowered
             or re.search(r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress', body, re.IGNORECASE)
         ):
-            best = best or CMSInfo("wordpress", True, None, source, body[:2000])
+            best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
 
     return best or CMSInfo("wordpress", False, None, "wordpress:fallback", "")
 
@@ -177,13 +248,28 @@ def detect_wordpress_plugins(
         return {"plugins": {}, "theme": {"found": False, "name": None, "version": None, "source": "not-detected"}}
     html = home.get("body", "")
     asset_slugs = set(re.findall(r"/wp-content/plugins/([A-Za-z0-9_-]+)/", html, re.IGNORECASE))
-    slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS)
+    rest_plugins: dict[str, str] = {}
+    rest = _fetch(f"{target.rstrip('/')}/wp-json/", timeout=timeout, proxy=proxy)
+    if rest.get("status") == 200 and not is_baseline_match(rest, baseline):
+        try:
+            payload = json.loads(rest.get("body", ""))
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+        namespaces = payload.get("namespaces", []) if isinstance(payload, dict) else []
+        for namespace in namespaces if isinstance(namespaces, list) else []:
+            root = str(namespace).split("/", 1)[0].lower()
+            slug = REST_NAMESPACE_PLUGINS.get(root)
+            if slug:
+                rest_plugins.setdefault(slug, str(namespace))
+    slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS) | set(rest_plugins)
 
     plugins: dict[str, dict] = {}
     for slug in sorted(slugs):
         version = None
-        found = slug in asset_slugs
+        found = slug in asset_slugs or slug in rest_plugins
         source = f"/wp-content/plugins/{slug}/"
+        if slug in rest_plugins and slug not in asset_slugs:
+            source = f"/wp-json/:{rest_plugins[slug]}"
 
         readme = _fetch(f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt", timeout=timeout, proxy=proxy)
         readme_body = readme.get("body", "")
@@ -210,6 +296,16 @@ def detect_wordpress_plugins(
             if asset_match:
                 version = asset_match.group(1)
                 source = f"{source}asset-query"
+
+        if slug == "popup-maker" and not version:
+            popup_version = re.search(
+                r"\bpum_vars\s*=\s*\{.*?[\"']version[\"']\s*:\s*[\"']([^\"']+)",
+                html,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if popup_version:
+                version = popup_version.group(1).strip()
+                source = "/:pum_vars"
 
         if found:
             plugins[slug] = {

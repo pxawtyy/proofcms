@@ -792,6 +792,53 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/"],
         "markers": r"com_slideshowck|mod_slideshowck|Slideshow\s*CK|media/com_slideshowck/",
     },
+    "phocagallery": {
+        "manifests": [
+            "/administrator/components/com_phocagallery/phocagallery.xml",
+            "/components/com_phocagallery/phocagallery.xml",
+        ],
+        "routes": ["/?option=com_phocagallery"],
+        "markers": r"com_phocagallery|Phoca\s*Gallery",
+    },
+    "regularlabs": {
+        "manifests": [
+            "/plugins/system/regularlabs/regularlabs.xml",
+            "/plugins/system/modulesanywhere/modulesanywhere.xml",
+            "/administrator/components/com_advancedmodules/advancedmodules.xml",
+        ],
+        "routes": ["/"],
+        "markers": r"(?:media/)?regularlabs|Regular\s*Labs|modulesanywhere|com_advancedmodules",
+    },
+    "creativecontactform": {
+        "manifests": ["/administrator/components/com_creativecontactform/creativecontactform.xml"],
+        "routes": ["/?option=com_creativecontactform"],
+        "markers": r"com_creativecontactform|Creative\s*Contact\s*Form",
+    },
+    "creativeimageslider": {
+        "manifests": ["/administrator/components/com_creativeimageslider/creativeimageslider.xml"],
+        "routes": ["/?option=com_creativeimageslider"],
+        "markers": r"com_creativeimageslider|Creative\s*Image\s*Slider",
+    },
+    "jevents": {
+        "manifests": ["/administrator/components/com_jevents/jevents.xml"],
+        "routes": ["/?option=com_jevents"],
+        "markers": r"com_jevents|JEvents",
+    },
+    "youtubegallery": {
+        "manifests": ["/administrator/components/com_youtubegallery/youtubegallery.xml"],
+        "routes": ["/?option=com_youtubegallery"],
+        "markers": r"com_youtubegallery|Youtube\s*Gallery",
+    },
+    "agendadirigentes": {
+        "manifests": ["/administrator/components/com_agendadirigentes/agendadirigentes.xml"],
+        "routes": ["/?option=com_agendadirigentes"],
+        "markers": r"com_agendadirigentes|Agenda\s*Dirigentes",
+    },
+    "gwejson": {
+        "manifests": ["/plugins/system/gwejson/gwejson.xml"],
+        "routes": [],
+        "markers": r"plg_system_gwejson|gwejson",
+    },
     "login_popup": {
         "manifests": ["/plugins/system/loginpopup/loginpopup.xml"],
         "routes": [],

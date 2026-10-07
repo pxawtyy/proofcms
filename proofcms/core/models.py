@@ -90,6 +90,7 @@ class CMSInfo:
     version: str | None
     source: str
     raw: str = ""
+    base_url: str | None = None
 
 
 @dataclass

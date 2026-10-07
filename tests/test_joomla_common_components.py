@@ -160,6 +160,21 @@ class TestCommonJoomlaComponents(unittest.TestCase):
         for key in expected:
             self.assertTrue(joomla.COMMON_COMPONENTS[key]["manifests"])
 
+    def test_reported_inventory_gaps_have_detectors(self):
+        expected = {
+            "phocagallery",
+            "regularlabs",
+            "creativecontactform",
+            "creativeimageslider",
+            "jevents",
+            "youtubegallery",
+            "agendadirigentes",
+            "gwejson",
+        }
+        self.assertTrue(expected.issubset(joomla.COMMON_COMPONENTS))
+        for key in expected:
+            self.assertTrue(joomla.COMMON_COMPONENTS[key]["manifests"])
+
 
 if __name__ == "__main__":
     unittest.main()

