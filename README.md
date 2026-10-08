@@ -212,6 +212,14 @@ write to the database, create accounts, or upload files.
 
 ## Result states
 
+Every result also includes a human-readable `vulnerability_type` in console, text, and JSON output.
+The normalized taxonomy includes SQL Injection, Unrestricted File Upload, Authentication Bypass,
+Privilege Escalation, Improper Access Control, Path Traversal, SSRF, XSS, Open Redirect, Object
+Injection, Argument Injection, Memory Corruption, Remote Code Execution, and Exposed Attack Surface.
+New modules may set `vulnerability_type` explicitly in their metadata and findings; otherwise
+ProofCMS derives it from the CVE identifier and module name and verifies that registered modules do
+not fall back to `Other`.
+
 | State | Meaning |
 |---|---|
 | `NOT_DETECTED` | No reliable public evidence of the component was found. |
@@ -256,7 +264,7 @@ proofcms -u https://staging.example.test --fail-on vulnerable,error
 
 ```text
 proofcms/
-├── core/                 # HTTP, evidence, models, probes, and versions
+├── core/                 # HTTP, evidence, models, vulnerability categories, probes, and versions
 ├── detectors/            # Independent Joomla and WordPress discovery
 ├── modules/
 │   ├── base.py           # VulnerabilityModule protocol

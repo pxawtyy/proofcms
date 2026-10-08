@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from proofcms import cli
+from proofcms.core.categories import VulnerabilityType, normalize_metadata
 from proofcms.core.http import HttpClient, _build_response_dict, is_baseline_match, normalize_url, poll_paths
 from proofcms.core.models import CMSInfo, PHPRuntimeInfo
 from proofcms.detectors import joomla, php, wordpress
@@ -234,11 +235,23 @@ def test_unknown_fail_on_value_is_rejected_before_target_loading():
 def test_every_registered_module_has_consistent_metadata():
     for cve, module_name in cli.AVAILABLE_CVES.items():
         module = importlib.import_module(module_name)
-        metadata = module.metadata()
+        metadata = normalize_metadata(module.metadata())
         assert metadata["cve"] == cve
         assert metadata.get("name")
         assert metadata.get("affected_rule")
+        assert metadata["vulnerability_type"] != VulnerabilityType.OTHER
         assert callable(module.check)
+
+
+def test_findings_expose_human_readable_vulnerability_type():
+    finding = cve_2026_48907.Finding(
+        cve="CVE-2026-92222",
+        name="Joomla core extension SSRF vectors",
+        status="LIKELY_VULNERABLE",
+        confidence="HIGH",
+    )
+    assert finding.vulnerability_type == VulnerabilityType.SSRF
+    assert finding.as_dict()["vulnerability_type"] == "Server-Side Request Forgery (SSRF)"
 
 
 @pytest.mark.parametrize("detector", [joomla.detect_pagebuilderck, joomla.detect_helixultimate])

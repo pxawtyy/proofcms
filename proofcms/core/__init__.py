@@ -1,5 +1,6 @@
 """Core infrastructure for models, HTTP, versioning, evidence, and probes."""
 
+from .categories import VulnerabilityType, classify_vulnerability_type, normalize_metadata
 from .evidence import find_sql_errors, generate_php_math_payload, verify_php_execution
 from .http import (
     HttpClient,
@@ -37,7 +38,9 @@ __all__ = [
     "JoomlaInfo",
     "PluginInfo",
     "Status",
+    "VulnerabilityType",
     "build_multipart",
+    "classify_vulnerability_type",
     "extract_csrf_from_html",
     "fetch_url",
     "find_anon_csrf_token",
@@ -45,6 +48,7 @@ __all__ = [
     "form_encode",
     "generate_php_math_payload",
     "is_baseline_match",
+    "normalize_metadata",
     "normalize_url",
     "normalize_version_string",
     "parse_version_required",

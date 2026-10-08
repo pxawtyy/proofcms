@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from .categories import classify_vulnerability_type
+
 
 class Status:
     VULNERABLE = "VULNERABLE"
@@ -48,11 +50,17 @@ class Finding:
     evidence: dict | None = None
     cleanup_attempted: bool = False
     cleanup_verified: bool = False
+    vulnerability_type: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.vulnerability_type:
+            self.vulnerability_type = classify_vulnerability_type(self.cve, self.name)
 
     def as_dict(self) -> dict:
         return {
             "cve": self.cve,
             "name": self.name,
+            "vulnerability_type": self.vulnerability_type,
             "status": self.status,
             "confidence": self.confidence,
             "component": self.component,

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from proofcms.chains import AVAILABLE_CHAINS
+from proofcms.core.categories import normalize_metadata
 from proofcms.core.http import (
     configure_tls,
     fetch_url,
@@ -365,7 +366,7 @@ def main():
     for cve_id in cves:
         try:
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
-            meta = getattr(module, "metadata", dict)()
+            meta = normalize_metadata(getattr(module, "metadata", dict)())
             for det in meta.get("required_detectors", []):
                 needed_detectors.add(det)
         except Exception as exc:  # noqa: BLE001
@@ -473,7 +474,7 @@ def main():
                 })
                 continue
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
-            meta = getattr(module, "metadata", dict)()
+            meta = normalize_metadata(getattr(module, "metadata", dict)())
             module_scope = meta.get("cms", "joomla")
             if module_scope not in {info.name, "php", "generic"}:
                 continue
@@ -501,6 +502,7 @@ def main():
                 result_dict = {
                     "cve": cve_id,
                     "name": meta.get("name", cve_id),
+                    "vulnerability_type": meta.get("vulnerability_type", "Other"),
                     "component": meta.get("component", "Unknown"),
                     "component_version": None,
                     "affected_rule": meta.get("affected_rule", "unknown"),

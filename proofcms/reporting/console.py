@@ -6,6 +6,7 @@ import urllib.parse
 from copy import deepcopy
 from typing import Any
 
+from ..core.categories import normalize_metadata
 from ..core.models import CMSInfo
 
 SENSITIVE_QUERY_KEYS = {
@@ -193,7 +194,7 @@ def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str
     print("Available CVEs:")
     for cve_id, module_name in available_cves.items():
         module = importlib.import_module(module_name)
-        meta = module.metadata()
+        meta = normalize_metadata(module.metadata())
         modes = ",".join(meta.get("exploit_modes", [])) or "none"
         exploit = "yes" if meta.get("exploit_available") else "no"
         proof_kind = "intrusive" if meta.get("intrusive") else ("active-safe" if modes != "none" else "passive")
@@ -201,7 +202,7 @@ def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str
         cms = {"joomla": "Joomla", "wordpress": "WordPress"}.get(cms_key, cms_key.title())
         versions = ",".join(meta.get("affected_joomla_versions", meta.get("affected_versions", ["unknown"])))
         print(
-            f"- {cve_id}: {meta.get('name')} | {cms}: {versions} | "
+            f"- {cve_id}: {meta.get('name')} | type: {meta.get('vulnerability_type')} | {cms}: {versions} | "
             f"rule: {meta.get('affected_rule')} | exploit: {exploit} ({proof_kind}; modes: {modes})"
         )
     if available_chains:
@@ -229,6 +230,7 @@ def print_one_result(result: dict | Any):
     color = status_color(res_dict["status"])
     reset = "\033[0m"
     print(f"{color}{res_dict['cve']}: {res_dict['status']} ({res_dict['confidence']}){reset}")
+    print(f"  Vulnerability type: {res_dict.get('vulnerability_type') or 'Other'}")
     print(f"  Component: {res_dict['component']} {res_dict['component_version'] or 'unknown'}")
     print(f"  Rule: {res_dict['affected_rule']}")
     print(f"  Detail: {res_dict['detail']}")

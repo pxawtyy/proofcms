@@ -23,6 +23,7 @@ def append_text_result(lines: list[str], result: dict | Any):
     lines.append("-" * 80)
     lines.append(f"{res['cve']}: {res['status']} ({res['confidence']})")
     lines.append(f"Name       : {res.get('name')}")
+    lines.append(f"Type       : {res.get('vulnerability_type') or 'Other'}")
     lines.append(f"Component  : {res.get('component')} {res.get('component_version') or 'unknown'}")
     lines.append(f"Rule       : {res.get('affected_rule')}")
     lines.append(f"Requested  : {'yes' if res.get('exploit_requested') else 'no'}")
