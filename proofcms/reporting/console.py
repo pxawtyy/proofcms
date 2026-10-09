@@ -151,7 +151,7 @@ def is_php_runtime_result(result: dict | Any) -> bool:
 
 def is_generic_web_result(result: dict | Any) -> bool:
     comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
-    return str(comp).lower().startswith("web library")
+    return str(comp).lower().startswith(("web library", "nginx runtime"))
 
 
 def visible_results(
@@ -197,7 +197,15 @@ def print_cve_catalog(available_cves: dict[str, str], available_chains: dict[str
         meta = normalize_metadata(module.metadata())
         modes = ",".join(meta.get("exploit_modes", [])) or "none"
         exploit = "yes" if meta.get("exploit_available") else "no"
-        proof_kind = "intrusive" if meta.get("intrusive") else ("active-safe" if modes != "none" else "passive")
+        proof_kind = (
+            "passive"
+            if not meta.get("exploit_available")
+            else "intrusive"
+            if meta.get("intrusive")
+            else "active-safe"
+            if modes != "none"
+            else "passive"
+        )
         cms_key = str(meta.get("cms", "joomla")).lower()
         cms = {"joomla": "Joomla", "wordpress": "WordPress"}.get(cms_key, cms_key.title())
         versions = ",".join(meta.get("affected_joomla_versions", meta.get("affected_versions", ["unknown"])))
@@ -264,6 +272,7 @@ def print_result(
     show_not_detected: bool = False,
     show_all: bool = False,
     php_runtime: dict[str, Any] | None = None,
+    nginx_runtime: dict[str, Any] | None = None,
     errors: list[str] | None = None,
 ):
     reset = "\033[0m"
@@ -279,6 +288,12 @@ def print_result(
     print(
         f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
         f"version: {runtime.get('version') or 'unknown'} | source: {runtime.get('source') or 'not-detected'}"
+    )
+    nginx = nginx_runtime or {}
+    print(
+        f"NGINX: detected: {'yes' if nginx.get('detected') else 'no'} | "
+        f"version: {nginx.get('version') or 'unknown'} | source: {nginx.get('source') or 'not-detected'} | "
+        f"HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
     )
     if not info.detected:
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")

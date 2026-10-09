@@ -14,7 +14,7 @@ from .http import (
     probe_target_baseline,
     request,
 )
-from .models import CMSInfo, Confidence, CVECheckResult, Finding, JoomlaInfo, PluginInfo, Status
+from .models import CMSInfo, Confidence, CVECheckResult, Finding, JoomlaInfo, NginxRuntimeInfo, PluginInfo, Status
 from .probes import extract_csrf_from_html, find_anon_csrf_token, rand_str
 from .versions import (
     normalize_version_string,
@@ -36,6 +36,7 @@ __all__ = [
     "HttpClient",
     "HttpSession",
     "JoomlaInfo",
+    "NginxRuntimeInfo",
     "PluginInfo",
     "Status",
     "VulnerabilityType",

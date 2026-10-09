@@ -137,6 +137,10 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
 | `CVE-2018-9206` | Blueimp jQuery File Upload sample handler | Through 9.22.0 with public PHP handler | `safe` |
 | `CVE-2021-23394` | elFinder | Before 2.1.58 | `safe` |
 | `CVE-2026-81891` | elFinder ZIP extraction | Before 2.1.70 | `safe` |
+| `CVE-2026-42945` | NGINX rewrite module | 0.6.27–1.30.0 with vulnerable rewrite configuration | passive |
+| `CVE-2026-42530` | NGINX HTTP/3 module | 1.31.0–1.31.1 with HTTP/3 enabled | passive |
+| `CVE-2026-42055` | NGINX proxy-v2 / gRPC modules | Branch-specific releases before 1.30.3 / 1.31.2 | passive |
+| `CVE-2026-9256` | NGINX rewrite module | Branch-specific releases before 1.30.2 / 1.31.1 | passive |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |

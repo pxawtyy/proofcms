@@ -25,6 +25,7 @@ from proofcms.core.models import (
     CVECheckResult,
     Finding,
     JoomlaInfo,
+    NginxRuntimeInfo,
     PluginInfo,
     Status,
 )
@@ -35,6 +36,7 @@ from proofcms.detectors import (
     detect_helixultimate,
     detect_icagenda,
     detect_joomla,
+    detect_nginx_runtime,
     detect_pagebuilderck,
     detect_php_runtime,
     detect_rsfiles,
@@ -85,6 +87,7 @@ __all__ = [
     "detect_helixultimate",
     "detect_icagenda",
     "detect_joomla",
+    "detect_nginx_runtime",
     "detect_pagebuilderck",
     "detect_plugins",
     "detect_rsfiles",
@@ -399,6 +402,18 @@ def main():
             info = CMSInfo("unknown", False, None, "error")
         operational_target = info.base_url or target
         try:
+            nginx_runtime_info = detect_nginx_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
+        except Exception as exc:  # noqa: BLE001
+            target_errors.append(f"NGINX detection failed: {type(exc).__name__}: {exc}")
+            nginx_runtime_info = NginxRuntimeInfo(False, None, "error")
+        nginx_runtime = {
+            "detected": nginx_runtime_info.detected,
+            "version": nginx_runtime_info.version,
+            "source": nginx_runtime_info.source,
+            "server": nginx_runtime_info.server,
+            "http3_advertised": nginx_runtime_info.http3_advertised,
+        }
+        try:
             php_runtime_info = detect_php_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"PHP detection failed: {type(exc).__name__}: {exc}")
@@ -455,6 +470,7 @@ def main():
             "plugins": plugins,
             "wordpress": wordpress_inventory,
             "php": php_runtime,
+            "nginx": nginx_runtime,
             "results": [],
             "chains": [],
             "edge_interstitial": baseline.get("edge_interstitial"),
@@ -493,6 +509,7 @@ def main():
                     aggressive_command=args.aggressive_command,
                     plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
                     php_runtime=php_runtime,
+                    nginx_runtime=nginx_runtime,
                 )
                 result_dict = result.as_dict()
                 result_dict["exploit_requested"] = run_exploit_check
@@ -538,6 +555,7 @@ def main():
             show_not_detected=args.show_not_detected,
             show_all=args.show_all,
             php_runtime=php_runtime,
+            nginx_runtime=nginx_runtime,
             errors=target_errors,
         )
         print_chain_results(target_report["chains"])

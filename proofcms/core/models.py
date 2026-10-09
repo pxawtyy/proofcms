@@ -124,3 +124,12 @@ class PHPRuntimeInfo:
     source: str
     server: str | None = None
     entrypoint: str = "/index.php"
+
+
+@dataclass
+class NginxRuntimeInfo:
+    detected: bool
+    version: str | None
+    source: str
+    server: str | None = None
+    http3_advertised: bool = False

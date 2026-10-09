@@ -84,6 +84,12 @@ def write_text_report(
             f"PHP: detected: {'yes' if runtime.get('detected') else 'no'} | "
             f"version: {runtime.get('version') or 'unknown'} | source: {runtime.get('source') or 'not-detected'}"
         )
+        nginx = target.get("nginx") or {}
+        lines.append(
+            f"NGINX: detected: {'yes' if nginx.get('detected') else 'no'} | "
+            f"version: {nginx.get('version') or 'unknown'} | source: {nginx.get('source') or 'not-detected'} | "
+            f"HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
+        )
         lines.append("")
         if cms.get("name") == "wordpress":
             wp = target.get("wordpress") or {}
