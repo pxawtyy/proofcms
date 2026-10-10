@@ -151,7 +151,7 @@ def is_php_runtime_result(result: dict | Any) -> bool:
 
 def is_generic_web_result(result: dict | Any) -> bool:
     comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
-    return str(comp).lower().startswith(("web library", "nginx runtime"))
+    return str(comp).lower().startswith(("web library", "nginx runtime", "origin infrastructure"))
 
 
 def visible_results(
@@ -293,8 +293,13 @@ def print_result(
     print(
         f"NGINX: detected: {'yes' if nginx.get('detected') else 'no'} | "
         f"version: {nginx.get('version') or 'unknown'} | source: {nginx.get('source') or 'not-detected'} | "
-        f"HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
+        f"origin HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
     )
+    if nginx.get("edge_server"):
+        print(
+            f"NGINX edge: {nginx['edge_server']} | "
+            f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
+        )
     if not info.detected:
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")
     filtered, hidden = visible_results(results, show_patched, show_not_detected, show_all)

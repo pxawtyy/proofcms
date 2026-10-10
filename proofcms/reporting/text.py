@@ -88,8 +88,13 @@ def write_text_report(
         lines.append(
             f"NGINX: detected: {'yes' if nginx.get('detected') else 'no'} | "
             f"version: {nginx.get('version') or 'unknown'} | source: {nginx.get('source') or 'not-detected'} | "
-            f"HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
+            f"origin HTTP/3 advertised: {'yes' if nginx.get('http3_advertised') else 'no'}"
         )
+        if nginx.get("edge_server"):
+            lines.append(
+                f"NGINX edge: {nginx['edge_server']} | "
+                f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
+            )
         lines.append("")
         if cms.get("name") == "wordpress":
             wp = target.get("wordpress") or {}

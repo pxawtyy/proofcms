@@ -412,6 +412,8 @@ def main():
             "source": nginx_runtime_info.source,
             "server": nginx_runtime_info.server,
             "http3_advertised": nginx_runtime_info.http3_advertised,
+            "edge_server": nginx_runtime_info.edge_server,
+            "edge_http3_advertised": nginx_runtime_info.edge_http3_advertised,
         }
         try:
             php_runtime_info = detect_php_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
@@ -426,6 +428,12 @@ def main():
             "source": php_runtime_info.source,
             "server": php_runtime_info.server,
             "entrypoint": php_runtime_info.entrypoint,
+            "phpinfo_exposed": php_runtime_info.phpinfo_exposed,
+            "phpinfo_path": php_runtime_info.phpinfo_path,
+            "phpinfo_size": php_runtime_info.phpinfo_size,
+            "origin_ip": php_runtime_info.origin_ip,
+            "origin_reachable": php_runtime_info.origin_reachable,
+            "origin_server": php_runtime_info.origin_server,
         }
         try:
             plugins = (
@@ -477,6 +485,54 @@ def main():
             "errors": target_errors,
             "selected_modules": list(cves),
         }
+        if php_runtime_info.phpinfo_exposed:
+            target_report["results"].append(
+                Finding(
+                    "PROOFCMS-PHPINFO-EXPOSURE",
+                    "Public phpinfo() disclosure",
+                    Status.VULNERABLE,
+                    Confidence.CONFIRMED,
+                    "PHP runtime",
+                    php_runtime_info.version,
+                    "Public phpinfo.php endpoint returns a phpinfo() document",
+                    detail=(
+                        f"{php_runtime_info.phpinfo_path or '/phpinfo.php'} returned a phpinfo() document "
+                        f"({php_runtime_info.phpinfo_size or 'unknown'} bytes), disclosing runtime and server configuration."
+                        + (
+                            " PHP 7.4 is end-of-life and no longer receives upstream security fixes."
+                            if (php_runtime_info.version or "").startswith("7.4.")
+                            else ""
+                        )
+                    ),
+                    action="Remove phpinfo.php from the production document root and rotate any exposed infrastructure secrets.",
+                    proof_url=f"{operational_target.rstrip('/')}{php_runtime_info.phpinfo_path or '/phpinfo.php'}",
+                    evidence={
+                        "path": php_runtime_info.phpinfo_path or "/phpinfo.php",
+                        "response_bytes": php_runtime_info.phpinfo_size,
+                        "origin_ip_disclosed": bool(php_runtime_info.origin_ip),
+                    },
+                    vulnerability_type="Information Disclosure",
+                ).as_dict()
+            )
+        if php_runtime_info.origin_reachable:
+            target_report["results"].append(
+                Finding(
+                    "PROOFCMS-ORIGIN-DIRECT-ACCESS",
+                    "Direct origin access bypasses the edge",
+                    Status.VULNERABLE,
+                    Confidence.CONFIRMED,
+                    "Origin infrastructure",
+                    None,
+                    "A globally routable origin address disclosed by the target accepts direct HTTP requests",
+                    detail=f"The disclosed origin address answered directly with Server: {php_runtime_info.origin_server or 'unknown'}.",
+                    action="Restrict the origin firewall to trusted edge-provider ranges and reject direct public access.",
+                    evidence={
+                        "origin_ip": php_runtime_info.origin_ip,
+                        "origin_server": php_runtime_info.origin_server,
+                    },
+                    vulnerability_type="Improper Access Control",
+                ).as_dict()
+            )
         for cve_id in cves:
             if cve_id in module_setup_errors:
                 target_report["results"].append({

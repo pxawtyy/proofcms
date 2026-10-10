@@ -16,6 +16,7 @@ def runtime_finding(
     required_feature: str,
     remediation: str,
     require_http3: bool = False,
+    vulnerability_type: str = "Memory Corruption",
 ) -> Finding:
     runtime = nginx_runtime or {}
     if not runtime.get("detected"):
@@ -39,17 +40,18 @@ def runtime_finding(
         confidence = Confidence.LOW
     elif status == Status.LIKELY_VULNERABLE:
         detail = (
-            f"Detected NGINX {version}, which is in the upstream affected range. Exploitation additionally requires "
-            f"{required_feature}; public HTTP responses cannot prove the private configuration."
+            f"Detected NGINX {version}, which is in the upstream affected range, but the required exposure is not "
+            f"confirmed. The check requires {required_feature}; public HTTP responses cannot prove the private configuration."
         )
         confidence = Confidence.MEDIUM
+        status = Status.NOT_CONFIRMED
         if require_http3:
             if runtime.get("http3_advertised"):
-                detail += " The endpoint advertises HTTP/3 through Alt-Svc."
+                status = Status.LIKELY_VULNERABLE
+                detail += " The origin endpoint advertises HTTP/3 through Alt-Svc."
                 confidence = Confidence.HIGH
             else:
-                status = Status.INCONCLUSIVE
-                detail += " HTTP/3 was not advertised, so the vulnerable request path was not established."
+                detail += " Origin HTTP/3 was not advertised, so the vulnerable request path was not established."
     elif status == Status.PATCHED:
         detail = f"Detected NGINX {version}, which is in an upstream fixed release range."
         confidence = Confidence.HIGH
@@ -72,13 +74,19 @@ def runtime_finding(
             "server": server,
             "source": runtime.get("source"),
             "http3_advertised": bool(runtime.get("http3_advertised")),
+            "edge_server": runtime.get("edge_server"),
+            "edge_http3_advertised": bool(runtime.get("edge_http3_advertised")),
             "required_feature": required_feature,
         },
-        vulnerability_type="Memory Corruption",
+        vulnerability_type=vulnerability_type,
     )
 
 
-def passive_only(result: Finding, run_exploit_check: bool) -> Finding:
+def passive_only(
+    result: Finding,
+    run_exploit_check: bool,
+    reason: str = "triggering this memory-safety flaw could crash a worker",
+) -> Finding:
     if run_exploit_check:
-        result.detail += " No active proof was sent because triggering this memory-safety flaw could crash a worker."
+        result.detail += f" No active proof was sent because {reason}."
     return result

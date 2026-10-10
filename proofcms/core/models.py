@@ -124,6 +124,12 @@ class PHPRuntimeInfo:
     source: str
     server: str | None = None
     entrypoint: str = "/index.php"
+    phpinfo_exposed: bool = False
+    phpinfo_path: str | None = None
+    phpinfo_size: int | None = None
+    origin_ip: str | None = None
+    origin_reachable: bool = False
+    origin_server: str | None = None
 
 
 @dataclass
@@ -133,3 +139,5 @@ class NginxRuntimeInfo:
     source: str
     server: str | None = None
     http3_advertised: bool = False
+    edge_server: str | None = None
+    edge_http3_advertised: bool = False

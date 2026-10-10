@@ -320,6 +320,69 @@ def test_php_runtime_rejects_uniform_empty_php_catch_all():
     assert info.detected is False
 
 
+def test_php_runtime_reads_phpinfo_version_and_marks_public_disclosure():
+    phpinfo = (
+        "<html><head><title>PHP 7.4.33 - phpinfo()</title></head><body>"
+        "<tr><td class='e'>PHP Version</td><td class='v'>7.4.33</td></tr>"
+        "<tr><td class='e'>$_SERVER['SERVER_SOFTWARE']</td><td class='v'>nginx/1.26.3</td></tr>"
+        "<tr><td class='e'>$_SERVER['SERVER_ADDR']</td><td class='v'>192.0.2.10</td></tr>"
+        "</body></html>"
+    )
+
+    class PhpInfoClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, path):
+            if path == "phpinfo.php":
+                return {"status": 200, "body": phpinfo, "body_len": len(phpinfo)}
+            return {"status": 404, "body": "", "headers": {}}
+
+    baseline = {"status": 404, "body_hash": "missing", "normalized_body_hash": "missing"}
+    with (
+        patch.object(php, "HttpClient", PhpInfoClient),
+        patch.object(php, "probe_target_baseline", return_value=baseline),
+    ):
+        info = php.detect_php_runtime("https://fixture.test/site/", timeout=1)
+    assert info.detected is True
+    assert info.version == "7.4.33"
+    assert info.phpinfo_exposed is True
+    assert info.phpinfo_path == "/phpinfo.php"
+    assert info.phpinfo_size == len(phpinfo)
+    assert info.origin_ip == "192.0.2.10"
+    assert info.origin_reachable is False
+
+
+def test_phpinfo_origin_probe_preserves_target_subpath_and_confirms_server():
+    calls = []
+
+    class DirectClient:
+        def __init__(self, *args, **kwargs):
+            calls.append((args, kwargs))
+
+        def get(self, path, **kwargs):
+            calls.append((path, kwargs))
+            return {"status": 200, "headers": {"Server": "nginx/1.26.3"}}
+
+    with patch.object(php, "HttpClient", DirectClient):
+        reachable, server = php._probe_disclosed_origin(
+            "https://fixture.test/site/", "203.0.113.10", "phpinfo.php", timeout=1, proxy=None
+        )
+    assert reachable is False
+    assert server is None
+    assert calls == []
+
+    with patch.object(php, "HttpClient", DirectClient):
+        reachable, server = php._probe_disclosed_origin(
+            "https://fixture.test/site/", "190.89.239.242", "phpinfo.php", timeout=1, proxy=None
+        )
+    assert reachable is True
+    assert server == "nginx/1.26.3"
+    assert calls[0][1]["base_url"] == "https://190.89.239.242/site"
+    assert calls[1][0] == "phpinfo.php"
+    assert calls[1][1]["headers"]["Host"] == "fixture.test"
+
+
 def test_helix3_generic_ajax_envelope_is_not_success():
     from proofcms.modules.joomla.cve_2026_49049 import response_looks_successful
 

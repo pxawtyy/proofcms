@@ -17,6 +17,8 @@ class VulnerabilityType:
     ACCESS_CONTROL = "Improper Access Control"
     OPEN_REDIRECT = "Open Redirect"
     MEMORY_CORRUPTION = "Memory Corruption"
+    INFORMATION_DISCLOSURE = "Information Disclosure"
+    CORS = "Improper CORS Validation"
     CODE_EXECUTION = "Remote Code Execution"
     EXPOSURE = "Exposed Attack Surface"
     OTHER = "Other"
@@ -32,7 +34,12 @@ _CVE_TYPES = {
     "CVE-2026-9256": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2026-42055": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2026-42530": VulnerabilityType.MEMORY_CORRUPTION,
+    "CVE-2026-42533": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2026-42945": VulnerabilityType.MEMORY_CORRUPTION,
+    "CVE-2026-56434": VulnerabilityType.MEMORY_CORRUPTION,
+    "CVE-2026-60005": VulnerabilityType.INFORMATION_DISCLOSURE,
+    "CVE-2026-71573": VulnerabilityType.CORS,
+    "CVE-2026-90439": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2026-49049": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-48908": VulnerabilityType.FILE_UPLOAD,
     "CVE-2026-57830": VulnerabilityType.FILE_DELETION,
@@ -74,6 +81,8 @@ def classify_vulnerability_type(cve: str, name: str = "") -> str:
         (("object injection", "deserialization"), VulnerabilityType.OBJECT_INJECTION),
         (("argument injection", "option injection"), VulnerabilityType.ARGUMENT_INJECTION),
         (("remote code execution", " rce"), VulnerabilityType.CODE_EXECUTION),
+        (("memory disclosure", "information disclosure"), VulnerabilityType.INFORMATION_DISCLOSURE),
+        (("cors origin", "cors validation"), VulnerabilityType.CORS),
         (("access control", "route confusion"), VulnerabilityType.ACCESS_CONTROL),
     )
     for keywords, category in keyword_types:
