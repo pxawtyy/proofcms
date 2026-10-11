@@ -397,8 +397,6 @@ def main():
                 diagnostic = f"Baseline transport: {error_type}"
                 if error_message:
                     diagnostic += f": {error_message}"
-                if error_type in {"SSLError", "CertificateError"} or "CERTIFICATE_VERIFY_FAILED" in error_message:
-                    diagnostic += " (the target likely redirects HTTP to HTTPS with an invalid certificate; use --insecure only for an authorized lab target)"
                 if diagnostic not in target_errors:
                     target_errors.append(diagnostic)
         if baseline.get("edge_interstitial"):

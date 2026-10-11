@@ -225,29 +225,6 @@ def test_unreachable_target_matches_fail_on_error():
         assert cli.main() == 5
 
 
-def test_baseline_certificate_error_explains_insecure_override(capsys):
-    argv = ["proofcms", "-u", "http://fixture.test", "--cve", "none", "--no-text-report"]
-    with (
-        patch("sys.argv", argv),
-        patch.object(cli, "load_targets", return_value=["http://fixture.test"]),
-        patch.object(
-            cli,
-            "probe_target_baseline",
-            return_value={
-                "status": 0,
-                "error": {
-                    "type": "URLError",
-                    "message": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired (_ssl.c:1010)>",
-                },
-            },
-        ),
-        patch.object(cli, "detect_cms", return_value=CMSInfo("unknown", False, None, "error")),
-        patch.object(cli, "detect_php_runtime", return_value=PHPRuntimeInfo(False, None, "error")),
-    ):
-        cli.main()
-    assert "use --insecure only for an authorized lab target" in capsys.readouterr().out
-
-
 def test_unknown_fail_on_value_is_rejected_before_target_loading():
     argv = ["proofcms", "-u", "https://fixture.test", "--cve", "none", "--fail-on", "typo"]
     with patch("sys.argv", argv), patch.object(cli, "load_targets") as load_targets:
