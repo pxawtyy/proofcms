@@ -24,8 +24,17 @@ def write_json_report(path: Path | str, report: dict, overwrite: bool = False):
         if overwrite:
             os.replace(temporary, report_path)
         else:
-            os.link(temporary, report_path)
-            os.unlink(temporary)
+            try:
+                os.link(temporary, report_path)
+                os.unlink(temporary)
+            except PermissionError:
+                # Hard links can be denied on managed Windows folders even
+                # when ordinary file creation is allowed. The destination
+                # was checked above, so an atomic replace preserves the
+                # no-implicit-overwrite contract in this fallback.
+                if report_path.exists():
+                    raise
+                os.replace(temporary, report_path)
     except Exception:
         try:
             os.unlink(temporary)

@@ -85,6 +85,11 @@ class TestProofCMSHttpAndMultipart(unittest.TestCase):
         self.assertEqual(normalize_url("http://example.com/"), "http://example.com")
         self.assertEqual(normalize_url("https://example.com/path/"), "https://example.com/path")
 
+    def test_http_client_registers_plain_http_transport(self):
+        client = HttpClient("http://example.com")
+        self.assertTrue(any(type(handler).__name__ == "HTTPHandler" for handler in client.opener.handlers))
+        self.assertEqual(client._resolve_url("/health"), "http://example.com/health")
+
     def test_http_client_initialization(self):
         client = HttpClient(timeout=10, user_agent="CustomAgent/1.0", proxy="http://127.0.0.1:8080")
         self.assertEqual(client.timeout, 10)

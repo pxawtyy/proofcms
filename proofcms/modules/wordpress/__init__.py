@@ -3,6 +3,7 @@
 from . import (
     cve_2020_25213,
     cve_2020_35489,
+    cve_2024_4439,
     cve_2023_3460,
     cve_2023_28121,
     cve_2023_32243,
@@ -14,7 +15,11 @@ from . import (
     cve_2026_32475,
     cve_2026_60137,
     cve_2026_63030,
+    cve_2026_64638,
     cve_2026_87902,
+    wpvdb_5e9804e5,
+    wpvdb_aa354358,
+    wpvdb_df1ca42d,
 )
 
 AVAILABLE_CVES: dict[str, str] = {
@@ -24,6 +29,7 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2023-32243": "proofcms.modules.wordpress.cve_2023_32243",
     "CVE-2023-3460": "proofcms.modules.wordpress.cve_2023_3460",
     "CVE-2024-10924": "proofcms.modules.wordpress.cve_2024_10924",
+    "CVE-2024-4439": "proofcms.modules.wordpress.cve_2024_4439",
     "CVE-2024-28000": "proofcms.modules.wordpress.cve_2024_28000",
     "CVE-2024-6220": "proofcms.modules.wordpress.cve_2024_6220",
     "CVE-2026-6692": "proofcms.modules.wordpress.cve_2026_6692",
@@ -31,13 +37,18 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2026-32475": "proofcms.modules.wordpress.cve_2026_32475",
     "CVE-2026-60137": "proofcms.modules.wordpress.cve_2026_60137",
     "CVE-2026-63030": "proofcms.modules.wordpress.cve_2026_63030",
+    "CVE-2026-64638": "proofcms.modules.wordpress.cve_2026_64638",
     "CVE-2026-87902": "proofcms.modules.wordpress.cve_2026_87902",
+    "WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225": "proofcms.modules.wordpress.wpvdb_5e9804e5",
+    "WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa": "proofcms.modules.wordpress.wpvdb_aa354358",
+    "WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77": "proofcms.modules.wordpress.wpvdb_df1ca42d",
 }
 
 __all__ = [
     "AVAILABLE_CVES",
     "cve_2020_25213",
     "cve_2020_35489",
+    "cve_2024_4439",
     "cve_2023_3460",
     "cve_2023_28121",
     "cve_2023_32243",
@@ -49,5 +60,9 @@ __all__ = [
     "cve_2026_32475",
     "cve_2026_60137",
     "cve_2026_63030",
+    "cve_2026_64638",
     "cve_2026_87902",
+    "wpvdb_5e9804e5",
+    "wpvdb_aa354358",
+    "wpvdb_df1ca42d",
 ]

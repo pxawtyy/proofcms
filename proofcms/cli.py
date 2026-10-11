@@ -390,6 +390,15 @@ def main():
             message = "Target baseline request failed; CMS and component absence cannot be established."
             if message not in target_errors:
                 target_errors.append(message)
+            baseline_error = baseline.get("error")
+            if isinstance(baseline_error, dict):
+                error_type = baseline_error.get("type", "transport error")
+                error_message = baseline_error.get("message", "")
+                diagnostic = f"Baseline transport: {error_type}"
+                if error_message:
+                    diagnostic += f": {error_message}"
+                if diagnostic not in target_errors:
+                    target_errors.append(diagnostic)
         if baseline.get("edge_interstitial"):
             print(
                 f"Warning: {target} returned a {baseline['edge_interstitial']} challenge page. "

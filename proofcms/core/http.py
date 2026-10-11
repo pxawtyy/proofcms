@@ -234,11 +234,23 @@ class HttpClient:
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
         handlers: list[urllib.request.BaseHandler] = [
+            # Register both schemes explicitly. Some Python/Windows builds
+            # omit the default HTTP handler when a custom HTTPS handler is
+            # supplied, which made plain-http targets return a transport
+            # error before any detector ran.
+            urllib.request.HTTPHandler(),
             urllib.request.HTTPSHandler(context=ctx),
             urllib.request.HTTPCookieProcessor(self.jar),
         ]
         if self.proxy:
             handlers.append(urllib.request.ProxyHandler({"http": self.proxy, "https": self.proxy}))
+        else:
+            # Do not inherit a machine-wide proxy for direct scans.  On
+            # Windows, an environment/WinINET proxy commonly handles HTTPS
+            # but rejects plain HTTP, turning otherwise valid http:// targets
+            # into a misleading transport failure before detection runs.
+            # An explicit --proxy still opts into proxy routing above.
+            handlers.append(urllib.request.ProxyHandler({}))
         self.opener = urllib.request.build_opener(*handlers)
         self.no_redirect_opener = urllib.request.build_opener(_NoRedirectHandler(), *handlers)
 

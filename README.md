@@ -127,6 +127,10 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
   --i-understand-authorized --i-understand-lab-only
 ```
 
+Plain `http://` targets are supported. ProofCMS uses direct transport by
+default instead of inheriting machine-wide proxy settings; pass `--proxy`
+when the authorized target must be reached through an explicit proxy.
+
 ## Implemented vulnerability checks
 
 | CVE | Component | Affected rule | Verification modes |
@@ -180,6 +184,16 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
+| `CVE-2024-4439` | WordPress core Avatar block stored XSS | 6.0.x–6.5.1 (branch-specific backports) | passive advisory + documented PoC |
+| `CVE-2026-64638` | WordPress core login reflected XSS | 4.7.x–7.0.2 (branch-specific backports) | passive advisory |
+| `WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77` | WordPress core comment-moderation stored XSS | branch-specific WPScan ranges | passive advisory |
+| `WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa` | WordPress core comment stored XSS | branch-specific WPScan ranges | passive advisory |
+| `WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225` | WordPress core insecure deserialization | branch-specific WPScan ranges | passive advisory |
+
+The three `WPVDB-*` identifiers are WPScan database IDs because the source
+advisories do not publish assigned CVE numbers. They are intentionally kept
+distinct from CVE records instead of using fabricated identifiers. The
+Avatar-block PoC is recorded as metadata but is never sent automatically.
 
 An ambiguous or unavailable version produces an inconclusive result instead of an unsupported vulnerability claim.
 
