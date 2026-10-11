@@ -130,6 +130,9 @@ proofcms -u http://joomla-3-8-11.lab --cms joomla \
 Plain `http://` targets are supported. ProofCMS uses direct transport by
 default instead of inheriting machine-wide proxy settings; pass `--proxy`
 when the authorized target must be reached through an explicit proxy.
+If an HTTP target redirects to HTTPS with an expired or self-signed
+certificate, TLS verification will fail by design; use `--insecure` only in
+an isolated, authorized lab where bypassing certificate validation is safe.
 
 ## Implemented vulnerability checks
 
