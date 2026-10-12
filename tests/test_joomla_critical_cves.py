@@ -42,7 +42,8 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
             (cve_2026_90915, "6.1.3", "LIKELY_VULNERABLE"),
             (cve_2026_90915, "6.1.4", "PATCHED"),
             (cve_2026_92222, "2.5.28", "NOT_AFFECTED"),
-            (cve_2026_92222, "3.10.12", "LIKELY_VULNERABLE"),
+            (cve_2026_92222, "3.10.12", "NOT_AFFECTED"),
+            (cve_2026_92222, "4.4.0", "LIKELY_VULNERABLE"),
             (cve_2026_92222, "5.4.9", "PATCHED"),
             (cve_2026_92222, "6.1.3", "LIKELY_VULNERABLE"),
             (cve_2026_92222, "6.1.4", "PATCHED"),
@@ -74,6 +75,14 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
         self.assertEqual(extension.status, "LIKELY_VULNERABLE")
         self.assertTrue(core.exploit_available)
         self.assertFalse(extension.exploit_available)
+
+    def test_high_privilege_requirement_prevents_false_positive(self):
+        unauthenticated = cve_2026_92222.check("https://target.test", joomla_version="4.4.0")
+        self.assertEqual(unauthenticated.status, "NOT_CONFIRMED")
+        privileged = cve_2026_92222.check(
+            "https://target.test", joomla_version="4.4.0", high_privilege_access=True
+        )
+        self.assertEqual(privileged.status, "LIKELY_VULNERABLE")
 
     def test_phar_stub_payload_is_inert(self):
         payload = cve_2018_15882.build_inert_phar_stub("PROOFCMS_TEST")

@@ -7,18 +7,18 @@ from .advisory import passive_core_finding, passive_only_check
 
 CVE_ID = "CVE-2026-92222"
 NAME = "Joomla core extension SSRF vectors"
-AFFECTED_RULE = "Joomla 3.0.0-5.4.8 and 6.0.0-6.1.3"
+AFFECTED_RULE = "Joomla 4.0.0-5.4.8 and 6.0.0-6.1.3; requires high privileges (PR:H)"
 
 
 def classify_version(version: str | None) -> str:
     parsed = parse_version_safe(version)
     if parsed is None:
         return "INCONCLUSIVE"
-    if parse_version_required("3.0.0") <= parsed < parse_version_required("5.4.9"):
+    if parse_version_required("4.0.0") <= parsed < parse_version_required("5.4.9"):
         return "LIKELY_VULNERABLE"
     if parse_version_required("6.0.0") <= parsed < parse_version_required("6.1.4"):
         return "LIKELY_VULNERABLE"
-    if parsed < parse_version_required("3.0.0"):
+    if parsed < parse_version_required("4.0.0"):
         return "NOT_AFFECTED"
     return "PATCHED"
 
@@ -27,6 +27,7 @@ def check(
     target_url: str,
     joomla_version: str | None = None,
     run_exploit_check: bool = False,
+    high_privilege_access: bool = False,
     **kwargs: Any,
 ):
     finding = passive_core_finding(
@@ -37,6 +38,14 @@ def check(
         classify=classify_version,
         remediation="Upgrade to Joomla 5.4.9, 6.1.4, or newer and restrict outbound web-server traffic.",
     )
+    if finding.status == "LIKELY_VULNERABLE" and not high_privilege_access:
+        finding.status = "NOT_CONFIRMED"
+        finding.confidence = "MEDIUM"
+        finding.detail = (
+            f"Detected Joomla {joomla_version} is in the affected version range, but this CVE requires "
+            "high-privilege access (PR:H), which was not established by the scan."
+        )
+        finding.action = "Re-run with evidence of an authorized high-privilege Joomla session before treating this as applicable."
     finding = passive_only_check(finding, run_exploit_check)
     if run_exploit_check and finding.status == "LIKELY_VULNERABLE":
         finding.detail += " No callback endpoint was supplied, so no server-side request was induced."
@@ -50,7 +59,8 @@ def metadata() -> dict[str, Any]:
         "name": NAME,
         "component": "Joomla core",
         "affected_rule": AFFECTED_RULE,
-        "affected_joomla_versions": [">=3.0.0,<5.4.9", ">=6.0.0,<6.1.4"],
+        "affected_joomla_versions": [">=4.0.0,<5.4.9", ">=6.0.0,<6.1.4"],
+        "privileges_required": "HIGH",
         "exploit_available": False,
         "exploit_modes": [],
         "intrusive": False,
