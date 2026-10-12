@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from .console import (
+    hidden_results_note,
     is_joomla_core_result,
     is_wordpress_core_result,
-    hidden_results_note,
     print_banner,
     print_chain_results,
     print_cve_catalog,
@@ -25,9 +25,9 @@ from .text import append_text_result, write_text_report
 
 __all__ = [
     "append_text_result",
+    "hidden_results_note",
     "is_joomla_core_result",
     "is_wordpress_core_result",
-    "hidden_results_note",
     "print_banner",
     "print_chain_results",
     "print_cve_catalog",
