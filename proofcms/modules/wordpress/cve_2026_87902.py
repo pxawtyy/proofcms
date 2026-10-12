@@ -150,6 +150,25 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         identical_responses = 0
         for depth in TRAVERSAL_DEPTHS:
             control = _post_candidate(target_url, page_id, missing, depth, timeout, proxy)
+            control_status = control.get("status", 0)
+            if control_status in {401, 403, 429}:
+                observations.append(f"page_id={page_id},depth={depth},control={control_status},proof=not-sent")
+                return Finding(
+                    cve=CVE_ID,
+                    name=NAME,
+                    status="BLOCKED_EXTERNAL",
+                    confidence="MEDIUM",
+                    component=COMPONENT,
+                    affected_rule=AFFECTED_RULE,
+                    exploit_available=HAS_EXPLOIT,
+                    exploit_ran=True,
+                    detail=(
+                        f"The randomized control request was access-controlled (HTTP {control_status}); "
+                        "the traversal candidate was not sent because an equally blocked pair cannot confirm exposure."
+                    ),
+                    action="Test through an authorized route that can reach the public page-template resolver.",
+                    evidence={"attempts": observations, "proof_sent": False},
+                )
             proof = _post_candidate(target_url, page_id, "wp-links-opml", depth, timeout, proxy)
             control_hit = _is_opml_proof(control.get("body", ""))
             proof_hit = _is_opml_proof(proof.get("body", ""))

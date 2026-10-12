@@ -67,6 +67,24 @@ class TestCVE202687902SafeProbe(unittest.TestCase):
         self.assertEqual(calls, 13)
         self.assertIn("stopped=identical-responses", result.detail)
 
+    def test_access_controlled_control_stops_before_proof(self):
+        calls = 0
+
+        def fake_request(url, method="GET", **kwargs):
+            nonlocal calls
+            calls += 1
+            if "rest_route=" in url:
+                return self._response(body='[{"id":2}]')
+            return self._response(status=403, body="Forbidden")
+
+        with patch.object(module, "request", side_effect=fake_request):
+            result = module.run_safe_probe("http://target", timeout=1)
+
+        self.assertEqual(result.status, "BLOCKED_EXTERNAL")
+        self.assertEqual(calls, 2)
+        self.assertFalse(result.evidence["proof_sent"])
+        self.assertIn("proof=not-sent", result.detail + str(result.evidence))
+
     def test_page_discovery_is_bounded(self):
         response = self._response(body='[{"id":1},{"id":2},{"id":3}]')
         with patch.object(module, "request", return_value=response):

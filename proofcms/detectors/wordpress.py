@@ -106,13 +106,17 @@ def detect_wordpress(
         "/wp-admin/install.php",
     ]
     version_patterns = [
-        r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress\s+([^"\']+)',
-        r"\bwp-emoji-release(?:\.min)?\.js\?ver=([0-9]+(?:\.[0-9]+){1,3})",
-        r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
-        r"https?://c[0-9]+\.wp\.com/c/([0-9]+(?:\.[0-9]+){1,3})/",
-        r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})",
+        ("generator", r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress\s+([^"\']+)'),
+        ("wp-emoji", r"\bwp-emoji-release(?:\.min)?\.js\?ver=([0-9]+(?:\.[0-9]+){1,3})"),
+        (
+            "wp-admin-asset",
+            r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
+        ),
+        ("wpcom-cdn", r"https?://c[0-9]+\.wp\.com/c/([0-9]+(?:\.[0-9]+){1,3})/"),
+        ("readme", r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})"),
     ]
     best: CMSInfo | None = None
+    tentative_versions: dict[str, set[str]] = {}
     for path in paths:
         response = _fetch(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
         if path == "/" and _declares_non_wordpress_platform(response):
@@ -127,10 +131,12 @@ def detect_wordpress(
 
         version = None
         patterns = version_patterns if path in {"/", "/readme.html"} else version_patterns[:3]
-        for pattern in patterns:
+        version_kind = None
+        for kind, pattern in patterns:
             match = re.search(pattern, body, re.IGNORECASE)
             if match:
                 version = match.group(1).strip()
+                version_kind = kind
                 break
 
         has_wp_signature = bool(
@@ -139,7 +145,23 @@ def detect_wordpress(
             or re.search(r"wordpress|wp-json|wp-login|wp-admin", body, re.IGNORECASE)
         )
         if status == 200 and version and has_wp_signature:
-            return CMSInfo("wordpress", True, version, source, body[:2000], base_url)
+            evidence_source = f"{source}:{version_kind}"
+            # Query-string versions on login/admin responses are mutable and
+            # must not independently drive CVE grading. Require the same core
+            # version on another WordPress surface before accepting it.
+            if path in {"/wp-login.php", "/wp-admin/", "/wp-admin/install.php"} and version_kind in {
+                "wp-emoji",
+                "wp-admin-asset",
+            }:
+                seen_paths = tentative_versions.setdefault(version, set())
+                seen_paths.add(path)
+                if len(seen_paths) >= 2:
+                    return CMSInfo(
+                        "wordpress", True, version, f"wordpress:corroborated-query:{version_kind}", body[:2000], base_url
+                    )
+                best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
+            else:
+                return CMSInfo("wordpress", True, version, evidence_source, body[:2000], base_url)
 
         if path == "/wp-json/" and status == 200 and re.search(r'"namespaces"\s*:|wp/v2|wp-site-health', body, re.IGNORECASE):
             best = best or CMSInfo("wordpress", True, None, source, body[:2000], base_url)
@@ -169,9 +191,13 @@ def wordpress_signal_score(info: CMSInfo) -> int:
     score = 1
     if info.version:
         score += 3
-    if info.source in {"wordpress:/", "wordpress:/wp-json/", "wordpress:/readme.html"}:
+    if info.source.startswith(("wordpress:/:", "wordpress:/wp-json/:", "wordpress:/readme.html:")) or info.source in {
+        "wordpress:/",
+        "wordpress:/wp-json/",
+        "wordpress:/readme.html",
+    }:
         score += 3
-    if info.source in {"wordpress:/wp-login.php", "wordpress:/wp-admin/"}:
+    if info.source.startswith(("wordpress:/wp-login.php", "wordpress:/wp-admin/", "wordpress:corroborated-query:")):
         score += 2
     if re.search(r"wp-content|wp-includes|wp-json|wp-login|wp-admin|wordpress", info.raw or "", re.IGNORECASE):
         score += 2

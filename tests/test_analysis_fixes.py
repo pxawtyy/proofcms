@@ -130,6 +130,25 @@ def test_wordpress_cdn_version_and_redirected_install_base_are_detected():
     assert info.base_url == "https://fixture.test/home"
 
 
+def test_wordpress_login_query_version_requires_corroboration():
+    login = response(
+        '<form id="loginform"></form><script src="/wp-includes/js/wp-emoji-release.min.js?ver=4.9.26"></script>',
+        url="https://fixture.test/wp-login.php",
+    )
+
+    def fetch(url, **kwargs):
+        if url.endswith("/wp-login.php"):
+            return login
+        return response(status=404, url=url)
+
+    with patch.object(wordpress, "_fetch", side_effect=fetch):
+        info = wordpress.detect_wordpress("https://fixture.test", 1)
+
+    assert info.detected is True
+    assert info.version is None
+    assert info.source == "wordpress:/wp-login.php"
+
+
 def test_wordpress_rest_namespaces_expand_plugin_inventory():
     homepage = response(
         '<script>var pum_vars = {"version":"1.25.0"};</script>',
