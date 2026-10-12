@@ -55,9 +55,11 @@ from proofcms.detectors import (
 )
 from proofcms.reporting import (
     append_text_result,
+    hidden_results_note,
     is_joomla_core_result,
     print_banner,
     print_chain_results,
+    print_live_result,
     print_one_result,
     print_plugins,
     print_result,
@@ -104,6 +106,7 @@ __all__ = [
     "parse_wordpress_plugin_version",
     "print_banner",
     "print_one_result",
+    "print_live_result",
     "print_plugins",
     "print_result",
     "print_wordpress_inventory",
@@ -494,6 +497,17 @@ def main():
             "errors": target_errors,
             "selected_modules": list(cves),
         }
+        print_result(
+            target,
+            info,
+            [],
+            show_patched=args.show_patched,
+            show_not_detected=args.show_not_detected,
+            show_all=args.show_all,
+            php_runtime=php_runtime,
+            nginx_runtime=nginx_runtime,
+            errors=target_errors,
+        )
         if php_runtime_info.phpinfo_exposed:
             target_report["results"].append(
                 Finding(
@@ -523,6 +537,9 @@ def main():
                     vulnerability_type="Information Disclosure",
                 ).as_dict()
             )
+            print_live_result(
+                target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
+            )
         if php_runtime_info.origin_reachable:
             target_report["results"].append(
                 Finding(
@@ -542,17 +559,26 @@ def main():
                     vulnerability_type="Improper Access Control",
                 ).as_dict()
             )
+            print_live_result(
+                target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
+            )
         for cve_id in cves:
             if cve_id in module_setup_errors:
-                target_report["results"].append({
+                setup_error = {
                     "cve": cve_id,
                     "name": cve_id,
+                    "vulnerability_type": "Other",
                     "component": "Unknown",
+                    "component_version": None,
+                    "affected_rule": "unknown",
                     "status": "ERROR",
                     "confidence": "LOW",
                     "detail": f"Module setup failed: {module_setup_errors[cve_id]}",
                     "action": "Check module integrity.",
-                })
+                    "exploit_available": False,
+                }
+                target_report["results"].append(setup_error)
+                print_live_result(setup_error, args.show_patched, args.show_not_detected, args.show_all)
                 continue
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
             meta = normalize_metadata(getattr(module, "metadata", dict)())
@@ -599,6 +625,7 @@ def main():
                     "requested_exploit_mode_input": args.exploit_mode if run_exploit_check else None,
                 }
             target_report["results"].append(result_dict)
+            print_live_result(result_dict, args.show_patched, args.show_not_detected, args.show_all)
         for chain_id in chains:
             try:
                 aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
@@ -612,17 +639,12 @@ def main():
                     "detail": f"Chain aggregation failed: {type(exc).__name__}: {exc}",
                     "action": "Check chain integrity.",
                 })
-        print_result(
-            target,
-            info,
-            target_report["results"],
-            show_patched=args.show_patched,
-            show_not_detected=args.show_not_detected,
-            show_all=args.show_all,
-            php_runtime=php_runtime,
-            nginx_runtime=nginx_runtime,
-            errors=target_errors,
+        _, hidden = visible_results(
+            target_report["results"], args.show_patched, args.show_not_detected, args.show_all
         )
+        hidden_note = hidden_results_note(hidden)
+        if hidden_note:
+            print(f"({hidden_note})\n")
         print_chain_results(target_report["chains"])
         if info.detected and info.name == "joomla":
             print_plugins(

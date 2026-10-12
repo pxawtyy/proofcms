@@ -264,6 +264,21 @@ def print_one_result(result: dict | Any):
         print(f"  Evidence: {redact_output(res_dict['evidence'])}")
 
 
+def print_live_result(
+    result: dict | Any,
+    show_patched: bool = False,
+    show_not_detected: bool = False,
+    show_all: bool = False,
+) -> bool:
+    """Print one result immediately, honoring the normal visibility filters."""
+    visible, _ = visible_results([result], show_patched, show_not_detected, show_all)
+    if not visible:
+        return False
+    print_one_result(visible[0])
+    print(flush=True)
+    return True
+
+
 def print_result(
     target: str,
     info: CMSInfo,
