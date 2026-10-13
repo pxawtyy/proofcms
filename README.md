@@ -182,6 +182,9 @@ an isolated, authorized lab where bypassing certificate validation is safe.
 | `CVE-2026-56292` | AcyMailing SQL injection | 1.0–10.11.0 | `safe` constant-only differential |
 | `CVE-2026-94132` | AcyMailing Enterprise mailbox attachment RCE | 1.0.0–11.0.5 | `safe` read-only companion probe |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
+| `CVE-2026-92229` | Forminator shortcode execution | Through 1.57.2 | `safe` harmless shortcode proof |
+| `CVE-2026-15748` | Forminator select/file upload injection | 1.18.1–1.56.1 | `safe` precondition probe |
+| `CVE-2024-10402` | Forminator missing authorization | Through 1.35.1 | `safe` blocked without contributor session |
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
 | `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |

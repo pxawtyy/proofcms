@@ -10,6 +10,7 @@ from ..core.models import CMSInfo
 KNOWN_PLUGIN_MARKERS = {
     "advanced-db-cleaner": r"advanced[-_ ]db[-_ ]cleaner",
     "contact-form-7": r"Contact\s+Form\s+7",
+    "forminator": r"Forminator",
     "cookieyes": r"cookieyes|\bcky[-_/]",
     "drag-and-drop-multiple-file-upload-contact-form-7": r"Drag\s+and\s+Drop\s+Multiple\s+File\s+Upload",
     "essential-addons-for-elementor-lite": r"Essential\s+Addons\s+for\s+Elementor",
