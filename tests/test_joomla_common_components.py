@@ -89,6 +89,16 @@ class TestCommonJoomlaComponents(unittest.TestCase):
             result = joomla.detect_common_component("https://example.test", "k2", 2)
         self.assertFalse(result.found)
 
+    def test_k2_missing_component_probe_rejects_generic_route(self):
+        def response(url, **kwargs):
+            if "__proofcms_probe__" in url:
+                return self._response(status=404, body="Erro: 404 Componente não encontrado")
+            return self._response(status=200, body="K2-shaped homepage text")
+
+        with patch.object(joomla, "fetch_url", side_effect=response), patch.object(joomla, "is_baseline_match", return_value=False):
+            result = joomla.detect_common_component("https://example.test", "k2", 2)
+        self.assertFalse(result.found)
+
     def test_specialized_detectors_reject_reflected_html_fallbacks(self):
         def reflected_response(url, **kwargs):
             return {

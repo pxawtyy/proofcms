@@ -54,6 +54,20 @@ def discover_media_form(
     return None
 
 
+def _stored_upload_path(body: str) -> str | None:
+    """Extract Joomla's authoritative success message, not the client filename."""
+    text = html.unescape(re.sub(r"<[^>]+>", " ", body))
+    text = re.sub(r"\s+", " ", text)
+    match = re.search(
+        r"(?:Envio\s+Completo|Upload\s+(?:complete|completed)|JLIB_FORM_SUBMIT_SUCCESS)[^/]{0,120}(/[^\s\"']+)",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return ("/" + match.group(1).lstrip("/")).split("?", 1)[0]
+
+
 def probe_media_upload(
     target_url: str,
     *,
@@ -84,7 +98,13 @@ def probe_media_upload(
         fields=form["fields"],
         files={form["file_field"]: (filename, payload, content_type)},
     )
-    proof_path = f"/images/{urllib.parse.quote(filename)}"
+    stored_path = _stored_upload_path(str(upload.get("body", "")))
+    if not stored_path:
+        message_page = session.get(form["source"])
+        stored_path = _stored_upload_path(str(message_page.get("body", "")))
+    proof_path = stored_path or f"/images/{urllib.parse.quote(filename)}"
+    if not proof_path.startswith("/"):
+        proof_path = "/" + proof_path
     proof = session.get(proof_path)
     missing = session.get(f"/images/proofcms-missing-{secrets.token_hex(8)}.txt")
     verified = (
@@ -99,18 +119,19 @@ def probe_media_upload(
         "surface_status": 200,
         "accepted": verified,
         "write_reported": upload.get("status") in {200, 201, 202, 204, 301, 302, 303},
+        "stored_name_reported": stored_path,
         "upload_status": upload.get("status", 0),
         "upload_redirected": upload.get("redirected", False),
         "proof_status": proof.get("status", 0),
         "proof_body": proof.get("body", "") if verified else "",
         "proof_url": f"{base}{proof_path}",
-        "uploaded_filename": f"images/{filename}" if verified else None,
+        "uploaded_filename": stored_path.lstrip("/") if verified and stored_path else None,
         "file_field": form["file_field"],
         "form_source": form["source"],
         "attempts": [
             (
                 f"form={form['source']},field={form['file_field']},upload={upload.get('status', 0)},"
-                f"proof={proof.get('status', 0)},marker={verified}"
+                f"proof={proof.get('status', 0)},marker={verified},stored={stored_path or 'none'}"
             )
         ],
     }

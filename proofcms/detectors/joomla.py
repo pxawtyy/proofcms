@@ -924,6 +924,7 @@ def detect_common_component(
 ) -> PluginInfo:
     """Detect a common Joomla component using public manifests and front-end routes."""
     definition = COMMON_COMPONENTS[component]
+
     marker = definition["markers"]
     manifest_hits: list[tuple[str, str | None, str | None]] = []
     for path in definition["manifests"]:
@@ -955,6 +956,23 @@ def detect_common_component(
         if len(set(versions)) > 1:
             source += f" (manifest conflict: {', '.join(sorted(set(versions)))})"
         return PluginInfo(True, version, source)
+
+    if component == "k2":
+        # A generic Joomla error is authoritative for an absent component. This
+        # prevents the homepage route (/) from turning a missing K2 install into
+        # a detection merely because the site echoes a K2-shaped string.
+        probe = fetch_url(
+            f"{target.rstrip('/')}/index.php?option=com_k2&view=__proofcms_probe__",
+            timeout=timeout,
+            proxy=proxy,
+        )
+        probe_body = str(probe.get("body", ""))
+        if probe.get("status") == 404 or re.search(
+            r"componente\s+não\s+encontrado|component\s+not\s+found",
+            probe_body,
+            re.IGNORECASE,
+        ):
+            return PluginInfo(False, None, "not-detected (component probe)")
 
     for path in definition["routes"]:
         response = fetch_url(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)

@@ -92,6 +92,31 @@ def test_media_probe_distinguishes_denied_surface_from_absent_form():
     assert result["surface_status"] == 403
 
 
+def test_media_probe_uses_jmessage_stored_name_for_readback():
+    class Session:
+        def __init__(self, **kwargs):
+            self.base_url = "https://target.test"
+
+        def get(self, path):
+            if "view=images" in path:
+                return {"status": 200, "body": FORM, "redirected": False, "final_url": path}
+            if path == "/images/server-renamed.txt":
+                return {"status": 200, "body": "UNIQUE", "body_hash": "proof", "redirected": False}
+            if "proofcms-missing" in path:
+                return {"status": 404, "body": "missing", "body_hash": "missing", "redirected": False}
+            return {"status": 404, "body": "", "redirected": False}
+
+        def post(self, url, fields, files):
+            return {"status": 303, "body": "<div class='alert'>Envio Completo: /images/server-renamed.txt</div>", "redirected": True}
+
+    with patch("proofcms.modules.joomla.joomla_media_probe.HttpSession", Session):
+        result = probe_media_upload(
+            "https://target.test", filename="client-name.txt", payload=b"UNIQUE", marker="UNIQUE", content_type="text/plain"
+        )
+    assert result["accepted"] is True
+    assert result["uploaded_filename"] == "images/server-renamed.txt"
+
+
 def test_phar_probe_reports_exposed_surface_when_payload_is_rejected():
     with patch.object(
         cve_2018_15882,
