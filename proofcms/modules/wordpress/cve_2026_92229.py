@@ -24,7 +24,7 @@ def classify_version(version: str | None) -> str:
 def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
     forms = [form for form in discover_forms(target_url, timeout, proxy) if form["has_quiz"] and form["form_ids"]]
     if not forms:
-        return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail="No public Forminator quiz with a discoverable form ID was found; the vulnerable renderer could not be tested safely.", action="Upgrade Forminator to 1.57.3 or newer and manually review any non-public quiz pages.")
+        return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail="Forminator is in the affected range, but no anonymously submittable quiz with a discoverable form ID was found. The vulnerable renderer therefore could not be reached safely from outside.", action="Upgrade Forminator to 1.57.3 or newer, and re-test if a public quiz is deployed.")
     form = forms[0]
     marker = "PROOFCMS-CVE-92229"
     shortcode = f"[caption]{marker}[/caption]"

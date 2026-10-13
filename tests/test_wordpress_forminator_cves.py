@@ -38,6 +38,26 @@ class TestForminatorDiscovery(unittest.TestCase):
             inventory = wordpress.detect_wordpress_plugins("https://target.test", timeout=2)
         self.assertEqual(inventory["plugins"]["forminator"]["version"], "1.56.1")
 
+    def test_plugin_main_file_overrides_stale_asset_query(self):
+        def fake_fetch(url, timeout, proxy=None):
+            if url.endswith("/wp-content/plugins/elementor-pro/elementor-pro.php"):
+                return {"status": 200, "body": "<?php\n/* Plugin Name: Elementor Pro\n * Version: 4.2.3\n */", "body_hash": "main"}
+            if url.endswith("/wp-content/plugins/elementor-pro/readme.txt"):
+                return {"status": 404, "body": "", "body_hash": "missing"}
+            if url.endswith("/"):
+                return {"status": 200, "body": '<script src="/wp-content/plugins/elementor-pro/assets/app.js?ver=3.28.1"></script>', "body_hash": "home"}
+            return {"status": 404, "body": "", "body_hash": "missing"}
+
+        with patch.object(wordpress, "_fetch", side_effect=fake_fetch), patch.object(wordpress, "is_baseline_match", return_value=False):
+            inventory = wordpress.detect_wordpress_plugins("https://target.test", timeout=2)
+        self.assertEqual(inventory["plugins"]["elementor-pro"]["version"], "4.2.3")
+        self.assertIn("elementor-pro.php", inventory["plugins"]["elementor-pro"]["source"])
+
+    def test_quiz_absence_blocks_external_shortcode_proof(self):
+        with patch.object(cve_2026_92229, "discover_forms", return_value=[]):
+            result = cve_2026_92229.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "BLOCKED_EXTERNAL")
+
 
 if __name__ == "__main__":
     unittest.main()

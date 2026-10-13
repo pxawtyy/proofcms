@@ -55,6 +55,12 @@ REST_NAMESPACE_PLUGINS = {
     "yoast": "yoast",
 }
 
+PLUGIN_MAIN_FILES = {
+    "elementor": "elementor.php",
+    "elementor-pro": "elementor-pro.php",
+    "forminator": "forminator.php",
+}
+
 
 def _fetch(url: str, timeout: int, proxy: str | None = None) -> dict:
     return fetch_url(url, timeout=timeout, proxy=proxy)
@@ -208,7 +214,7 @@ def wordpress_signal_score(info: CMSInfo) -> int:
 def parse_wordpress_plugin_version(body: str) -> str | None:
     patterns = [
         r"^\s*Stable\s+tag:\s*([^\r\n<]+)",
-        r"^\s*Version:\s*([^\r\n<]+)",
+        r"(?:^|[\r\n])\s*(?:\*\s*)?Version:\s*([^\r\n<]+)",
         r'"version"\s*:\s*"([^"]+)"',
         r"Plugin\s+URI:.*?\b([0-9]+(?:\.[0-9]+){1,3})\b",
     ]
@@ -313,6 +319,27 @@ def detect_wordpress_plugins(
             if parsed:
                 version = parsed
                 source = f"{source}readme.txt"
+
+        if not version:
+            main_file = PLUGIN_MAIN_FILES.get(slug, f"{slug}.php")
+            main = _fetch(
+                f"{target.rstrip('/')}/wp-content/plugins/{slug}/{main_file}",
+                timeout=timeout,
+                proxy=proxy,
+            )
+            main_body = str(main.get("body", ""))
+            valid_main = marker is None or bool(re.search(marker, main_body, re.IGNORECASE))
+            if (
+                not is_baseline_match(main, baseline)
+                and main.get("status") == 200
+                and len(main_body) > 20
+                and valid_main
+            ):
+                parsed = parse_wordpress_plugin_version(main_body)
+                if parsed:
+                    found = True
+                    version = parsed
+                    source = f"{source}{main_file}"
 
         if not version:
             asset_match = re.search(
