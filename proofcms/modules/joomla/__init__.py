@@ -21,6 +21,7 @@ from . import (
     cve_2026_56291,
     cve_2026_56292,
     cve_2026_57827,
+    cve_2026_57829,
     cve_2026_57830,
     cve_2026_61424,
     cve_2026_71573,
@@ -29,6 +30,7 @@ from . import (
     cve_2026_90915,
     cve_2026_92222,
     cve_2026_94132,
+    cve_2026_102426,
     k2_registration_avatar,
 )
 
@@ -51,7 +53,9 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2026-56291": "proofcms.modules.joomla.cve_2026_56291",
     "CVE-2026-56290": "proofcms.modules.joomla.cve_2026_56290",
     "CVE-2026-57827": "proofcms.modules.joomla.cve_2026_57827",
+    "CVE-2026-57829": "proofcms.modules.joomla.cve_2026_57829",
     "CVE-2026-57830": "proofcms.modules.joomla.cve_2026_57830",
+    "CVE-2026-102426": "proofcms.modules.joomla.cve_2026_102426",
     "CVE-2026-61424": "proofcms.modules.joomla.cve_2026_61424",
     "CVE-2026-71573": "proofcms.modules.joomla.cve_2026_71573",
     "CVE-2026-73373": "proofcms.modules.joomla.cve_2026_73373",
@@ -86,6 +90,7 @@ __all__ = [
     "cve_2026_56291",
     "cve_2026_56292",
     "cve_2026_57827",
+    "cve_2026_57829",
     "cve_2026_57830",
     "cve_2026_61424",
     "cve_2026_71573",
@@ -94,5 +99,6 @@ __all__ = [
     "cve_2026_90915",
     "cve_2026_92222",
     "cve_2026_94132",
+    "cve_2026_102426",
     "k2_registration_avatar",
 ]

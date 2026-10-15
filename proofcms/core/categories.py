@@ -43,6 +43,8 @@ _CVE_TYPES = {
     "CVE-2026-49049": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-48908": VulnerabilityType.FILE_UPLOAD,
     "CVE-2026-57830": VulnerabilityType.FILE_DELETION,
+    "CVE-2026-57829": VulnerabilityType.XSS,
+    "CVE-2026-102426": VulnerabilityType.XSS,
     "CVE-2026-78079": VulnerabilityType.OPEN_REDIRECT,
     "CVE-2026-90915": VulnerabilityType.FILE_DELETION,
     "CVE-2026-92222": VulnerabilityType.SSRF,

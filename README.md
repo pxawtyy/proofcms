@@ -174,6 +174,8 @@ an isolated, authorized lab where bypassing certificate validation is safe.
 | `CVE-2026-56291` | Balbooa Forms | Through 2.4.0 | `aggressive` |
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate arbitrary file deletion | Through 2.2.6 | `safe` |
+| `CVE-2026-57829` | Helix Ultimate unauthenticated stored XSS | 1.0–2.2.6 | `safe` precondition probe |
+| `CVE-2026-102426` | SP Page Builder Dynamic Content Filter reflected XSS | 3.0.0–5.6.1p2 | `safe` marker probe |
 | `CVE-2026-61424` | DJ-Classifieds arbitrary file upload | Before 3.11.2 | passive |
 | `CVE-2026-73373` | Joomla core SHTML upload | 1.0.0–5.4.7 and 6.0.0–6.1.2 | `safe` |
 | `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
