@@ -19,7 +19,7 @@ EXPLOIT_MODES = ["safe"]
 AFFECTED_JOOMLA_VERSIONS = ["*"]
 AFFECTED_RULE = "plg_system_helixultimate up to and including 2.2.6"
 FIXED_RULE = "Update Helix Ultimate to 2.2.7 or newer"
-AJAX_BASE = "/index.php?option=com_ajax&format=json&helix=ultimate&request=task"
+AJAX_BASE = "/component/ajax/?format=json&plugin=helixultimate&request=task"
 AJAX_ENDPOINT = f"{AJAX_BASE}&action=view-media"
 
 
@@ -110,14 +110,14 @@ def passive_result(plugins: dict | None) -> Finding:
     return Finding(
         cve=CVE_ID,
         name=NAME,
-        status="PATCHED",
+        status="NOT_AFFECTED",
         confidence="HIGH",
         component=COMPONENT,
         component_version=version,
         affected_rule=AFFECTED_RULE,
         exploit_available=HAS_EXPLOIT,
         detail=f"Helix Ultimate {version} is outside the affected <= 2.2.6 range.",
-        action="Keep Helix Ultimate updated.",
+        action="No action is required for this CVE when the detected version is outside the affected range.",
     )
 
 
@@ -166,7 +166,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     control_response, control_listing = request_action(control_action, "/images")
     images_response, images_listing = request_action("view-media", "/images")
     proof_url = f"{base}{AJAX_ENDPOINT}"
-    evidence = {
+    evidence: dict[str, object] = {
         "component_present": False,
         "token_accepted": False,
         "handler_reached": False,
@@ -175,6 +175,39 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         "webroot_boundary_escape": False,
         "absolute_paths_disclosed": False,
     }
+    probe_location = str((images_response.get("headers") or {}).get("Location", ""))
+    control_location = str((control_response.get("headers") or {}).get("Location", ""))
+    same_redirect_target = bool(probe_location and probe_location == control_location)
+    same_body_hash = bool(
+        images_response.get("body_hash")
+        and images_response.get("body_hash") == control_response.get("body_hash")
+    )
+    evidence.update(
+        {
+            "same_redirect_target": same_redirect_target,
+            "same_body_hash": same_body_hash,
+            "probe_location": probe_location or None,
+            "control_location": control_location or None,
+        }
+    )
+    if same_redirect_target and same_body_hash:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=proof_url,
+            evidence=evidence,
+            detail=(
+                "The Helix probe and negative control produced the same response and redirect target; "
+                "the requested route did not dispatch (likely redirect loop)."
+            ),
+            action="Verify the Helix AJAX route and authentication/session requirements manually.",
+        )
     if not images_listing or control_listing is not None:
         return Finding(
             cve=CVE_ID,
@@ -265,12 +298,9 @@ def check(
     if exploit_mode != "safe":
         result.detail += " This CVE module only supports the safe read-only view-media probe."
         return result
-    probe = run_safe_probe(target_url, timeout=timeout, proxy=proxy)
-    if result.status in {"NOT_AFFECTED", "NOT_DETECTED"} and probe.status != "VULNERABLE":
-        result.detail += " Safe view-media probe was requested but did not confirm endpoint exposure."
-        result.exploit_ran = probe.exploit_ran
-        result.proof_url = probe.proof_url
+    if result.status in {"NOT_AFFECTED", "NOT_DETECTED"}:
         return result
+    probe = run_safe_probe(target_url, timeout=timeout, proxy=proxy)
     probe.component_version = result.component_version
     return probe
 

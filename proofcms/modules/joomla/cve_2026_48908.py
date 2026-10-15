@@ -219,13 +219,17 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         affected_rule=AFFECTED_RULE,
         exploit_available=HAS_EXPLOIT,
         exploit_ran=True,
-        uploaded_filename=package,
+        uploaded_filename=package if accepted else None,
         detail=(
             "Aggressive lab upload did not confirm execution. "
             f"Observed attempts: {'; '.join(accepted) if accepted else 'no accepted uploads observed'}. "
             f"Proof notes: {'; '.join(proof_notes) if proof_notes else 'no proof bodies returned'}."
         ),
-        action=f"If any package was written, remove {package}. Upgrade SP Page Builder to {FIXED_RULE}.",
+        action=(
+            f"Remove {package} before upgrading SP Page Builder to {FIXED_RULE}."
+            if accepted
+            else f"Upgrade SP Page Builder to {FIXED_RULE}; no accepted upload was observed."
+        ),
     )
 
 

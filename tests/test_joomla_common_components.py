@@ -99,6 +99,22 @@ class TestCommonJoomlaComponents(unittest.TestCase):
             result = joomla.detect_common_component("https://example.test", "k2", 2)
         self.assertFalse(result.found)
 
+    def test_sppagebuilder_manifest_precedes_homepage_catchall(self):
+        manifest = "<extension><name>SP Page Builder</name><version>6.10.0</version></extension>"
+
+        def response(url, **kwargs):
+            if url.endswith("sppagebuilder.xml"):
+                return self._response(body=manifest)
+            if url.endswith("/"):
+                return self._response(body="homepage",)
+            return self._response(body="homepage")
+
+        with patch.object(joomla, "fetch_url", side_effect=response), patch.object(joomla, "is_baseline_match", return_value=False):
+            result = joomla.detect_sppagebuilder("https://example.test", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "6.10.0")
+        self.assertIn("sppagebuilder.xml", result.source)
+
     def test_specialized_detectors_reject_reflected_html_fallbacks(self):
         def reflected_response(url, **kwargs):
             return {

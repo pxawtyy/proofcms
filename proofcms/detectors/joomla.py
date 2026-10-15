@@ -302,32 +302,6 @@ def detect_sppagebuilder(
     proxy: str | None = None,
     baseline: dict | None = None,
 ) -> PluginInfo:
-    paths = [
-        "/component/sppagebuilder/",
-        "/index.php?option=com_sppagebuilder",
-    ]
-    version_patterns = [
-        r"SP\s*Page\s*Builder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
-        r"sppagebuilder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
-        r"com_sppagebuilder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
-    ]
-    for path in paths:
-        url = f"{target.rstrip('/')}{path}"
-        response = fetch_url(url, timeout=timeout, proxy=proxy)
-        if is_baseline_match(response, baseline):
-            continue
-        body = _without_request_reflections(response.get("body", ""), target, path)
-        if response["status"] == 200 and re.search(
-            r"sppagebuilder|sp page builder|com_sppagebuilder", body, re.IGNORECASE
-        ):
-            version = None
-            for pattern in version_patterns:
-                match = re.search(pattern, body, re.IGNORECASE)
-                if match:
-                    version = match.group(1)
-                    break
-            return PluginInfo(True, version, path)
-
     manifest_paths = [
         "/administrator/components/com_sppagebuilder/sppagebuilder.xml",
         "/components/com_sppagebuilder/sppagebuilder.xml",
@@ -342,6 +316,36 @@ def detect_sppagebuilder(
         if _valid_extension_manifest(response, r"sppagebuilder|sp page builder|com_sppagebuilder"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
+
+    paths = [
+        "/component/sppagebuilder/",
+        "/index.php?option=com_sppagebuilder",
+    ]
+    homepage = fetch_url(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
+    version_patterns = [
+        r"SP\s*Page\s*Builder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
+        r"sppagebuilder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
+        r"com_sppagebuilder[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
+    ]
+    for path in paths:
+        url = f"{target.rstrip('/')}{path}"
+        response = fetch_url(url, timeout=timeout, proxy=proxy)
+        if is_baseline_match(response, baseline):
+            continue
+        body = _without_request_reflections(response.get("body", ""), target, path)
+        if response.get("body_hash") and response.get("body_hash") == homepage.get("body_hash"):
+            continue
+        if response["status"] == 200 and re.search(
+            r"sppagebuilder|sp page builder|com_sppagebuilder", body, re.IGNORECASE
+        ):
+            version = None
+            for pattern in version_patterns:
+                match = re.search(pattern, body, re.IGNORECASE)
+                if match:
+                    version = match.group(1)
+                    break
+            return PluginInfo(True, version, path)
+
     return PluginInfo(False, None, "not-detected")
 
 

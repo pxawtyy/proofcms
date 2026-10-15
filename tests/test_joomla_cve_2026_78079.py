@@ -48,6 +48,15 @@ class TestCVE202678079(unittest.TestCase):
         self.assertIn("file deletion", meta["name"])
         self.assertIn("2.2.6", meta["affected_rule"])
 
+    def test_helix_version_outside_range_is_not_affected_and_skips_probe(self):
+        result = cve_2026_57830.check(
+            "https://target.test",
+            run_exploit_check=True,
+            plugins={"helixultimate": {"found": True, "version": "2.2.10.0.1"}},
+        )
+        self.assertEqual(result.status, "NOT_AFFECTED")
+        self.assertFalse(result.exploit_ran)
+
     def test_helix_generic_joomla_success_is_not_confirmation(self):
         response = {
             "status": 200,

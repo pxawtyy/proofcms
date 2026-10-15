@@ -312,7 +312,7 @@ def print_result(
     )
     if nginx.get("edge_server"):
         print(
-            f"NGINX edge: {nginx['edge_server']} | "
+            f"Edge server: {nginx['edge_server']} | "
             f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
         )
     if not info.detected:

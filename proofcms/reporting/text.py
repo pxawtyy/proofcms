@@ -92,7 +92,7 @@ def write_text_report(
         )
         if nginx.get("edge_server"):
             lines.append(
-                f"NGINX edge: {nginx['edge_server']} | "
+                f"Edge server: {nginx['edge_server']} | "
                 f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
             )
         lines.append("")
