@@ -95,6 +95,18 @@ def write_text_report(
                 f"Edge server: {nginx['edge_server']} | "
                 f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
             )
+        aspnet = target.get("aspnet") or {}
+        lines.append(
+            f"ASP.NET: detected: {'yes' if aspnet.get('detected') else 'no'} | "
+            f"version: {aspnet.get('version') or 'unknown'} | source: {aspnet.get('source') or 'not-detected'}"
+        )
+        genexus = target.get("genexus") or {}
+        lines.append(
+            f"GeneXus: detected: {'yes' if genexus.get('detected') else 'no'} | "
+            f"version: {genexus.get('version') or 'unknown'} | "
+            f"generator: {genexus.get('generator') or 'unknown'} | "
+            f"DBMS: {genexus.get('dbms') or 'unknown'} | source: {genexus.get('source') or 'not-detected'}"
+        )
         lines.append("")
         if cms.get("name") == "wordpress":
             wp = target.get("wordpress") or {}

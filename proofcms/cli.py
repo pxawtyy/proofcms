@@ -20,6 +20,7 @@ from proofcms.core.http import (
     reset_transport_state,
 )
 from proofcms.core.models import (
+    AspNetRuntimeInfo,
     CMSInfo,
     Confidence,
     CVECheckResult,
@@ -30,6 +31,7 @@ from proofcms.core.models import (
     Status,
 )
 from proofcms.detectors import (
+    detect_aspnet_runtime,
     detect_baforms,
     detect_cms,
     detect_helix3,
@@ -75,6 +77,7 @@ from proofcms.reporting import (
 __all__ = [
     "AVAILABLE_CVES",
     "TOOL_NAME",
+    "AspNetRuntimeInfo",
     "CMSInfo",
     "CVECheckResult",
     "Confidence",
@@ -83,6 +86,7 @@ __all__ = [
     "PluginInfo",
     "Status",
     "append_text_result",
+    "detect_aspnet_runtime",
     "detect_baforms",
     "detect_cms",
     "detect_helix3",
@@ -434,6 +438,11 @@ def main():
             from proofcms.core.models import PHPRuntimeInfo
 
             php_runtime_info = PHPRuntimeInfo(False, None, "error")
+        try:
+            aspnet_runtime_info = detect_aspnet_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
+        except Exception as exc:  # noqa: BLE001
+            target_errors.append(f"ASP.NET/GeneXus detection failed: {type(exc).__name__}: {exc}")
+            aspnet_runtime_info = AspNetRuntimeInfo(False, None, "error")
         php_runtime = {
             "detected": php_runtime_info.detected,
             "version": php_runtime_info.version,
@@ -446,6 +455,20 @@ def main():
             "origin_ip": php_runtime_info.origin_ip,
             "origin_reachable": php_runtime_info.origin_reachable,
             "origin_server": php_runtime_info.origin_server,
+        }
+        aspnet_runtime = {
+            "detected": aspnet_runtime_info.detected,
+            "version": aspnet_runtime_info.version,
+            "source": aspnet_runtime_info.source,
+            "server": aspnet_runtime_info.server,
+            "session_cookie": aspnet_runtime_info.session_cookie,
+            "session_secure": aspnet_runtime_info.session_secure,
+            "session_samesite": aspnet_runtime_info.session_samesite,
+            "genexus_detected": aspnet_runtime_info.genexus_detected,
+            "genexus_version": aspnet_runtime_info.genexus_version,
+            "genexus_generator": aspnet_runtime_info.genexus_generator,
+            "genexus_dbms": aspnet_runtime_info.genexus_dbms,
+            "genexus_source": aspnet_runtime_info.genexus_source,
         }
         try:
             plugins = (
@@ -491,6 +514,14 @@ def main():
             "wordpress": wordpress_inventory,
             "php": php_runtime,
             "nginx": nginx_runtime,
+            "aspnet": aspnet_runtime,
+            "genexus": {
+                "detected": aspnet_runtime_info.genexus_detected,
+                "version": aspnet_runtime_info.genexus_version,
+                "generator": aspnet_runtime_info.genexus_generator,
+                "dbms": aspnet_runtime_info.genexus_dbms,
+                "source": aspnet_runtime_info.genexus_source,
+            },
             "results": [],
             "chains": [],
             "edge_interstitial": baseline.get("edge_interstitial"),
@@ -506,6 +537,7 @@ def main():
             show_all=args.show_all,
             php_runtime=php_runtime,
             nginx_runtime=nginx_runtime,
+            aspnet_runtime=aspnet_runtime,
             errors=target_errors,
         )
         if php_runtime_info.phpinfo_exposed:
@@ -601,6 +633,7 @@ def main():
                     plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
                     php_runtime=php_runtime,
                     nginx_runtime=nginx_runtime,
+                    aspnet_runtime=aspnet_runtime,
                 )
                 result_dict = result.as_dict()
                 result_dict["exploit_requested"] = run_exploit_check

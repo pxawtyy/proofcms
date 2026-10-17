@@ -20,6 +20,8 @@ class VulnerabilityType:
     INFORMATION_DISCLOSURE = "Information Disclosure"
     CORS = "Improper CORS Validation"
     CODE_EXECUTION = "Remote Code Execution"
+    DENIAL_OF_SERVICE = "Denial of Service"
+    SECURITY_FEATURE_BYPASS = "Security Feature Bypass"
     EXPOSURE = "Exposed Attack Surface"
     OTHER = "Other"
 
@@ -61,6 +63,10 @@ _CVE_TYPES = {
     "CVE-2026-92229": VulnerabilityType.CODE_EXECUTION,
     "CVE-2026-15748": VulnerabilityType.FILE_UPLOAD,
     "CVE-2024-10402": VulnerabilityType.ACCESS_CONTROL,
+    "CVE-2018-8284": VulnerabilityType.CODE_EXECUTION,
+    "CVE-2023-21722": VulnerabilityType.DENIAL_OF_SERVICE,
+    "CVE-2023-36560": VulnerabilityType.SECURITY_FEATURE_BYPASS,
+    "CVE-2023-36899": VulnerabilityType.PRIVILEGE_ESCALATION,
     "WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225": VulnerabilityType.OBJECT_INJECTION,
     "WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa": VulnerabilityType.XSS,
     "WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77": VulnerabilityType.XSS,

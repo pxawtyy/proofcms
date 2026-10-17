@@ -1,8 +1,12 @@
 """CMS-independent web component vulnerability modules."""
 
 AVAILABLE_CVES: dict[str, str] = {
+    "CVE-2018-8284": "proofcms.modules.generic.cve_2018_8284",
     "CVE-2018-9206": "proofcms.modules.generic.cve_2018_9206",
     "CVE-2021-23394": "proofcms.modules.generic.cve_2021_23394",
+    "CVE-2023-21722": "proofcms.modules.generic.cve_2023_21722",
+    "CVE-2023-36560": "proofcms.modules.generic.cve_2023_36560",
+    "CVE-2023-36899": "proofcms.modules.generic.cve_2023_36899",
     "CVE-2026-9256": "proofcms.modules.generic.cve_2026_9256",
     "CVE-2026-42055": "proofcms.modules.generic.cve_2026_42055",
     "CVE-2026-42530": "proofcms.modules.generic.cve_2026_42530",

@@ -141,3 +141,21 @@ class NginxRuntimeInfo:
     http3_advertised: bool = False
     edge_server: str | None = None
     edge_http3_advertised: bool = False
+
+
+@dataclass
+class AspNetRuntimeInfo:
+    """Public ASP.NET and GeneXus fingerprints observed over HTTP."""
+
+    detected: bool
+    version: str | None
+    source: str
+    server: str | None = None
+    session_cookie: bool = False
+    session_secure: bool = False
+    session_samesite: str | None = None
+    genexus_detected: bool = False
+    genexus_version: str | None = None
+    genexus_generator: str | None = None
+    genexus_dbms: str | None = None
+    genexus_source: str = "not-detected"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ..core.http import probe_target_baseline
 from ..core.models import CMSInfo
+from .aspnet import detect_aspnet_runtime
 from .joomla import (
     detect_baforms,
     detect_helix3,
@@ -60,6 +61,7 @@ def detect_cms(target: str, args, baseline: dict | None = None) -> CMSInfo:
 
 
 __all__ = [
+    "detect_aspnet_runtime",
     "detect_baforms",
     "detect_cms",
     "detect_helix3",

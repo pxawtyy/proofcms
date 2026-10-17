@@ -190,6 +190,10 @@ an isolated, authorized lab where bypassing certificate validation is safe.
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
 | `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
+| `CVE-2018-8284` | .NET Framework remote code injection | Legacy .NET Framework branches; OS/build prerequisites required | passive |
+| `CVE-2023-21722` | .NET Framework denial of service | Legacy .NET Framework branches; exact servicing build required | passive |
+| `CVE-2023-36560` | ASP.NET security feature bypass | Legacy .NET Framework branches; exact servicing build required | passive |
+| `CVE-2023-36899` | ASP.NET elevation of privilege | IIS/.NET Framework branches; app-pool and OS prerequisites required | passive |
 | `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
 | `CVE-2024-4439` | WordPress core Avatar block stored XSS | 6.0.x–6.5.1 (branch-specific backports) | passive advisory + documented PoC |

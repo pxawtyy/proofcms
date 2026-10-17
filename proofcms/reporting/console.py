@@ -151,7 +151,7 @@ def is_php_runtime_result(result: dict | Any) -> bool:
 
 def is_generic_web_result(result: dict | Any) -> bool:
     comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
-    return str(comp).lower().startswith(("web library", "nginx runtime", "origin infrastructure"))
+    return str(comp).lower().startswith(("web library", "nginx runtime", "asp.net runtime", "origin infrastructure"))
 
 
 def visible_results(
@@ -288,6 +288,7 @@ def print_result(
     show_all: bool = False,
     php_runtime: dict[str, Any] | None = None,
     nginx_runtime: dict[str, Any] | None = None,
+    aspnet_runtime: dict[str, Any] | None = None,
     errors: list[str] | None = None,
 ):
     reset = "\033[0m"
@@ -315,6 +316,24 @@ def print_result(
             f"Edge server: {nginx['edge_server']} | "
             f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
         )
+    aspnet = aspnet_runtime or {}
+    print(
+        f"ASP.NET: detected: {'yes' if aspnet.get('detected') else 'no'} | "
+        f"version: {aspnet.get('version') or 'unknown'} | source: {aspnet.get('source') or 'not-detected'}"
+    )
+    genexus = {
+        "detected": aspnet.get("genexus_detected"),
+        "version": aspnet.get("genexus_version"),
+        "generator": aspnet.get("genexus_generator"),
+        "dbms": aspnet.get("genexus_dbms"),
+        "source": aspnet.get("genexus_source"),
+    }
+    print(
+        f"GeneXus: detected: {'yes' if genexus.get('detected') else 'no'} | "
+        f"version: {genexus.get('version') or 'unknown'} | "
+        f"generator: {genexus.get('generator') or 'unknown'} | "
+        f"DBMS: {genexus.get('dbms') or 'unknown'} | source: {genexus.get('source') or 'not-detected'}"
+    )
     if not info.detected:
         print(f"{status_color('NOT_JOOMLA')}Status: UNKNOWN_CMS{reset}")
     filtered, hidden = visible_results(results, show_patched, show_not_detected, show_all)
