@@ -34,6 +34,20 @@ def test_detects_aspnet_and_genexus_fingerprints():
     assert info.session_secure is False
 
 
+def test_detects_gene_xus_on_linked_application_subpath():
+    portal = {"status": 200, "headers": {}, "body": '<a href="/portal/">Portal</a>'}
+    app = _response()
+
+    class Client:
+        def get(self, path):
+            return app if path == "/portal/" else portal
+
+    with patch("proofcms.detectors.aspnet.HttpClient", return_value=Client()):
+        info = detect_aspnet_runtime("https://target.test")
+    assert info.genexus_detected is True
+    assert "/:X-AspNet-Version" in info.source
+
+
 def test_aspnet_cves_are_not_confirmed_from_header_only():
     runtime = {"detected": True, "version": "2.0.50727", "source": "/:X-AspNet-Version"}
     for module in (cve_2018_8284, cve_2023_21722, cve_2023_36560, cve_2023_36899):

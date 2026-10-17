@@ -11,7 +11,7 @@ RULE = ".NET Framework 2.0 SP2 before 2.0.50727.8966 and other Microsoft-listed 
 TYPE = "Denial of Service"
 
 
-def check(target_url: str, aspnet_runtime: dict[str, Any] | None = None, **kwargs: Any):
+def check(target_url: str, cms_version: str | None = None, aspnet_runtime: dict[str, Any] | None = None, **kwargs: Any):
     return runtime_finding(cve=CVE_ID, name=NAME, rule=RULE, vulnerability_type=TYPE, remediation="Apply the applicable Microsoft .NET Framework security update; do not send crash payloads to production services.", aspnet_runtime=aspnet_runtime)
 
 

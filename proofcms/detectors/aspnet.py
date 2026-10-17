@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 from ..core.http import HttpClient
 from ..core.models import AspNetRuntimeInfo
@@ -26,7 +27,37 @@ def _cookie_flags(set_cookie: str) -> tuple[bool, bool, str | None]:
 
 def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None = None) -> AspNetRuntimeInfo:
     """Fingerprint legacy ASP.NET and GeneXus from one public GET response."""
-    response = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy).get("/")
+    client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
+    response = client.get("/")
+    responses = [response]
+    root_body = str(response.get("body", ""))[:512_000]
+    candidate_paths: list[str] = []
+    for match in re.finditer(r"(?:href|src)\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE):
+        candidate = match.group(1).strip()
+        parsed = urlsplit(candidate)
+        if parsed.scheme or parsed.netloc or not candidate.startswith("/"):
+            continue
+        path = parsed.path or "/"
+        if path != "/" and path not in candidate_paths:
+            candidate_paths.append(path)
+        if len(candidate_paths) >= 12:
+            break
+    # A common portal layout links the generated application below a short
+    # sub-path. Keep this bounded and let the link-derived paths win first.
+    for path in candidate_paths + ["/portal/"]:
+        if any(str(item.get("body", "")).strip() for item in responses if item.get("final_url", "").rstrip("/").endswith(path.rstrip("/"))):
+            continue
+        candidate_response = client.get(path)
+        responses.append(candidate_response)
+        candidate_body = str(candidate_response.get("body", ""))
+        candidate_headers = _headers(candidate_response)
+        if (
+            candidate_headers.get("x-aspnet-version")
+            or "GeneXus" in candidate_body
+            or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", candidate_body, re.IGNORECASE)
+        ):
+            response = candidate_response
+            break
     headers = _headers(response)
     body = str(response.get("body", ""))[:512_000]
     asp_version = headers.get("x-aspnet-version") or headers.get("x-aspnetmvc-version")
