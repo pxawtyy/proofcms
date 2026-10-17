@@ -35,7 +35,7 @@ def test_detects_aspnet_and_genexus_fingerprints():
 
 
 def test_detects_gene_xus_on_linked_application_subpath():
-    portal = {"status": 200, "headers": {}, "body": '<a href="/portal/">Portal</a>'}
+    portal = {"status": 200, "headers": {}, "body": "<script>document.location='login.aspx'</script>"}
     app = _response()
 
     class Client:

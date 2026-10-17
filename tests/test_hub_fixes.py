@@ -162,6 +162,24 @@ class TestBaselineAndFalsePositives(unittest.TestCase):
         self.assertTrue(res.detected)
         self.assertEqual(res.version, "7.0.2")
 
+    def test_detect_wordpress_vetoes_genexus_aspnet_login_pages(self):
+        response = {
+            "status": 200,
+            "body": (
+                '<meta name="Generator" content="GeneXus C#">'
+                '<meta name="Version" content="10.1.8-<build>">'
+                '<form id="MAINFORM" action="login.aspx"></form>'
+            ),
+            "headers": {"X-AspNet-Version": "2.0.50727"},
+            "body_hash": "genexus",
+            "final_url": "http://target/portal/login.aspx",
+            "redirected": False,
+        }
+        with patch("proofcms.detectors.wordpress.fetch_url", return_value=response):
+            res = cli.detect_wordpress("http://target/portal/login.aspx", timeout=5)
+        self.assertFalse(res.detected)
+        self.assertEqual(res.source, "wordpress:vetoed-by-platform")
+
 
 class TestJoomlaXmlManifestValidation(unittest.TestCase):
     """Item 6: Generic XMLs with <version> must be rejected by fallback Joomla detector."""

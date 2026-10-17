@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
-from ..core.http import HttpClient
+from ..core.http import HttpClient, normalize_url
 from ..core.models import AspNetRuntimeInfo
 
 _GENERATOR = re.compile(r'<meta[^>]+name=["\']Generator["\'][^>]+content=["\']([^"\']+)', re.IGNORECASE)
@@ -27,7 +27,13 @@ def _cookie_flags(set_cookie: str) -> tuple[bool, bool, str | None]:
 
 def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None = None) -> AspNetRuntimeInfo:
     """Fingerprint legacy ASP.NET and GeneXus from one public GET response."""
-    client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
+    normalized_target = normalize_url(target_url)
+    target_parts = urlsplit(normalized_target)
+    base_path = target_parts.path or "/"
+    if re.search(r"/[^/]+\.[A-Za-z0-9]+$", base_path):
+        base_path = base_path.rsplit("/", 1)[0] or "/"
+    application_base = urlunsplit((target_parts.scheme, target_parts.netloc, base_path, "", ""))
+    client = HttpClient(base_url=application_base, timeout=timeout, proxy=proxy)
     response = client.get("/")
     responses = [response]
     root_body = str(response.get("body", ""))[:512_000]
@@ -35,7 +41,21 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     for match in re.finditer(r"(?:href|src)\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE):
         candidate = match.group(1).strip()
         parsed = urlsplit(candidate)
-        if parsed.scheme or parsed.netloc or not candidate.startswith("/"):
+        if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
+            continue
+        path = parsed.path or "/"
+        if not candidate.startswith("/") and not re.search(r"\.(?:aspx?|html?)$", path, re.IGNORECASE):
+            continue
+        if path != "/" and path not in candidate_paths:
+            candidate_paths.append(path)
+        if len(candidate_paths) >= 12:
+            break
+    for match in re.finditer(
+        r"(?:document\.)?location(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE
+    ):
+        candidate = match.group(1).strip()
+        parsed = urlsplit(candidate)
+        if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
             continue
         path = parsed.path or "/"
         if path != "/" and path not in candidate_paths:
@@ -60,11 +80,23 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
             break
     headers = _headers(response)
     body = str(response.get("body", ""))[:512_000]
+    asset_bodies: list[str] = []
+    final_url = str(response.get("final_url") or target_url)
+    for match in re.finditer(r"<script[^>]+src=[\"']([^\"']+)[\"']", body, re.IGNORECASE):
+        source = match.group(1).strip()
+        if not re.search(r"(?:gxcfg|login)\.js(?:$|\?)", source, re.IGNORECASE):
+            continue
+        asset = client.get(urljoin(final_url, source))
+        if asset.get("status") == 200:
+            asset_bodies.append(str(asset.get("body", ""))[:128_000])
+        if len(asset_bodies) >= 4:
+            break
+    fingerprint_body = body + "\n" + "\n".join(asset_bodies)
     asp_version = headers.get("x-aspnet-version") or headers.get("x-aspnetmvc-version")
     server = headers.get("server") or None
     session_cookie, session_secure, session_samesite = _cookie_flags(headers.get("set-cookie", ""))
     powered_by_aspnet = "asp.net" in headers.get("x-powered-by", "").lower()
-    detected = bool(asp_version or powered_by_aspnet or session_cookie or "asp.net" in server.lower() if server else False)
+    detected = bool(asp_version or powered_by_aspnet or session_cookie or (server and "asp.net" in server.lower()))
     sources = []
     if asp_version:
         sources.append("/:X-AspNet-Version")
@@ -72,9 +104,9 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
         sources.append("/:X-Powered-By")
     if session_cookie:
         sources.append("/:Set-Cookie")
-    generator_match = _GENERATOR.search(body)
-    version_match = _VERSION_META.search(body)
-    comment_match = _GENERATOR_COMMENT.search(body)
+    generator_match = _GENERATOR.search(fingerprint_body)
+    version_match = _VERSION_META.search(fingerprint_body)
+    comment_match = _GENERATOR_COMMENT.search(fingerprint_body)
     generator = generator_match.group(1).strip() if generator_match else None
     genexus_version = version_match.group(1).strip() if version_match else None
     if comment_match:
@@ -83,14 +115,14 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     genexus_detected = bool(
         (generator and "genexus" in generator.lower())
         or comment_match
-        or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", body, re.IGNORECASE)
+        or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", fingerprint_body, re.IGNORECASE)
     )
-    dbms_match = _DBMS.search(body)
+    dbms_match = _DBMS.search(fingerprint_body)
     dbms = dbms_match.group(1).lower() if dbms_match else None
     gx_sources = []
     if generator_match or comment_match:
         gx_sources.append("/:html")
-    if re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", body, re.IGNORECASE):
+    if re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", fingerprint_body, re.IGNORECASE):
         gx_sources.append("/:GeneXus-assets")
     return AspNetRuntimeInfo(
         detected=detected,

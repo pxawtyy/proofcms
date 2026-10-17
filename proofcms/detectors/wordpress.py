@@ -67,7 +67,7 @@ def _fetch(url: str, timeout: int, proxy: str | None = None) -> dict:
 
 
 def _declares_non_wordpress_platform(response: dict) -> bool:
-    """Recognize authoritative Java/DSpace signals before considering WP-shaped assets."""
+    """Recognize authoritative non-WordPress signals before considering WP-shaped assets."""
     body = str(response.get("body", ""))
     headers = response.get("headers") or {}
     header_text = "\n".join(f"{key}: {value}" for key, value in headers.items())
@@ -75,6 +75,9 @@ def _declares_non_wordpress_platform(response: dict) -> bool:
     return bool(
         re.search(
             r'<meta\s+name=["\']generator["\']\s+content=["\']DSpace\b|'
+            r'<meta\s+name=["\']generator["\']\s+content=["\']GeneXus\b|'
+            r'<meta\s+name=["\']version["\']\s+content=["\']\d+[_-]\d+[_-]\d+|'
+            r'\bX-AspNet-Version\s*:|'
             r"\bX-Cocoon-Version\s*:|\bApache Tomcat/|\bJSESSIONID\b|;jsessionid=",
             combined,
             re.IGNORECASE,
@@ -126,7 +129,7 @@ def detect_wordpress(
     tentative_versions: dict[str, set[str]] = {}
     for path in paths:
         response = _fetch(f"{target.rstrip('/')}{path}", timeout=timeout, proxy=proxy)
-        if path == "/" and _declares_non_wordpress_platform(response):
+        if _declares_non_wordpress_platform(response):
             return CMSInfo("wordpress", False, None, "wordpress:vetoed-by-platform", "")
         if is_baseline_match(response, baseline):
             continue
