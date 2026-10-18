@@ -38,6 +38,10 @@ def passive_result(
     references: list[str],
     poc: str | None = None,
 ) -> Finding:
+    resolved_rule = affected_rule
+    if "WPScan-listed fixes" in affected_rule:
+        ranges = ", ".join(f"{branch} < {fixed}" for branch, fixed in fixed_by_branch.items())
+        resolved_rule = f"{affected_rule}; resolved ranges: {ranges}"
     status = classify_version(wordpress_version, fixed_by_branch)
     if status == "INCONCLUSIVE":
         detail = "WordPress was detected, but its core version could not be determined."
@@ -60,7 +64,7 @@ def passive_result(
         confidence=confidence,
         component="WordPress core",
         component_version=wordpress_version,
-        affected_rule=affected_rule,
+        affected_rule=resolved_rule,
         exploit_available=bool(poc),
         detail=detail,
         action=remediation,
@@ -79,12 +83,16 @@ def metadata(
     references: list[str],
     poc: str | None = None,
 ) -> dict[str, Any]:
+    resolved_rule = affected_rule
+    if "WPScan-listed fixes" in affected_rule:
+        ranges = ", ".join(f"{branch} < {fixed}" for branch, fixed in fixed_by_branch.items())
+        resolved_rule = f"{affected_rule}; resolved ranges: {ranges}"
     result: dict[str, Any] = {
         "cve": advisory_id,
         "cms": "wordpress",
         "name": name,
         "component": "WordPress core",
-        "affected_rule": affected_rule,
+        "affected_rule": resolved_rule,
         "affected_versions": [f"{branch} < {fixed}" for branch, fixed in fixed_by_branch.items()],
         "cvss": cvss,
         "vulnerability_type": vulnerability_type,

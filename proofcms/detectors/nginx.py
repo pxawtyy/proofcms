@@ -56,8 +56,9 @@ def detect_nginx_runtime(
     edge_http3 = alt_svc_http3 if edge_server else False
     server = response_server if direct_nginx else None
 
-    # Base-relative resolution covers installations below a path, such as
-    # /site/phpinfo.php. A strict phpinfo signature prevents false evidence.
+    # A CDN can hide the origin Server header on the homepage while nginx
+    # still discloses itself on a static/forbidden directory. Keep this list
+    # bounded and only use it as corroborating runtime evidence.
     if version is None:
         phpinfo_response = client.get("phpinfo.php")
         phpinfo_version = _phpinfo_nginx_version(phpinfo_response)
@@ -66,6 +67,23 @@ def detect_nginx_runtime(
             version = phpinfo_version
             server = f"nginx/{phpinfo_version}"
             source = "/phpinfo.php:SERVER_SOFTWARE"
+
+    if version is None:
+        for path in ("/wp-content/uploads/", "/wp-content/", "/robots.txt"):
+            try:
+                sample = client.get(path)
+            except StopIteration:
+                break
+            sample_headers = _headers(sample)
+            sample_server = sample_headers.get("server") or ""
+            sample_body = str(sample.get("body", ""))[:64_000]
+            sample_match = _NGINX_VERSION.search(sample_server) or _NGINX_VERSION.search(sample_body)
+            if sample_match or "nginx" in sample_server.lower():
+                detected = True
+                version = sample_match.group(1) if sample_match else None
+                server = sample_server or (f"nginx/{version}" if version else "nginx")
+                source = f"{path}:Server" if sample_match and sample_server else f"{path}:body"
+                break
 
     return NginxRuntimeInfo(
         detected,

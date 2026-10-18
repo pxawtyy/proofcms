@@ -29,6 +29,9 @@ KNOWN_PLUGIN_MARKERS = {
     "webp-converter": r"webp-converter|WebP\s+Converter",
     "wp-accessibility": r"wp-accessibility|WP\s+Accessibility",
     "wp-super-cache": r"wp-super-cache|X-WP-SPC",
+    "wp-rocket": r"WP\s+Rocket|wp-rocket",
+    "wp-mail-smtp": r"WP\s+Mail\s+SMTP|wp-mail-smtp",
+    "monsterinsights": r"MonsterInsights|monsterinsights",
     "yoast": r"wordpress-seo|Yoast",
 }
 
@@ -52,6 +55,9 @@ REST_NAMESPACE_PLUGINS = {
     "wordfence": "wordfence",
     "webp-converter": "webp-converter",
     "wpcom": "jetpack",
+    "wp-mail-smtp": "wp-mail-smtp",
+    "wp-rocket": "wp-rocket",
+    "monsterinsights": "monsterinsights",
     "yoast": "yoast",
 }
 
@@ -114,13 +120,19 @@ def detect_wordpress(
         "/wp-login.php",
         "/wp-admin/",
         "/wp-admin/install.php",
+        "/wp-admin/setup-config.php",
+        "/wp-admin/upgrade.php",
     ]
     version_patterns = [
         ("generator", r'<meta\s+name=["\']generator["\']\s+content=["\']WordPress\s+([^"\']+)'),
         ("wp-emoji", r"\bwp-emoji-release(?:\.min)?\.js\?ver=([0-9]+(?:\.[0-9]+){1,3})"),
         (
             "wp-admin-asset",
-            r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
+            r"\bwp-admin/(?:load-(?:styles|scripts)\.php|js/[^?\"']+|css/[^?\"']+)[^\"']*?(?:\?|&(?:amp;)?)ver=([0-9]+(?:\.[0-9]+){1,3})",
+        ),
+        (
+            "wp-core-asset",
+            r"\bwp-(?:admin|includes)/[^?\"']+\?(?:[^\"']*?&)?ver=([0-9]+(?:\.[0-9]+){1,3})",
         ),
         ("wpcom-cdn", r"https?://c[0-9]+\.wp\.com/c/([0-9]+(?:\.[0-9]+){1,3})/"),
         ("readme", r"<br\s*/?>\s*Version\s+([0-9]+(?:\.[0-9]+){1,3})"),
@@ -140,7 +152,7 @@ def detect_wordpress(
         base_url = _installation_base(target, response, path)
 
         version = None
-        patterns = version_patterns if path in {"/", "/readme.html"} else version_patterns[:3]
+        patterns = version_patterns if path in {"/", "/readme.html"} else version_patterns[:5]
         version_kind = None
         for kind, pattern in patterns:
             match = re.search(pattern, body, re.IGNORECASE)
@@ -159,13 +171,17 @@ def detect_wordpress(
             # Query-string versions on login/admin responses are mutable and
             # must not independently drive CVE grading. Require the same core
             # version on another WordPress surface before accepting it.
-            if path in {"/wp-login.php", "/wp-admin/", "/wp-admin/install.php"} and version_kind in {
+            if path in {"/wp-login.php", "/wp-admin/", "/wp-admin/install.php", "/wp-admin/setup-config.php", "/wp-admin/upgrade.php"} and version_kind in {
                 "wp-emoji",
                 "wp-admin-asset",
+                "wp-core-asset",
             }:
                 seen_paths = tentative_versions.setdefault(version, set())
                 seen_paths.add(path)
-                if len(seen_paths) >= 2:
+                # Admin pages commonly contain several independent core assets;
+                # repeated agreement in one response is strong corroboration.
+                occurrences = len(re.findall(version_patterns[3][1], body, re.IGNORECASE))
+                if len(seen_paths) >= 2 or occurrences >= 2:
                     return CMSInfo(
                         "wordpress", True, version, f"wordpress:corroborated-query:{version_kind}", body[:2000], base_url
                     )
@@ -285,6 +301,7 @@ def detect_wordpress_plugins(
     html = home.get("body", "")
     asset_slugs = set(re.findall(r"/wp-content/plugins/([A-Za-z0-9_-]+)/", html, re.IGNORECASE))
     rest_plugins: dict[str, str] = {}
+    unresolved_namespaces: list[str] = []
     rest = _fetch(f"{target.rstrip('/')}/wp-json/", timeout=timeout, proxy=proxy)
     if rest.get("status") == 200 and not is_baseline_match(rest, baseline):
         try:
@@ -297,6 +314,8 @@ def detect_wordpress_plugins(
             slug = REST_NAMESPACE_PLUGINS.get(root)
             if slug:
                 rest_plugins.setdefault(slug, str(namespace))
+            else:
+                unresolved_namespaces.append(str(namespace))
     slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS) | set(rest_plugins)
 
     plugins: dict[str, dict] = {}
@@ -364,6 +383,17 @@ def detect_wordpress_plugins(
                 version = popup_version.group(1).strip()
                 source = "/:pum_vars"
 
+        if slug == "wp-rocket":
+            rocket = re.search(
+                r'<meta\s+name=["\']generator["\']\s+content=["\']WP\s+Rocket\s+([^"\']+)',
+                html,
+                re.IGNORECASE,
+            )
+            if rocket:
+                found = True
+                version = version or rocket.group(1).strip()
+                source = "/:generator"
+
         if found:
             plugins[slug] = {
                 "found": True,
@@ -376,4 +406,5 @@ def detect_wordpress_plugins(
         "plugins": plugins,
         "theme": detect_wordpress_theme(target, html, timeout, proxy=proxy, baseline=baseline),
         "errors": [],
+        "unresolved_namespaces": sorted(set(unresolved_namespaces)),
     }

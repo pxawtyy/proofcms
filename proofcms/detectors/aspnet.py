@@ -107,7 +107,10 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     generator_match = _GENERATOR.search(fingerprint_body)
     version_match = _VERSION_META.search(fingerprint_body)
     comment_match = _GENERATOR_COMMENT.search(fingerprint_body)
-    generator = generator_match.group(1).strip() if generator_match else None
+    raw_generator = generator_match.group(1).strip() if generator_match else None
+    # A generic HTML generator is not evidence of GeneXus. In particular,
+    # WordPress plugins such as WP Rocket commonly occupy this meta tag.
+    generator = raw_generator if raw_generator and "genexus" in raw_generator.lower() else None
     genexus_version = version_match.group(1).strip() if version_match else None
     if comment_match:
         generator = generator or f"GeneXus {comment_match.group(1)}"
@@ -120,7 +123,7 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     dbms_match = _DBMS.search(fingerprint_body)
     dbms = dbms_match.group(1).lower() if dbms_match else None
     gx_sources = []
-    if generator_match or comment_match:
+    if generator or comment_match:
         gx_sources.append("/:html")
     if re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", fingerprint_body, re.IGNORECASE):
         gx_sources.append("/:GeneXus-assets")
