@@ -84,6 +84,16 @@ def probe_media_upload(
     form = discover_media_form(session, surface)
     if not form:
         status = surface.get("status", 0)
+        if status == 0 and surface.get("error"):
+            error = surface["error"]
+            return {
+                "surface_found": False,
+                "surface_state": "transport_error",
+                "surface_status": 0,
+                "surface_error": f"{error.get('type', 'TransportError')}: {error.get('message', 'no response received')}",
+                "accepted": False,
+                "attempts": ["media upload surface transport error (HTTP 0)"],
+            }
         state = "denied" if status in {401, 403} else "redirected" if surface.get("redirected") else "absent"
         return {
             "surface_found": state in {"denied", "redirected"},

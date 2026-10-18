@@ -5,7 +5,7 @@ import secrets
 import urllib.parse
 from typing import Any
 
-from ...core.http import HttpClient, normalize_url
+from ...core.http import HttpClient, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_safe
 
@@ -82,6 +82,8 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     )
     headers = response.get("headers", {})
     location = headers.get("Location") or headers.get("location") or ""
+    if is_transport_error(response):
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True, proof_url=proof_url, detail=f"The open-redirect probe could not obtain an HTTP response ({transport_error_detail(response)}).", action="Retry when the target is reachable; do not interpret transport failure as a redirect result.")
     if response.get("status") in {301, 302, 303, 307, 308} and location == destination:
         return Finding(
             cve=CVE_ID,

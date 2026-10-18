@@ -76,6 +76,7 @@ class TestShtmlSafeProof(unittest.TestCase):
         }
         with (
             patch.object(cve_2026_73373, "rand_str", side_effect=["MARKERABC", "FILEABCD"]),
+            patch.object(cve_2026_73373, "probe_media_upload", return_value={"accepted": False, "surface_state": "absent", "surface_status": 404}),
             patch.object(cve_2026_73373, "probe_upload", return_value=proof),
         ):
             result = cve_2026_73373.check(
@@ -94,10 +95,24 @@ class TestShtmlSafeProof(unittest.TestCase):
             "proof_url": "https://target.test/tmp/proof.shtml",
             "uploaded_filename": "proof.shtml",
         }
-        with patch.object(cve_2026_73373, "probe_upload", return_value=proof):
+        with (
+            patch.object(cve_2026_73373, "probe_media_upload", return_value={"accepted": False, "surface_state": "absent", "surface_status": 404}),
+            patch.object(cve_2026_73373, "probe_upload", return_value=proof),
+        ):
             result = cve_2026_73373.run_safe_probe("https://target.test", "3.9.10")
         self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
         self.assertEqual(result.confidence, "CONFIRMED")
+
+    def test_transport_failure_is_error(self):
+        proof = {
+            "accepted": False,
+            "surface_state": "transport_error",
+            "surface_status": 0,
+            "surface_error": "URLError: timed out",
+        }
+        with patch.object(cve_2026_73373, "probe_media_upload", return_value=proof):
+            result = cve_2026_73373.run_safe_probe("https://target.test", "3.9.10")
+        self.assertEqual(result.status, "ERROR")
 
 
 if __name__ == "__main__":

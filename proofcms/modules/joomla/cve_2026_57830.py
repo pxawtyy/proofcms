@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import secrets
 
-from ...core.http import HttpClient, form_encode, normalize_url
+from ...core.http import HttpClient, form_encode, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 
 CVECheckResult = Finding
@@ -124,6 +124,9 @@ def passive_result(plugins: dict | None) -> Finding:
 def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
+    preflight = client.request(f"{base}/", timeout=timeout)
+    if is_transport_error(preflight):
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True, proof_url=f"{base}/", detail=f"The target could not be reached while looking for a CSRF token ({transport_error_detail(preflight)}).", action="Retry when the target is reachable; no file-deletion conclusion can be drawn from a transport failure.")
     token, token_source = find_anon_csrf_token(
         base,
         timeout=timeout,
@@ -134,16 +137,16 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         return Finding(
             cve=CVE_ID,
             name=NAME,
-            status="NOT_CONFIRMED",
-            confidence="LOW",
+            status="BLOCKED_EXTERNAL",
+            confidence="MEDIUM",
             component=COMPONENT,
             affected_rule=AFFECTED_RULE,
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
             proof_url=f"{base}/",
             detail=(
-                "Could not extract an anonymous Joomla CSRF token from homepage, contact, "
-                "users form pages, or administrator login."
+                "The target responded, but no anonymous Joomla CSRF token was available on the homepage, "
+                "contact, users form pages, or administrator login; the state-changing proof is externally blocked."
             ),
             action="Manually verify Helix Ultimate version and endpoint exposure.",
         )

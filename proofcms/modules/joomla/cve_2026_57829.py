@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.http import normalize_url, request
+from ...core.http import is_transport_error, normalize_url, request, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_safe, version_lte
 
@@ -44,6 +44,8 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     url = f"{normalize_url(target_url)}/index.php?option=com_ajax&plugin=helixultimate&format=json&task=saveMegaMenuSettings"
     response = request(url, timeout=timeout, proxy=proxy)
     status = int(response.get("status", 0))
+    if is_transport_error(response):
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The Helix AJAX dispatcher could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable; no XSS conclusion can be drawn from a transport failure.")
     if status in {404, 410} or response.get("redirected"):
         return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail="The Helix AJAX task was not publicly reachable; the stored-XSS write path could not be tested.", action="Upgrade affected versions and verify the Helix AJAX dispatcher on an authorized staging site.")
     return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The Helix AJAX dispatcher responded (HTTP {status}), but proving stored XSS requires a state-changing menu write and subsequent page load. The safe probe sent no write payload.", action="Upgrade Helix Ultimate to 2.2.7 or newer; use the documented inert-marker PoC only on authorized staging data.")

@@ -54,6 +54,9 @@ def check(
     if confirmed:
         result.status, result.confidence = Status.VULNERABLE, Confidence.CONFIRMED
         result.detail = "PHP-CGI option injection executed a unique harmless marker from the request body."
+    elif http_status <= 0:
+        result.status, result.confidence = Status.ERROR, Confidence.LOW
+        result.detail += " The safe PHP-CGI probe did not receive an HTTP response; transport failure is not a vulnerability result."
     else:
         result.status, result.confidence = Status.NOT_CONFIRMED, Confidence.MEDIUM
         result.detail += (

@@ -4,7 +4,7 @@ import secrets
 from typing import Any
 from urllib.parse import quote
 
-from ...core.http import normalize_url, request
+from ...core.http import is_transport_error, normalize_url, request, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_safe, version_in_specifier
 
@@ -41,6 +41,8 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     payload = quote(f"l-r<{marker}>")
     url = f"{normalize_url(target_url)}/?dc_filter_probe={payload}"
     response = request(url, timeout=timeout, proxy=proxy)
+    if is_transport_error(response):
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"Safe XSS probe could not obtain an HTTP response ({transport_error_detail(response)}).", action="Retry when the target is reachable; do not interpret transport failure as evidence of patch status.")
     body = str(response.get("body", ""))
     if marker in body and f"&lt;{marker}&gt;" not in body:
         return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail="The harmless Dynamic Content Filter marker was reflected as raw HTML. No script payload was sent.", action="Upgrade SP Page Builder Pro to a fixed release and remove the affected filter surface.")

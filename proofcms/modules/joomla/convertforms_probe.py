@@ -87,6 +87,16 @@ def probe_upload(
     session = HttpSession(target, timeout=timeout, proxy=proxy)
     fields = discover_upload_fields(session, target)
     attempts = []
+    if not fields:
+        root = session.get("/")
+        if root.get("status") == 0 and root.get("error"):
+            error = root["error"]
+            return {
+                "accepted": False,
+                "fields_found": 0,
+                "attempts": [],
+                "transport_error": f"{error.get('type', 'TransportError')}: {error.get('message', 'no response received')}",
+            }
     for form_id, field_key, token, page_url in fields:
         request_fields = {"form_id": form_id, "field_key": field_key}
         headers = {}

@@ -206,6 +206,25 @@ def _build_response_dict(
     }
 
 
+def is_transport_error(response: dict[str, Any] | None) -> bool:
+    """Return True when no HTTP response was received."""
+    if not response:
+        return False
+    try:
+        status = int(response.get("status", 0) or 0)
+    except (TypeError, ValueError):
+        status = 0
+    return status <= 0 and bool(response.get("error"))
+
+
+def transport_error_detail(response: dict[str, Any] | None) -> str:
+    """Render a concise transport failure without turning it into a security result."""
+    error = (response or {}).get("error") or {}
+    if isinstance(error, dict):
+        return f"{error.get('type') or 'TransportError'}: {error.get('message') or 'no response received'}"
+    return str(error) or "no response received"
+
+
 class HttpClient:
     """
     Unified HTTP client supporting cookie persistence, proxy routing,

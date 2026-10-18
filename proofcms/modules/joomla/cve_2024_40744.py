@@ -100,6 +100,11 @@ def run_safe_probe(
     )
     passive.exploit_ran = True
     if not proof.get("accepted"):
+        if proof.get("transport_error"):
+            passive.status = "ERROR"
+            passive.confidence = "LOW"
+            passive.detail = f"The Convert Forms upload probe could not obtain an HTTP response ({proof['transport_error']})."
+            return passive
         passive.status = "NOT_CONFIRMED"
         passive.confidence = "MEDIUM"
         passive.detail = (

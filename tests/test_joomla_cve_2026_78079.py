@@ -43,6 +43,12 @@ class TestCVE202678079(unittest.TestCase):
             result = cve_2026_78079.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "NOT_CONFIRMED")
 
+    def test_file_deletion_transport_failure_is_error(self):
+        response = {"status": 0, "headers": {}, "body": "", "error": {"type": "URLError", "message": "timed out"}}
+        with patch.object(cve_2026_78079.HttpClient, "request", return_value=response):
+            result = cve_2026_78079.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "ERROR")
+
     def test_existing_file_deletion_module_has_correct_identity(self):
         meta = cve_2026_57830.metadata()
         self.assertIn("file deletion", meta["name"])
@@ -71,6 +77,21 @@ class TestCVE202678079(unittest.TestCase):
         self.assertEqual(result.status, "NOT_CONFIRMED")
         self.assertFalse(result.evidence["handler_reached"])
 
+    def test_missing_token_on_reachable_target_is_blocked_external(self):
+        response = {"status": 200, "redirected": False, "body": "<html>no token</html>"}
+        with (
+            patch.object(cve_2026_57830.HttpClient, "request", return_value=response),
+            patch.object(cve_2026_57830, "find_anon_csrf_token", return_value=(None, None)),
+        ):
+            result = cve_2026_57830.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "BLOCKED_EXTERNAL")
+
+    def test_transport_failure_is_error(self):
+        response = {"status": 0, "redirected": False, "body": "", "error": {"type": "URLError", "message": "timed out"}}
+        with patch.object(cve_2026_57830.HttpClient, "request", return_value=response):
+            result = cve_2026_57830.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "ERROR")
+
     def test_helix_confirms_listing_and_bounded_webroot_escape(self):
         def listing(path, folders, images):
             return {
@@ -88,6 +109,7 @@ class TestCVE202678079(unittest.TestCase):
             }
 
         responses = [
+            {"status": 200, "redirected": False, "body": "<html>home</html>"},
             {"status": 200, "redirected": False, "body": '{"success":true,"data":null}'},
             listing("/images", ["banners"], ["/srv/www/images/a.png"]),
             listing("/", ["plugins", "images"], []),

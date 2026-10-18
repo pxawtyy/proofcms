@@ -82,6 +82,9 @@ def check(
         result.detail = (
             "PHP-CGI argument injection executed a unique harmless arithmetic-free marker from the request body."
         )
+    elif http_status <= 0:
+        result.status, result.confidence = Status.ERROR, Confidence.LOW
+        result.detail += " The safe PHP-CGI probe did not receive an HTTP response; transport failure is not a vulnerability result."
     else:
         result.status, result.confidence = Status.NOT_CONFIRMED, Confidence.MEDIUM
         result.detail += f" The safe PHP-CGI marker was not returned (HTTP {http_status}); Windows CGI and a vulnerable code page were not confirmed."

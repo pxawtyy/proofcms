@@ -69,6 +69,11 @@ def run_safe_probe(
     )
     proof_source = "Joomla com_media"
     if not proof.get("accepted"):
+        if proof.get("surface_state") == "transport_error":
+            passive.status = "ERROR"
+            passive.confidence = "LOW"
+            passive.detail = f"The Joomla media upload probe could not obtain an HTTP response ({proof.get('surface_error', 'transport failure')})."
+            return passive
         convertforms_proof = probe_upload(
             target_url,
             filename=filename,
