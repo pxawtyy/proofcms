@@ -73,6 +73,8 @@ _CVE_TYPES = {
     "CVE-2012-1823": VulnerabilityType.ARGUMENT_INJECTION,
     "CVE-2019-11043": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2024-4577": VulnerabilityType.ARGUMENT_INJECTION,
+    "CVE-2026-109618": VulnerabilityType.MEMORY_CORRUPTION,
+    "CVE-2026-109619": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2021-23394": VulnerabilityType.FILE_UPLOAD,
     "CVE-2026-81891": VulnerabilityType.FILE_UPLOAD,
     "PROOFCMS-K2-REGISTRATION-AVATAR": VulnerabilityType.EXPOSURE,
