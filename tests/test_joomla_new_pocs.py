@@ -75,9 +75,8 @@ def test_registration_probe_uses_session_token_and_optional_group():
     assert proof["accepted"] is True
     assert proof["account_created"] is True
     assert posted["a" * 32] == "1"
-    assert posted["groups[]"] == "7"
-    assert "user[groups][]" not in posted
-    assert posted["task"] == "registration.register"
+    assert posted["user[groups][]"] == "7"
+    assert posted["task"] == "user.register"
     assert len(posts) == 2
 
 
@@ -113,7 +112,7 @@ def test_privilege_probe_reports_sent_without_claiming_confirmation():
 
     assert result.status == "AGGRESSIVE_SENT"
     assert result.confidence == "LOW"
-    assert submit.call_args.kwargs["group"] == 8
+    assert submit.call_args.kwargs["group"] == 7
     assert "collision oracle did not confirm" in result.detail
 
 
@@ -127,15 +126,22 @@ def test_registration_cves_use_collision_oracle_semantics():
         "username": "proofcms_test",
         "password": "Pc!test",
         "email": "proofcms_test@example.invalid",
-        "registration_task": "registration.register",
-        "group_field": "groups[]",
+        "registration_task": "user.register",
+        "group_field": "user[groups][]",
         "collision_markers": ["username_exists", "email_exists"],
     }
     with patch.object(cve_2016_8870, "submit_registration", return_value=proof):
         account = cve_2016_8870.check(
             "http://target.test", "3.6.3", run_exploit_check=True, exploit_mode="aggressive"
         )
-    with patch.object(cve_2016_8869, "submit_registration", return_value=proof):
+    with (
+        patch.object(cve_2016_8869, "submit_registration", return_value=proof),
+        patch.object(
+            cve_2016_8869,
+            "verify_admin_login",
+            return_value={"logged_in": False, "status": 200, "final_url": "http://target.test/administrator/"},
+        ),
+    ):
         privilege = cve_2016_8869.check(
             "http://target.test", "3.6.3", run_exploit_check=True, exploit_mode="aggressive"
         )
@@ -145,3 +151,35 @@ def test_registration_cves_use_collision_oracle_semantics():
     assert privilege.status == "LIKELY_VULNERABLE"
     assert privilege.confidence == "HIGH"
     assert privilege.evidence["privilege_confirmed"] is False
+
+
+def test_privilege_probe_confirms_admin_login():
+    proof = {
+        "sent": True,
+        "accepted": True,
+        "account_created": True,
+        "status": 200,
+        "proof_url": "http://target.test/index.php?option=com_users&view=registration",
+        "username": "proofcms_test",
+        "password": "Pc!test",
+        "email": "proofcms_test@example.invalid",
+        "registration_task": "user.register",
+        "group_field": "user[groups][]",
+        "collision_markers": ["username_exists", "email_exists"],
+    }
+    with (
+        patch.object(cve_2016_8869, "submit_registration", return_value=proof),
+        patch.object(
+            cve_2016_8869,
+            "verify_admin_login",
+            return_value={"logged_in": True, "status": 200, "final_url": "http://target.test/administrator/"},
+        ),
+    ):
+        result = cve_2016_8869.check(
+            "http://target.test", "3.6.3", run_exploit_check=True, exploit_mode="aggressive"
+        )
+
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["privilege_confirmed"] is True
+    assert result.evidence["group_requested"] == 7

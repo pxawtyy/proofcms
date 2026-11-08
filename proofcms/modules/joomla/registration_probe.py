@@ -8,14 +8,16 @@ from ...core.http import HttpClient, normalize_url
 from ...core.probes import extract_csrf_from_html, rand_str
 
 REGISTRATION_PATH = "/index.php?option=com_users&view=registration"
-REGISTER_TASK = "registration.register"
+# The legacy user.register task in components/com_users/controllers/user.php
+# does not enforce allowUserRegistration, unlike registration.register.
+REGISTER_TASK = "user.register"
 
 
 def _collision_markers(body: str) -> list[str]:
     """Return durable username/e-mail uniqueness signals from Joomla translations."""
     patterns = {
         "username_exists": (
-            r"username.{0,100}(?:already|in use|invalid)",
+            r"username.{0,100}(?:already|in use|invalid|not available)",
             r"nome de usu[aá]rio.{0,120}(?:inv[aá]lido|uso)",
             r"nombre de usuario.{0,120}(?:inv[aá]lido|uso)",
         ),
@@ -44,7 +46,7 @@ def _registration_fields(
         token: "1",
     }
     if group is not None:
-        fields["groups[]"] = str(group)
+        fields["user[groups][]"] = str(group)
     return fields
 
 
@@ -130,8 +132,47 @@ def submit_registration(
         "group": group,
         "proof_url": endpoint,
         "registration_task": REGISTER_TASK,
-        "group_field": "groups[]" if group is not None else None,
+        "group_field": "user[groups][]" if group is not None else None,
         "collision_checked": second is not None,
         "collision_markers": markers,
         "collision_status": second.get("status", 0) if second else second_form.get("status", 0),
+    }
+
+
+def verify_admin_login(
+    target_url: str,
+    *,
+    username: str,
+    password: str,
+    timeout: int = 12,
+    proxy: str | None = None,
+) -> dict[str, Any]:
+    """Attempt an administrator login with a candidate account."""
+    base = normalize_url(target_url)
+    client = HttpClient(base_url=base, timeout=timeout, proxy=proxy)
+    page = client.get("/administrator/index.php", timeout=timeout)
+    token = extract_csrf_from_html(page.get("body", ""))
+    if not token:
+        return {
+            "logged_in": False,
+            "reason": "No administrator CSRF token was found.",
+            "status": page.get("status", 0),
+        }
+    response = client.post(
+        "/administrator/index.php",
+        fields={
+            "username": username,
+            "passwd": password,
+            "option": "com_login",
+            "task": "login",
+            "return": "aW5kZXgucGhw",
+            token: "1",
+        },
+        timeout=timeout,
+    )
+    body = str(response.get("body", ""))
+    return {
+        "logged_in": response.get("status") == 200 and ("com_cpanel" in body or "Dashboard" in body),
+        "status": response.get("status", 0),
+        "final_url": response.get("final_url", ""),
     }

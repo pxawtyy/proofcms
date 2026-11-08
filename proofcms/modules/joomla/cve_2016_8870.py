@@ -54,7 +54,7 @@ def check(
         finding.status = "VULNERABLE"
         finding.confidence = "CONFIRMED"
         finding.detail = (
-            "The registration.register request persisted a user: a same-session repeat with the identical username "
+            "The legacy user.register request persisted a user: a same-session repeat with the identical username "
             "and e-mail was rejected by Joomla's uniqueness checks. "
             f"Disposable account: {proof['username']} / {proof['password']} ({proof['email']}). The account may be "
             "blocked pending activation and must be removed by an administrator."
