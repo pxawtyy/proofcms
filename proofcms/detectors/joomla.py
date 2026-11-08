@@ -431,6 +431,7 @@ def detect_rsfiles(
         r"rsfiles[^0-9]{0,40}([0-9]+(?:\.[0-9]+)+)",
     ]
     fallback = PluginInfo(False, None, "not-detected")
+    route_match: PluginInfo | None = None
     for path in paths:
         url = f"{target.rstrip('/')}{path}"
         response = fetch_url(url, timeout=timeout, proxy=proxy)
@@ -454,7 +455,8 @@ def detect_rsfiles(
                 if match:
                     version = match.group(1)
                     break
-            return PluginInfo(True, version, path)
+            route_match = PluginInfo(True, version, path)
+            break
 
     manifest_paths = [
         "/administrator/components/com_rsfiles/rsfiles.xml",
@@ -469,7 +471,7 @@ def detect_rsfiles(
         if _valid_extension_manifest(response, r"rsfiles|com_rsfiles"):
             match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
             return PluginInfo(True, match.group(1).strip() if match else None, path)
-    return fallback
+    return route_match or fallback
 
 
 def detect_helix3(

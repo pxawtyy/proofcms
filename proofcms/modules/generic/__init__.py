@@ -16,6 +16,7 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2026-60005": "proofcms.modules.generic.cve_2026_60005",
     "CVE-2026-81891": "proofcms.modules.generic.cve_2026_81891",
     "CVE-2026-90439": "proofcms.modules.generic.cve_2026_90439",
+    "CVE-2026-111497": "proofcms.modules.generic.cve_2026_111497",
 }
 
 __all__ = ["AVAILABLE_CVES"]

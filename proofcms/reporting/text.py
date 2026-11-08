@@ -95,6 +95,12 @@ def write_text_report(
                 f"Edge server: {nginx['edge_server']} | "
                 f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
             )
+        node = target.get("node") or {}
+        lines.append(
+            f"Node.js: detected: {'yes' if node.get('detected') else 'no'} | "
+            f"version: {node.get('version') or 'unknown'} | "
+            f"framework: {node.get('framework') or 'unknown'} | source: {node.get('source') or 'not-detected'}"
+        )
         aspnet = target.get("aspnet") or {}
         lines.append(
             f"ASP.NET: detected: {'yes' if aspnet.get('detected') else 'no'} | "

@@ -60,6 +60,7 @@ _CVE_TYPES = {
     "CVE-2026-64638": VulnerabilityType.XSS,
     "CVE-2026-73373": VulnerabilityType.FILE_UPLOAD,
     "CVE-2026-87902": VulnerabilityType.PATH_TRAVERSAL,
+    "CVE-2026-111497": VulnerabilityType.CODE_EXECUTION,
     "CVE-2026-92229": VulnerabilityType.CODE_EXECUTION,
     "CVE-2026-15748": VulnerabilityType.FILE_UPLOAD,
     "CVE-2024-10402": VulnerabilityType.ACCESS_CONTROL,

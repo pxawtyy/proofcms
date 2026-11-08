@@ -27,6 +27,7 @@ from proofcms.core.models import (
     Finding,
     JoomlaInfo,
     NginxRuntimeInfo,
+    NodeRuntimeInfo,
     PluginInfo,
     Status,
 )
@@ -39,6 +40,7 @@ from proofcms.detectors import (
     detect_icagenda,
     detect_joomla,
     detect_nginx_runtime,
+    detect_node_runtime,
     detect_pagebuilderck,
     detect_php_runtime,
     detect_rsfiles,
@@ -83,6 +85,7 @@ __all__ = [
     "Confidence",
     "Finding",
     "JoomlaInfo",
+    "NodeRuntimeInfo",
     "PluginInfo",
     "Status",
     "append_text_result",
@@ -94,6 +97,7 @@ __all__ = [
     "detect_icagenda",
     "detect_joomla",
     "detect_nginx_runtime",
+    "detect_node_runtime",
     "detect_pagebuilderck",
     "detect_plugins",
     "detect_rsfiles",
@@ -422,6 +426,11 @@ def main():
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"NGINX detection failed: {type(exc).__name__}: {exc}")
             nginx_runtime_info = NginxRuntimeInfo(False, None, "error")
+        try:
+            node_runtime_info = detect_node_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
+        except Exception as exc:  # noqa: BLE001
+            target_errors.append(f"Node.js detection failed: {type(exc).__name__}: {exc}")
+            node_runtime_info = NodeRuntimeInfo(False, None, "error")
         nginx_runtime = {
             "detected": nginx_runtime_info.detected,
             "version": nginx_runtime_info.version,
@@ -430,6 +439,14 @@ def main():
             "http3_advertised": nginx_runtime_info.http3_advertised,
             "edge_server": nginx_runtime_info.edge_server,
             "edge_http3_advertised": nginx_runtime_info.edge_http3_advertised,
+        }
+        node_runtime = {
+            "detected": node_runtime_info.detected,
+            "version": node_runtime_info.version,
+            "source": node_runtime_info.source,
+            "server": node_runtime_info.server,
+            "framework": node_runtime_info.framework,
+            "session_cookie": node_runtime_info.session_cookie,
         }
         try:
             php_runtime_info = detect_php_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
@@ -514,6 +531,7 @@ def main():
             "wordpress": wordpress_inventory,
             "php": php_runtime,
             "nginx": nginx_runtime,
+            "node": node_runtime,
             "aspnet": aspnet_runtime,
             "genexus": {
                 "detected": aspnet_runtime_info.genexus_detected,
@@ -537,6 +555,7 @@ def main():
             show_all=args.show_all,
             php_runtime=php_runtime,
             nginx_runtime=nginx_runtime,
+            node_runtime=node_runtime,
             aspnet_runtime=aspnet_runtime,
             errors=target_errors,
         )
@@ -633,6 +652,7 @@ def main():
                     plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
                     php_runtime=php_runtime,
                     nginx_runtime=nginx_runtime,
+                    node_runtime=node_runtime,
                     aspnet_runtime=aspnet_runtime,
                 )
                 result_dict = result.as_dict()

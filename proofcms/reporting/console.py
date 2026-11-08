@@ -151,7 +151,7 @@ def is_php_runtime_result(result: dict | Any) -> bool:
 
 def is_generic_web_result(result: dict | Any) -> bool:
     comp = result.get("component", "") if isinstance(result, dict) else getattr(result, "component", "")
-    return str(comp).lower().startswith(("web library", "nginx runtime", "asp.net runtime", "origin infrastructure"))
+    return str(comp).lower().startswith(("web library", "nginx runtime", "node.js runtime", "asp.net runtime", "origin infrastructure"))
 
 
 def visible_results(
@@ -288,6 +288,7 @@ def print_result(
     show_all: bool = False,
     php_runtime: dict[str, Any] | None = None,
     nginx_runtime: dict[str, Any] | None = None,
+    node_runtime: dict[str, Any] | None = None,
     aspnet_runtime: dict[str, Any] | None = None,
     errors: list[str] | None = None,
 ):
@@ -316,6 +317,12 @@ def print_result(
             f"Edge server: {nginx['edge_server']} | "
             f"HTTP/3 advertised: {'yes' if nginx.get('edge_http3_advertised') else 'no'}"
         )
+    node = node_runtime or {}
+    print(
+        f"Node.js: detected: {'yes' if node.get('detected') else 'no'} | "
+        f"version: {node.get('version') or 'unknown'} | "
+        f"framework: {node.get('framework') or 'unknown'} | source: {node.get('source') or 'not-detected'}"
+    )
     aspnet = aspnet_runtime or {}
     print(
         f"ASP.NET: detected: {'yes' if aspnet.get('detected') else 'no'} | "

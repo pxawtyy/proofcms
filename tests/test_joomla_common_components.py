@@ -115,6 +115,22 @@ class TestCommonJoomlaComponents(unittest.TestCase):
         self.assertEqual(result.version, "6.10.0")
         self.assertIn("sppagebuilder.xml", result.source)
 
+    def test_rsfiles_manifest_version_overrides_route_only_match(self):
+        manifest = '<extension type="component"><name>com_rsfiles</name><version>1.16.29</version></extension>'
+
+        def response(url, **kwargs):
+            if url.endswith("rsfiles.xml"):
+                return self._response(body=manifest)
+            if "option=com_rsfiles" in url:
+                return self._response(body="RSFiles component response")
+            return self._response(status=404, body="not found")
+
+        with patch.object(joomla, "fetch_url", side_effect=response), patch.object(joomla, "is_baseline_match", return_value=False):
+            result = joomla.detect_rsfiles("https://example.test", 2)
+        self.assertTrue(result.found)
+        self.assertEqual(result.version, "1.16.29")
+        self.assertIn("rsfiles.xml", result.source)
+
     def test_specialized_detectors_reject_reflected_html_fallbacks(self):
         def reflected_response(url, **kwargs):
             return {

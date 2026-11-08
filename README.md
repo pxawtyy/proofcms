@@ -148,6 +148,7 @@ an isolated, authorized lab where bypassing certificate validation is safe.
 | `CVE-2026-42530` | NGINX HTTP/3 module | 1.31.0–1.31.1 with HTTP/3 enabled | passive |
 | `CVE-2026-42055` | NGINX proxy-v2 / gRPC modules | Branch-specific releases before 1.30.3 / 1.31.2 | passive |
 | `CVE-2026-9256` | NGINX rewrite module | Branch-specific releases before 1.30.2 / 1.31.1 | passive |
+| `CVE-2026-111497` | Node.js bundled Brotli decoder (Node2Shell) | Node 22.x <22.23.4, 24.x <24.22.1, 26.x <26.12.1, and EOL lines | `safe` differential |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |

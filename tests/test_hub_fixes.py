@@ -353,14 +353,41 @@ class TestPhpExecutionProofAcrossModules(unittest.TestCase):
     """Ensure SP Page Builder, Balbooa Forms, and RSFiles never report VULNERABLE when source leaks."""
 
     def test_sppagebuilder_leakage_reports_upload_only(self):
-        with patch("proofcms.modules.joomla.cve_2026_48908.request") as mock_req, patch("time.sleep"):
-            # First call is upload (status 200), second call is proof (status 200 with raw PHP source)
-            mock_req.side_effect = [
-                {"status": 200, "body": "upload ok"},
-                {"status": 200, "body": "<?php echo 'source code here'; ?>"},
+        with (
+            patch("proofcms.modules.joomla.cve_2026_48908.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_48908.poll_paths") as mock_poll,
+        ):
+            mock_req.return_value = {"status": 200, "body": '{"status":true}'}
+            mock_poll.side_effect = [
+                (
+                    {"status": 200, "body": "<?php echo 'source code here'; ?>"},
+                    "http://target/proof.php",
+                    1,
+                ),
+                (None, None, 1),
+                (None, None, 1),
             ]
             result = cve_2026_48908.run_aggressive_probe("http://target")
             self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
+
+    def test_sppagebuilder_execution_reports_vulnerable(self):
+        with (
+            patch("proofcms.modules.joomla.cve_2026_48908.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_48908.poll_paths") as mock_poll,
+            patch(
+                "proofcms.modules.joomla.cve_2026_48908.generate_php_math_payload",
+                return_value=("<?php echo 'JVH_MATH_49_END';", "49"),
+            ),
+        ):
+            mock_req.return_value = {"status": 200, "body": '{"status":true}'}
+            mock_poll.side_effect = [
+                (None, None, 1),
+                (None, None, 1),
+                ({"status": 200, "body": "JVH_MATH_49_END"}, "http://target/proof.poc", 1),
+            ]
+            result = cve_2026_48908.run_aggressive_probe("http://target")
+            self.assertEqual(result.status, "VULNERABLE")
+            self.assertEqual(result.confidence, "CONFIRMED")
 
     def test_baforms_leakage_reports_upload_only(self):
         with patch("proofcms.modules.joomla.cve_2026_56291.request") as mock_req, patch("time.sleep"):
@@ -372,19 +399,37 @@ class TestPhpExecutionProofAcrossModules(unittest.TestCase):
             self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
 
     def test_rsfiles_leakage_reports_upload_only(self):
-        with patch("proofcms.modules.joomla.cve_2026_57827.request") as mock_req, patch("time.sleep"):
-            # Upload request
-            # Proof request
-            mock_req.side_effect = [
-                {"status": 200, "body": "upload ok"},
+        with (
+            patch("proofcms.modules.joomla.cve_2026_57827.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_57827.poll_paths") as mock_poll,
+        ):
+            mock_req.return_value = {"status": 200, "body": "upload ok"}
+            mock_poll.return_value = (
                 {"status": 200, "body": "<?php echo 'source code here'; ?>"},
-                {"status": 404, "body": "Not found"},
-                {"status": 404, "body": "Not found"},
-                {"status": 404, "body": "Not found"},
-                {"status": 404, "body": "Not found"},
-            ]
+                "http://target/downloads/x.php",
+                1,
+            )
             result = cve_2026_57827.run_aggressive_probe("http://target")
             self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
+
+    def test_rsfiles_execution_reports_vulnerable(self):
+        with (
+            patch("proofcms.modules.joomla.cve_2026_57827.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_57827.poll_paths") as mock_poll,
+            patch(
+                "proofcms.modules.joomla.cve_2026_57827.generate_php_math_payload",
+                return_value=("<?php echo 'JVH_MATH_49_END';", "49"),
+            ),
+        ):
+            mock_req.return_value = {"status": 200, "body": "upload ok"}
+            mock_poll.return_value = (
+                {"status": 200, "body": "JVH_MATH_49_END"},
+                "http://target/downloads/x.php",
+                1,
+            )
+            result = cve_2026_57827.run_aggressive_probe("http://target")
+            self.assertEqual(result.status, "VULNERABLE")
+            self.assertEqual(result.confidence, "CONFIRMED")
 
 
 if __name__ == "__main__":

@@ -144,6 +144,18 @@ class NginxRuntimeInfo:
 
 
 @dataclass
+class NodeRuntimeInfo:
+    """Public Node.js/Express evidence observed over HTTP."""
+
+    detected: bool
+    version: str | None
+    source: str
+    server: str | None = None
+    framework: str | None = None
+    session_cookie: bool = False
+
+
+@dataclass
 class AspNetRuntimeInfo:
     """Public ASP.NET and GeneXus fingerprints observed over HTTP."""
 

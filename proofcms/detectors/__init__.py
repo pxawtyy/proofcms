@@ -20,6 +20,7 @@ from .joomla import (
     detect_plugins as detect_joomla_plugins,
 )
 from .nginx import detect_nginx_runtime
+from .node import detect_node_runtime
 from .php import detect_php_runtime
 from .wordpress import (
     detect_wordpress,
@@ -70,6 +71,7 @@ __all__ = [
     "detect_joomla",
     "detect_joomla_plugins",
     "detect_nginx_runtime",
+    "detect_node_runtime",
     "detect_pagebuilderck",
     "detect_php_runtime",
     "detect_rsfiles",
