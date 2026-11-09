@@ -329,6 +329,37 @@ proofcms/
 
 New vulnerability logic belongs under `proofcms/modules/<cms>/`. Shared HTTP, version, evidence, and probe behavior belongs under `proofcms/core/`.
 
+## Shared framework (do not re-implement per module)
+
+Five patterns used to be copy-pasted across modules; they live in core now:
+
+- **Authenticated sessions** (`proofcms/core/auth.py`): `joomla_admin_login` /
+  `verify_joomla_admin_login` and `wordpress_admin_login`. Module-level
+  `admin_login` / `verify_admin_login` wrappers stay as thin delegates so
+  existing tests keep patching the same names.
+- **Page discovery** (`proofcms/core/crawl.py`): `crawl_pages` (seed paths +
+  same-site homepage `href` crawl) and `rest_list_links` (`?rest_route=`
+  listings). HTML field parsers stay in their modules.
+- **Named aggressive arguments** (`proofcms/core/args.py`): repeatable
+  `--aggressive-arg KEY=VALUE`, parsed once in the CLI and handed to every
+  `check()` as the `aggressive_args` mapping. New probes read named keys;
+  legacy `--aggressive-command` strings keep working as a fallback.
+  Document the keys in the `--aggressive-arg` help and the lab README.
+- **Proof transcripts** (`proofcms/core/transcript.py`): `HttpClient`
+  records a lightweight entry (method, scrubbed URLs, status, body hash)
+  per exchange, and the stateless `request()` helper keeps a thread-local
+  ring. Attach the tail via `attach_transcript(evidence, sess)` or
+  `take_transcript()` when building a `VULNERABLE` finding so reports
+  carry comparable request/response pairs. Bodies are never stored.
+- **Lab cleanup** (`proofcms/core/cleanup.py` + `proofcms --lab-cleanup CVE`):
+  modules that create artifacts expose `cleanup(target_url, *, timeout,
+  proxy, aggressive_args, aggressive_command)` returning `cleanup_result()`
+  (`removed` / `remaining` / `manual`). Prefer exact IDs from the probe
+  report (`file_hash`, `folder`/`file`/`token`), fall back to sweeping the
+  module's known `proofcms-*` patterns, and always report dotfiles and
+  folders HTTP cannot delete as `manual` shell steps. `proofcms --lab-cleanup`
+  lists modules with hooks when the CVE has none.
+
 ## Development
 
 Isolated, loopback-only WordPress reproduction environments are available under

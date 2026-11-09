@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import base64
 import re
-import urllib.parse
 from pathlib import PurePath
 from typing import Any
 
+from ...core.crawl import extract_links
 from ...core.http import HttpSession, poll_paths
 
 
@@ -36,18 +36,14 @@ def _form_upload_fields(html: str) -> list[tuple[str, str, str | None]]:
 
 
 def _candidate_pages(session: HttpSession, target: str) -> list[tuple[str, str]]:
+    home_url = target.rstrip("/") + "/"
     root = session.get("/")
-    pages = [(target.rstrip("/") + "/", root.get("body", ""))]
+    pages = [(home_url, root.get("body", ""))]
     if root.get("status") != 200:
         return pages
-    origin = urllib.parse.urlsplit(target)
-    seen = {pages[0][0]}
-    for href in re.findall(r"href\s*=\s*['\"]([^'\"#]+)", root.get("body", ""), re.IGNORECASE):
-        url = urllib.parse.urljoin(pages[0][0], href)
-        parsed = urllib.parse.urlsplit(url)
-        if parsed.netloc != origin.netloc or url in seen:
+    for url in extract_links(root.get("body", ""), home_url):
+        if url in {page[0] for page in pages}:
             continue
-        seen.add(url)
         response = session.get(url)
         if response.get("status") == 200:
             pages.append((url, response.get("body", "")))

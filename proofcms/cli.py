@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from proofcms.chains import AVAILABLE_CHAINS
+from proofcms.core.args import parse_aggressive_args
 from proofcms.core.categories import normalize_metadata
 from proofcms.core.http import (
     configure_tls,
@@ -68,6 +69,7 @@ from proofcms.reporting import (
     print_plugins,
     print_result,
     print_wordpress_inventory,
+    redact_output,
     sanitize_argv,
     status_color,
     strip_ansi,
@@ -219,6 +221,77 @@ def load_targets(args) -> list[str]:
     return list(dict.fromkeys(normalize_url(target) for target in targets))
 
 
+def cleanup_capable_cves() -> list[str]:
+    """Return sorted CVE IDs whose module exposes a compatible ``cleanup`` hook."""
+    import inspect
+
+    capable = []
+    for cve_id, module_path in AVAILABLE_CVES.items():
+        try:
+            module = importlib.import_module(module_path)
+        except Exception:  # noqa: BLE001, S112 - skip unloadable modules, keep scanning
+            continue
+        hook = getattr(module, "cleanup", None)
+        if not callable(hook):
+            continue
+        try:
+            params = inspect.signature(hook).parameters
+        except (TypeError, ValueError):
+            continue
+        names = list(params)
+        if not names or names[0] != "target_url":
+            continue
+        if "aggressive_args" not in params and not any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()
+        ):
+            continue
+        capable.append(cve_id)
+    return sorted(capable)
+
+
+def run_lab_cleanup(args, targets: list[str], aggressive_args: dict) -> int:
+    """Execute ``module.cleanup()`` for one CVE across targets; no scanning."""
+    cve_id = (args.lab_cleanup or "").strip().upper()
+    if cve_id not in AVAILABLE_CVES:
+        print(f"Error: unknown CVE for --lab-cleanup: {args.lab_cleanup!r}.")
+        return 2
+    module = importlib.import_module(AVAILABLE_CVES[cve_id])
+    hook = getattr(module, "cleanup", None)
+    if not callable(hook):
+        print(f"Error: {cve_id} has no automated lab-cleanup hook.")
+        print(f"Modules with cleanup hooks: {', '.join(cleanup_capable_cves()) or 'none'}.")
+        return 2
+    if not args.i_understand_authorized or not args.i_understand_lab_only:
+        print("Error: --lab-cleanup changes lab state and requires --i-understand-authorized --i-understand-lab-only.")
+        return 2
+    failures = 0
+    for target in targets:
+        reset_transport_state()
+        try:
+            result = hook(
+                target,
+                timeout=args.timeout,
+                proxy=args.proxy,
+                aggressive_args=aggressive_args,
+                aggressive_command=args.aggressive_command,
+            )
+        except Exception as exc:  # noqa: BLE001 - isolate cleanup failures per target
+            print(f"[{target}] {cve_id} cleanup ERROR: {type(exc).__name__}: {exc}")
+            failures += 1
+            continue
+        shown = redact_output(dict(result))
+        print(f"[{target}] {cve_id} cleanup ok={shown.get('ok')}: {shown.get('detail')}")
+        for path in shown.get("removed") or []:
+            print(f"  removed: {path}")
+        for path in shown.get("remaining") or []:
+            print(f"  remaining: {path}")
+            failures += 1
+        for step in shown.get("manual") or []:
+            print(f"  manual: {step}")
+            failures += 1
+    return 2 if failures else 0
+
+
 def main():
     monotonic_start = time.monotonic()
     start_time = datetime.now(timezone.utc)
@@ -257,6 +330,16 @@ def main():
         help="Lab-only convenience shortcut: enables aggressive exploit execution on all capable modules.",
     )
     parser.add_argument(
+        "--lab-cleanup",
+        default=None,
+        metavar="CVE-ID",
+        help=(
+            "Run the lab-cleanup hook for one CVE instead of scanning "
+            "(removes proofcms-* leftovers via the module's known patterns; "
+            "requires --i-understand-authorized --i-understand-lab-only)."
+        ),
+    )
+    parser.add_argument(
         "--i-understand-authorized",
         action="store_true",
         help="Required for safe or aggressive exploit checks. Confirms authorization.",
@@ -268,7 +351,21 @@ def main():
     )
     parser.add_argument(
         "--aggressive-command",
-        help="Optional lab-only command for aggressive blind RCE modules; CVE-2015-8562 defaults to uname -a.",
+        help=(
+            "Optional lab-only command for aggressive blind RCE modules; CVE-2015-8562 defaults to uname -a. "
+            "Prefer repeatable --aggressive-arg KEY=VALUE; legacy formats still work."
+        ),
+    )
+    parser.add_argument(
+        "--aggressive-arg",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help=(
+            "Named lab-only argument for aggressive probes (repeatable). "
+            "Keys: admin_user/admin_password (15882, 90915), canary_url/cache_group (90915), "
+            "page_url/username (32243), hash/full (28000). Example: --aggressive-arg admin_user=admin"
+        ),
     )
     parser.add_argument("--timeout", type=int, default=12, help="HTTP timeout in seconds")
     parser.add_argument("--concurrency", type=int, default=5, help="Concurrency limit for detector probes. Default: 5")
@@ -322,6 +419,12 @@ def main():
         args.run_exploit = "all"
         args.exploit_mode = "aggressive"
 
+    try:
+        aggressive_args = parse_aggressive_args(args.aggressive_arg)
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return 2
+
     chains = selected_chains(args.chain)
     cves = selected_cves(args.cve or ("none" if chains else "all"))
     for chain_id in chains:
@@ -371,6 +474,9 @@ def main():
     if not targets:
         parser.print_help()
         return 1
+
+    if args.lab_cleanup:
+        return run_lab_cleanup(args, targets, aggressive_args)
 
     run_id = uuid.uuid4().hex[:8]
 
@@ -649,6 +755,7 @@ def main():
                     proxy=args.proxy,
                     exploit_mode=selected_exploit_mode,
                     aggressive_command=args.aggressive_command,
+                    aggressive_args=aggressive_args,
                     plugins=(wordpress_inventory.get("plugins", {}) if info.name == "wordpress" else plugins),
                     php_runtime=php_runtime,
                     nginx_runtime=nginx_runtime,
@@ -757,6 +864,7 @@ def main():
             "inventory": args.inventory,
             "fail_on": args.fail_on,
             "command_provided": bool(args.aggressive_command),
+            "aggressive_args_provided": sorted(aggressive_args),
             "show_patched": args.show_patched,
             "show_not_detected": args.show_not_detected,
             "show_all": args.show_all,

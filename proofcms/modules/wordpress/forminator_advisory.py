@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
+from ...core.crawl import rest_list_links
 from ...core.http import normalize_url, request
 from ...core.models import Finding
 from ...core.versions import parse_version_safe
@@ -83,20 +83,12 @@ def passive_result(
 
 def candidate_pages(target_url: str, timeout: int, proxy: str | None) -> list[str]:
     target = normalize_url(target_url)
-    pages = [f"{target}/"]
-    response = request(
-        f"{target}/?rest_route=/wp/v2/pages&per_page=50&_fields=link",
-        timeout=timeout,
-        proxy=proxy,
+    return rest_list_links(
+        lambda url: request(url, timeout=timeout, proxy=proxy),
+        target,
+        route="/wp/v2/pages",
+        per_page=50,
     )
-    if response.get("status") == 200:
-        try:
-            payload = json.loads(response.get("body", ""))
-        except (TypeError, json.JSONDecodeError):
-            payload = []
-        if isinstance(payload, list):
-            pages.extend(item["link"] for item in payload if isinstance(item, dict) and isinstance(item.get("link"), str))
-    return list(dict.fromkeys(pages))
 
 
 def discover_forms(target_url: str, timeout: int, proxy: str | None) -> list[dict[str, Any]]:

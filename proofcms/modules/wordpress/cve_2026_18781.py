@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from urllib.parse import urljoin, urlsplit
 
+from ...core.cleanup import cleanup_result
+from ...core.crawl import crawl_pages
 from ...core.evidence import generate_php_math_payload, verify_php_execution
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
@@ -101,26 +102,14 @@ def parse_dnd_form(html: str) -> dict[str, str] | None:
     return None
 
 
-def _same_site(base: str, url: str) -> bool:
-    return urlsplit(base).netloc.lower() == urlsplit(url).netloc.lower()
-
-
 def _candidate_urls(sess: HttpSession, base: str) -> list[str]:
-    candidates = [f"{base}{path}" for path in COMMON_PATHS]
-    homepage = sess.get("/", timeout=8)
-    if homepage.get("status") == 200:
-        body = str(homepage.get("body", ""))
-        for href in re.findall(r'href=["\']([^"\']+)["\']', body, re.IGNORECASE):
-            if any(marker in href.lower() for marker in SKIP_LINK_MARKERS):
-                continue
-            url = urljoin(base + "/", href)
-            if not _same_site(base, url):
-                continue
-            if url not in candidates:
-                candidates.append(url)
-            if len(candidates) >= MAX_CRAWL_PAGES:
-                break
-    return candidates
+    return crawl_pages(
+        lambda url: sess.get(url, timeout=8),
+        base,
+        common_paths=COMMON_PATHS,
+        max_pages=MAX_CRAWL_PAGES,
+        skip_markers=SKIP_LINK_MARKERS,
+    )
 
 
 def _discover_form(
@@ -322,6 +311,7 @@ def run_aggressive_probe(
         "field": form["field"],
         "form_id": form["form_id"],
         "upload_folder": folder_name,
+        "delete_token": token,
         "phar_upload_status": phar_response.get("status"),
         "phar_file": phar_file,
         "htaccess_upload_status": htaccess_response.get("status"),
@@ -416,6 +406,7 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     plugins: dict[str, Any] | None = None,
     **kwargs: Any,
 ):
@@ -430,14 +421,69 @@ def check(
             " Aggressive proof skipped because the plugin was not detected as potentially affected."
         )
         return passive
+    form_url = (aggressive_args or {}).get("form_url") or aggressive_command
     result = run_aggressive_probe(
         target_url,
         timeout=timeout,
         proxy=proxy,
-        form_url=aggressive_command,
+        form_url=str(form_url) if form_url else None,
     )
     result.component_version = passive.component_version
     return result
+
+
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Remove orphaned ``.phar`` payloads through the plugin's delete action.
+
+    Needs the report's ``upload_folder``, ``phar_file`` and ``delete_token``
+    (``--aggressive-arg folder= --aggressive-arg file= --aggressive-arg
+    token=`` plus ``form_url=``); the token is bound to the upload, so a
+    fresh one cannot substitute. The ``proofcms*`` upload folder itself and
+    any neutralized ``.htaccess`` cannot be unlinked over HTTP because the
+    plugin strips leading dots — those are always reported as manual steps.
+    """
+    from ...core.args import aggressive_value
+
+    args = aggressive_args or {}
+    folder = aggressive_value(args, aggressive_command, "folder")
+    filename = aggressive_value(args, aggressive_command, "file")
+    token = aggressive_value(args, aggressive_command, "token")
+    form_url = aggressive_value(args, aggressive_command, "form_url") or aggressive_command
+    if form_url and not str(form_url).startswith(("http://", "https://")):
+        form_url = None
+    if not folder or not filename or not token:
+        return cleanup_result(
+            manual=["re-run with --aggressive-arg folder=<upload_folder> --aggressive-arg file=<phar_file> --aggressive-arg token=<delete_token> --aggressive-arg form_url=<form_url> (all in the probe report evidence)"],
+            detail="Missing folder/file/token arguments; nothing was attempted.",
+        )
+    base = normalize_url(target_url)
+    sess = HttpSession(base, timeout=timeout, proxy=proxy)
+    found = _discover_form(sess, base, form_url=str(form_url) if form_url else None)
+    if not found:
+        return cleanup_result(
+            remaining=[f"{UPLOAD_DIR}/{folder}/{filename}"],
+            manual=[f"remove the {folder} directory under wp_dndcf7_uploads/wpcf7-files"],
+            detail="The upload form is no longer discoverable; the file may already be gone.",
+        )
+    _, form = found
+    removed: list[str] = []
+    remaining: list[str] = []
+    if _delete(sess, form, str(folder), str(filename), str(token), timeout):
+        removed.append(f"{UPLOAD_DIR}/{folder}/{filename}")
+    else:
+        remaining.append(f"{UPLOAD_DIR}/{folder}/{filename}")
+    return cleanup_result(
+        removed=removed,
+        remaining=remaining,
+        manual=[f"remove the {folder} directory under wp_dndcf7_uploads/wpcf7-files"],
+    )
 
 
 def metadata() -> dict[str, Any]:

@@ -5,7 +5,8 @@ from typing import Any
 
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
-from .elfinder import cleanup, command, discover, endpoint_url, first_added, read_file, upload, zip_payload
+from .elfinder import cleanup as _elfinder_cleanup
+from .elfinder import command, discover, endpoint_url, first_added, read_file, sweep_proofcms, upload, zip_payload
 
 CVE_ID = "CVE-2026-81891"
 RULE = "elFinder before 2.1.70"
@@ -41,7 +42,7 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
     cleanup_hashes = [direct["hash"]] if direct else []
     result.exploit_ran = True
     if direct:
-        cleanup(conn, cleanup_hashes)
+        _elfinder_cleanup(conn, cleanup_hashes)
         result.status, result.confidence = Status.NOT_CONFIRMED, Confidence.MEDIUM
         result.detail = "The direct inert .phtml control upload was accepted, so the archive-only MIME validation bypass could not be isolated."
         return result
@@ -56,7 +57,7 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
     if extracted_file:
         cleanup_hashes.insert(0, extracted_file["hash"])
     confirmed = bool(extracted_file and marker in read_file(conn, extracted_file["hash"]))
-    cleanup(conn, cleanup_hashes)
+    _elfinder_cleanup(conn, cleanup_hashes)
     if confirmed:
         result.status, result.confidence = Status.VULNERABLE_UPLOAD_ONLY, Confidence.CONFIRMED
         result.detail = "The connector rejected a direct inert .phtml upload but accepted the same text-only file through ZIP extraction. No PHP code was uploaded or executed."
@@ -64,6 +65,48 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
         result.status, result.confidence = Status.NOT_CONFIRMED, Confidence.MEDIUM
         result.detail = "The direct control was rejected, but ZIP extraction did not expose the inert .phtml marker."
     return result
+
+
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Remove ``proofcms_*`` leftovers from the public elFinder connector.
+
+    ``--aggressive-arg file_hashes=<h1,h2>`` deletes exact hashes; otherwise
+    the connector root is swept for ``proofcms_*`` files over HTTP.
+    """
+    from ...core.cleanup import cleanup_result
+    from ...core.http import normalize_url
+
+    del aggressive_command  # named arguments only; legacy strings carry no hash
+    base = normalize_url(target_url)
+    conn = discover(base, timeout, proxy)
+    if not conn:
+        return cleanup_result(
+            manual=["re-run with --aggressive-arg file_hashes=<hashes> once the connector is reachable"],
+            detail="No public elFinder connector detected; nothing was attempted.",
+        )
+    hashes = [
+        part.strip()
+        for part in str((aggressive_args or {}).get("file_hashes", "")).split(",")
+        if part.strip()
+    ]
+    if hashes:
+        removed: list[str] = []
+        remaining: list[str] = []
+        for file_hash in dict.fromkeys(hashes):
+            res = command(conn, {"cmd": "rm", "targets[]": file_hash})
+            (removed if file_hash in (res.get("removed") or []) else remaining).append(file_hash)
+        return cleanup_result(removed=removed, remaining=remaining)
+    removed, remaining = sweep_proofcms(conn)
+    if not removed and not remaining:
+        return cleanup_result(detail="Connector root lists no proofcms_* files; nothing to remove.")
+    return cleanup_result(removed=removed, remaining=remaining)
 
 
 def metadata() -> dict[str, Any]:

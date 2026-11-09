@@ -83,6 +83,13 @@ def sanitize_argv(argv: list[str]) -> list[str]:
             skip_next = True
         elif arg.startswith("--aggressive-command="):
             sanitized.append("--aggressive-command=[COMMAND_PROVIDED]")
+        elif arg == "--aggressive-arg":
+            sanitized.append("--aggressive-arg")
+            sanitized.append("[ARG_PROVIDED]")
+            skip_next = True
+        elif arg.startswith("--aggressive-arg="):
+            key = arg.split("=", 1)[1].split("=", 1)[0]
+            sanitized.append(f"--aggressive-arg={key}=[ARG_PROVIDED]")
         elif arg in ("--reverse-host", "--reverse-port", "--token", "--api-key", "--password"):
             sanitized.append(arg)
             sanitized.append("***")

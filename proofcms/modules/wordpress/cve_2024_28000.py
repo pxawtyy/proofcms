@@ -293,6 +293,7 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     plugins: dict[str, Any] | None = None,
     **kwargs: Any,
 ):
@@ -308,7 +309,13 @@ def check(
 
     known_hash = None
     full_seed_space = False
-    if aggressive_command:
+    if aggressive_args:
+        candidate = str(aggressive_args.get("hash", "")).strip()
+        if re.fullmatch(r"[0-9A-Za-z]{6}", candidate):
+            known_hash = candidate
+        if str(aggressive_args.get("full", "")).strip().lower() in {"1", "true", "yes"}:
+            full_seed_space = True
+    elif aggressive_command:
         value = aggressive_command.strip()
         if re.fullmatch(r"[0-9A-Za-z]{6}", value):
             known_hash = value

@@ -6,8 +6,8 @@ import secrets
 import urllib.parse
 from typing import Any
 
+from ...core.auth import joomla_admin_login
 from ...core.http import HttpSession, normalize_url
-from ...core.probes import extract_csrf_from_html
 
 MEDIA_FORM_PATH = "/index.php?option=com_media&view=images&tmpl=component"
 ADMIN_MEDIA_FORM_PATH = "/administrator/index.php?option=com_media&view=images&tmpl=component"
@@ -63,24 +63,10 @@ def admin_login(
     timeout: int = 12,
 ) -> bool:
     """Log in to the Joomla administrator so the media manager form is reachable."""
-    page = session.get("/administrator/index.php", timeout=timeout)
-    token = extract_csrf_from_html(page.get("body", ""))
-    if not token:
-        return False
-    response = session.post(
-        "/administrator/index.php",
-        fields={
-            "username": username,
-            "passwd": password,
-            "option": "com_login",
-            "task": "login",
-            "return": "aW5kZXgucGhw",
-            token: "1",
-        },
-        timeout=timeout,
-    )
-    body = str(response.get("body", ""))
-    return "com_cpanel" in body or "Dashboard" in body
+    base = getattr(session, "base_url", "") or ""
+    # The legacy media login accepted dashboard markers regardless of the
+    # login response status; preserve that via strict_status=False.
+    return joomla_admin_login(session, base, username, password, timeout=timeout, strict_status=False)
 
 
 def _stored_upload_path(body: str) -> str | None:

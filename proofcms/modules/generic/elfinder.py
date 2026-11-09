@@ -92,6 +92,24 @@ def cleanup(conn: dict[str, Any], hashes: list[str]) -> None:
         command(conn, {"cmd": "rm", "targets[]": file_hash})
 
 
+def sweep_proofcms(conn: dict[str, Any], prefix: str = "proofcms-") -> tuple[list[str], list[str]]:
+    """Remove ``prefix*`` files from the connector root; return ``(removed, remaining)`` labels."""
+    data = command(conn, {"cmd": "open", "target": conn["target"], "init": "1"})
+    files = data.get("files") or []
+    removed: list[str] = []
+    remaining: list[str] = []
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        name, file_hash = str(item.get("name", "")), item.get("hash")
+        if not name.startswith(prefix) or not file_hash:
+            continue
+        label = f"{name}#{file_hash}"
+        result = command(conn, {"cmd": "rm", "targets[]": file_hash})
+        (removed if file_hash in (result.get("removed") or []) else remaining).append(label)
+    return removed, remaining
+
+
 def zip_payload(filename: str, content: bytes) -> bytes:
     stream = io.BytesIO()
     with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:

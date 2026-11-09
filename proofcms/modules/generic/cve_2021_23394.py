@@ -5,7 +5,8 @@ from typing import Any
 
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
-from .elfinder import cleanup, discover, endpoint_url, first_added, read_file, upload
+from .elfinder import cleanup as _elfinder_cleanup
+from .elfinder import command, discover, endpoint_url, first_added, read_file, sweep_proofcms, upload
 
 CVE_ID = "CVE-2021-23394"
 RULE = "elFinder before 2.1.58"
@@ -42,11 +43,54 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
     if added and marker in read_file(conn, added["hash"]):
         result.status, result.confidence = Status.VULNERABLE_UPLOAD_ONLY, Confidence.CONFIRMED
         result.detail = "The anonymous connector accepted and returned an inert .phar file, confirming the missing PHAR MIME denial. No PHP code was uploaded or executed."
-        cleanup(conn, [added["hash"]])
+        _elfinder_cleanup(conn, [added["hash"]])
     else:
         result.status, result.confidence = Status.NOT_CONFIRMED, Confidence.MEDIUM
         result.detail = "The public connector was found, but the inert .phar upload was rejected or could not be read back."
     return result
+
+
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Remove ``proofcms_*`` leftovers from the public elFinder connector.
+
+    ``--aggressive-arg file_hashes=<h1,h2>`` deletes exact hashes (recorded
+    in probe evidence); otherwise the connector root is swept for
+    ``proofcms_*`` files over HTTP.
+    """
+    from ...core.cleanup import cleanup_result
+    from ...core.http import normalize_url
+
+    del aggressive_command  # named arguments only; legacy strings carry no hash
+    base = normalize_url(target_url)
+    conn = discover(base, timeout, proxy)
+    if not conn:
+        return cleanup_result(
+            manual=["re-run with --aggressive-arg file_hashes=<hashes> once the connector is reachable"],
+            detail="No public elFinder connector detected; nothing was attempted.",
+        )
+    hashes = [
+        part.strip()
+        for part in str((aggressive_args or {}).get("file_hashes", "")).split(",")
+        if part.strip()
+    ]
+    if hashes:
+        removed: list[str] = []
+        remaining: list[str] = []
+        for file_hash in dict.fromkeys(hashes):
+            res = command(conn, {"cmd": "rm", "targets[]": file_hash})
+            (removed if file_hash in (res.get("removed") or []) else remaining).append(file_hash)
+        return cleanup_result(removed=removed, remaining=remaining)
+    removed, remaining = sweep_proofcms(conn)
+    if not removed and not remaining:
+        return cleanup_result(detail="Connector root lists no proofcms_* files; nothing to remove.")
+    return cleanup_result(removed=removed, remaining=remaining)
 
 
 def metadata() -> dict[str, Any]:

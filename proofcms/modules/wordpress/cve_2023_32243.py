@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 import secrets
 from typing import Any
-from urllib.parse import urljoin, urlsplit
 
+from ...core.auth import wordpress_admin_login
+from ...core.crawl import crawl_pages
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_required, parse_version_safe
@@ -79,24 +80,14 @@ def _eael_nonce(html: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _same_site(base: str, url: str) -> bool:
-    return urlsplit(base).netloc.lower() == urlsplit(url).netloc.lower()
-
-
 def _candidate_pages(sess: HttpSession, base: str) -> list[str]:
-    pages = [f"{base}{path}" for path in COMMON_PATHS]
-    homepage = sess.get("/", timeout=8)
-    if homepage.get("status") == 200:
-        body = str(homepage.get("body", ""))
-        for href in re.findall(r'href=["\']([^"\']+)["\']', body, re.IGNORECASE):
-            if any(marker in href.lower() for marker in SKIP_LINK_MARKERS):
-                continue
-            url = urljoin(base + "/", href)
-            if _same_site(base, url) and url not in pages:
-                pages.append(url)
-            if len(pages) >= MAX_CRAWL_PAGES:
-                break
-    return pages
+    return crawl_pages(
+        lambda url: sess.get(url, timeout=8),
+        base,
+        common_paths=COMMON_PATHS,
+        max_pages=MAX_CRAWL_PAGES,
+        skip_markers=SKIP_LINK_MARKERS,
+    )
 
 
 def _find_nonce(sess: HttpSession, base: str, page_url: str | None) -> tuple[str, str] | None:
@@ -114,21 +105,7 @@ def _find_nonce(sess: HttpSession, base: str, page_url: str | None) -> tuple[str
 
 
 def _login_verified(sess: HttpSession, base: str, username: str, password: str) -> tuple[bool, str]:
-    sess.get("/wp-login.php", timeout=8)
-    login = sess.post(
-        "/wp-login.php",
-        fields={
-            "log": username,
-            "pwd": password,
-            "wp-submit": "Log In",
-            "redirect_to": "/wp-admin/",
-            "testcookie": "1",
-        },
-        timeout=12,
-    )
-    final_url = str(login.get("final_url") or "")
-    body = str(login.get("body", ""))
-    return ("/wp-admin/" in final_url and "Dashboard" in body), final_url
+    return wordpress_admin_login(sess, base, username, password, timeout=12)
 
 
 def run_aggressive_probe(
@@ -262,6 +239,7 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     plugins: dict[str, Any] | None = None,
     **kwargs: Any,
 ):
@@ -275,10 +253,17 @@ def check(
         passive.detail += " Aggressive proof skipped because Essential Addons was not detected as potentially affected."
         return passive
 
-    page_url = aggressive_command if aggressive_command and aggressive_command.startswith(("http://", "https://")) else None
-    username = "admin"
-    if aggressive_command and not page_url:
-        username = aggressive_command.strip() or "admin"
+    page_url = username = None
+    if aggressive_args:
+        page_url = aggressive_args.get("page_url")
+        username = aggressive_args.get("username")
+    if page_url is None and aggressive_command and aggressive_command.startswith(("http://", "https://")):
+        page_url = aggressive_command
+    if username is None:
+        if aggressive_command and not (page_url and aggressive_command == page_url):
+            username = aggressive_command.strip() or "admin"
+        else:
+            username = "admin"
     result = run_aggressive_probe(
         target_url,
         timeout=timeout,

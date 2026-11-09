@@ -72,6 +72,7 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     **kwargs: Any,
 ):
     finding = passive_check(joomla_version)
@@ -82,7 +83,10 @@ def check(
         return finding
 
     admin_user = admin_pass = None
-    if aggressive_command and ":" in aggressive_command:
+    if aggressive_args and aggressive_args.get("admin_user"):
+        admin_user = str(aggressive_args["admin_user"])
+        admin_pass = str(aggressive_args.get("admin_password", ""))
+    elif aggressive_command and ":" in aggressive_command:
         admin_user, admin_pass = aggressive_command.split(":", 1)
     proof = probe_upload(
         target_url,

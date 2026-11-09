@@ -3,8 +3,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ...core.auth import joomla_admin_login
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
+from ...core.transcript import attach_transcript
 from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_core_finding
 
@@ -38,8 +40,22 @@ def _csrf(html: str) -> str | None:
     return match.group(1) if match else None
 
 
-def parse_command(value: str | None) -> tuple[str, str, str, str] | None:
-    """Parse '<user>:<password>|<canary_url>|<cache_group>'."""
+def parse_command(
+    value: str | None,
+    aggressive_args: dict[str, Any] | None = None,
+) -> tuple[str, str, str, str] | None:
+    """Parse '<user>:<password>|<canary_url>|<cache_group>' (legacy).
+
+    Prefer ``--aggressive-arg admin_user= / admin_password= / canary_url= /
+    cache_group=``; the pipe format is accepted as a fallback.
+    """
+    if aggressive_args:
+        username = str(aggressive_args.get("admin_user", "")).strip()
+        password = str(aggressive_args.get("admin_password", ""))
+        canary_url = str(aggressive_args.get("canary_url", "")).strip()
+        group = str(aggressive_args.get("cache_group", "")).strip()
+        if username and password and canary_url and group:
+            return username, password, canary_url, group
     if not value:
         return None
     parts = [part.strip() for part in value.split("|")]
@@ -65,7 +81,6 @@ def run_aggressive_probe(
 ) -> Finding:
     base = normalize_url(target_url)
     sess = HttpSession(base, timeout=timeout, proxy=proxy)
-
     before = sess.get(canary_url, timeout=timeout)
     if is_transport_error(before):
         return Finding(
@@ -102,39 +117,7 @@ def run_aggressive_probe(
         )
 
     login_page = sess.get("/administrator/index.php", timeout=timeout)
-    login_token = _csrf(str(login_page.get("body", "")))
-    if not login_token:
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status="NOT_CONFIRMED",
-            confidence="MEDIUM",
-            component="Joomla core",
-            affected_rule=AFFECTED_RULE,
-            exploit_available=HAS_EXPLOIT,
-            exploit_ran=True,
-            detail="The administrator login page did not expose a Joomla CSRF token.",
-            action="Verify the administrator URL and that the target is a Joomla 5.x/6.x site.",
-            evidence={"canary_url": canary_url, "login_status": login_page.get("status")},
-        )
-
-    login = sess.post(
-        "/administrator/index.php",
-        fields={
-            "username": username,
-            "passwd": password,
-            "option": "com_login",
-            "task": "login",
-            "return": "aW5kZXgucGhw",
-            login_token: "1",
-        },
-        timeout=timeout,
-    )
-    login_body = str(login.get("body", ""))
-    logged_in = login.get("status") == 200 and (
-        "com_cpanel" in login_body or "Dashboard" in login_body
-    )
-    if not logged_in:
+    if not joomla_admin_login(sess, base, username, password, timeout=timeout):
         return Finding(
             cve=CVE_ID,
             name=NAME,
@@ -146,7 +129,7 @@ def run_aggressive_probe(
             exploit_ran=True,
             detail="The supplied administrator credentials did not establish a Joomla session.",
             action="Verify the administrator credentials and that the account can access com_cache.",
-            evidence={"canary_url": canary_url, "login_status": login.get("status")},
+            evidence={"canary_url": canary_url, "login_status": login_page.get("status")},
         )
 
     cache_page = sess.get("/administrator/index.php?option=com_cache", timeout=timeout)
@@ -173,11 +156,22 @@ def run_aggressive_probe(
     )
     after = sess.get(canary_url, timeout=timeout)
     after_status = after.get("status")
+    # The shared login helper owns the POST; recover its status from the
+    # session transcript (the login POST is the query-less administrator POST).
+    login_status = next(
+        (
+            entry.get("status")
+            for entry in reversed(getattr(sess, "transcript", None) or [])
+            if entry.get("method") == "POST"
+            and str(entry.get("url", "")).rstrip("/").endswith("/administrator/index.php")
+        ),
+        200,
+    )
     evidence = {
         "canary_url": canary_url,
         "cache_group": group,
         "before_status": before.get("status"),
-        "login_status": login.get("status"),
+        "login_status": login_status,
         "cache_page_status": cache_page.get("status"),
         "delete_status": delete.get("status"),
         "after_status": after_status,
@@ -203,7 +197,7 @@ def run_aggressive_probe(
                 "Upgrade to Joomla 5.4.9, 6.1.4, or newer; review com_cache access logs and "
                 "restore any cache-adjacent directories that were removed."
             ),
-            evidence=evidence,
+            evidence=attach_transcript(evidence, sess),
         )
 
     if delete.get("status") in {403, 406}:
@@ -251,6 +245,7 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     **kwargs: Any,
 ):
     finding = passive_core_finding(
@@ -270,11 +265,13 @@ def check(
     if finding.status not in {"LIKELY_VULNERABLE", "INCONCLUSIVE"}:
         finding.detail += " Aggressive proof skipped because the Joomla version was not potentially affected."
         return finding
-    parsed = parse_command(aggressive_command)
+    parsed = parse_command(aggressive_command, aggressive_args)
     if not parsed:
         finding.detail += (
-            " Supply --aggressive-command '<user>:<password>|<canary_url>|<cache_group>' "
-            "with a dedicated canary directory. No deletion was attempted."
+            " Supply --aggressive-arg admin_user=<user> --aggressive-arg admin_password=<password> "
+            "--aggressive-arg canary_url=<url> --aggressive-arg cache_group=<group> with a dedicated "
+            "canary directory (legacy --aggressive-command '<user>:<password>|<canary_url>|<cache_group>' "
+            "still works). No deletion was attempted."
         )
         return finding
     username, password, canary_url, group = parsed

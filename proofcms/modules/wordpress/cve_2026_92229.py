@@ -8,6 +8,7 @@ from ...core.differential import confirm_shortcode_output, evidence_from
 from ...core.http import normalize_url, request
 from ...core.models import Finding
 from ...core.probes import rand_str
+from ...core.transcript import attach_transcript, take_transcript
 from .forminator_advisory import COMPONENT, discover_forms, passive_result
 
 CVE_ID = "CVE-2026-92229"
@@ -107,14 +108,17 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     )
     reflection = outcome.reflection
     evaluated = outcome.evaluated
-    evidence = evidence_from(
-        outcome,
-        {
-            "form_id": form_id,
-            "page_url": page_url,
-            "answers": answers,
-            "preview_action": True,
-        },
+    evidence = attach_transcript(
+        evidence_from(
+            outcome,
+            {
+                "form_id": form_id,
+                "page_url": page_url,
+                "answers": answers,
+                "preview_action": True,
+            },
+        ),
+        take_transcript(),
     )
     if evaluated:
         return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{normalize_url(target_url)}/wp-admin/admin-ajax.php", detail="The preview quiz renderer evaluated a harmless Forminator shortcode embedded in current_url, rendering its fixed error text into the response. No executable shortcode and no state-changing request were sent, and the preview action stores no entry.", action="Upgrade Forminator to 1.57.3 or newer immediately.", evidence=evidence)

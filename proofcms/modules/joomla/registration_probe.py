@@ -4,6 +4,7 @@ import re
 from html import unescape
 from typing import Any
 
+from ...core.auth import verify_joomla_admin_login
 from ...core.http import HttpClient, normalize_url
 from ...core.probes import extract_csrf_from_html, rand_str
 
@@ -148,31 +149,6 @@ def verify_admin_login(
     proxy: str | None = None,
 ) -> dict[str, Any]:
     """Attempt an administrator login with a candidate account."""
-    base = normalize_url(target_url)
-    client = HttpClient(base_url=base, timeout=timeout, proxy=proxy)
-    page = client.get("/administrator/index.php", timeout=timeout)
-    token = extract_csrf_from_html(page.get("body", ""))
-    if not token:
-        return {
-            "logged_in": False,
-            "reason": "No administrator CSRF token was found.",
-            "status": page.get("status", 0),
-        }
-    response = client.post(
-        "/administrator/index.php",
-        fields={
-            "username": username,
-            "passwd": password,
-            "option": "com_login",
-            "task": "login",
-            "return": "aW5kZXgucGhw",
-            token: "1",
-        },
-        timeout=timeout,
+    return verify_joomla_admin_login(
+        target_url, username=username, password=password, timeout=timeout, proxy=proxy
     )
-    body = str(response.get("body", ""))
-    return {
-        "logged_in": response.get("status") == 200 and ("com_cpanel" in body or "Dashboard" in body),
-        "status": response.get("status", 0),
-        "final_url": response.get("final_url", ""),
-    }

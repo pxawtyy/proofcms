@@ -14,6 +14,9 @@ import urllib.request
 import zlib
 from typing import Any, cast
 
+from .transcript import MAX_ENTRIES as _TRANSCRIPT_MAX
+from .transcript import make_entry as _transcript_entry
+
 DEFAULT_USER_AGENT = "ProofCMS/2.1 authorized-audit"
 DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9,pt-BR;q=0.8"
@@ -245,6 +248,7 @@ class HttpClient:
         self.user_agent = user_agent
         self.verify_tls = _TLS_VERIFY if verify_tls is None else verify_tls
         self.jar = http.cookiejar.CookieJar()
+        self.transcript: list[dict[str, Any]] = []
         self._rebuild_opener()
 
     def _rebuild_opener(self):
@@ -278,6 +282,10 @@ class HttpClient:
             base = self.base_url.rstrip("/") + "/"
             return urllib.parse.urljoin(base, url.lstrip("/"))
         return url
+
+    def _record(self, method: str, url: str, response: dict[str, Any]) -> None:
+        self.transcript.append(_transcript_entry(method, url, response))
+        del self.transcript[: max(0, len(self.transcript) - _TRANSCRIPT_MAX)]
 
     def request(
         self,
@@ -313,9 +321,11 @@ class HttpClient:
                 body_bytes, body, encoding_truncated = _decode_body(body_bytes, response.headers)
                 truncated = truncated or encoding_truncated
                 final_url: str = response.url or full_url
-                return _build_response_dict(
+                result = _build_response_dict(
                     response.status, body, full_url, final_url, response.headers, body_bytes, truncated=truncated
                 )
+                self._record(method, full_url, result)
+                return result
         except urllib.error.HTTPError as exc:
             body_bytes = exc.read(MAX_RESPONSE_BYTES + 1) if hasattr(exc, "read") else b""
             truncated = len(body_bytes) > MAX_RESPONSE_BYTES
@@ -323,11 +333,13 @@ class HttpClient:
             body_bytes, body, encoding_truncated = _decode_body(body_bytes, exc.headers or {})
             truncated = truncated or encoding_truncated
             final_url = exc.url if exc.url else full_url
-            return _build_response_dict(
+            result = _build_response_dict(
                 exc.code, body, full_url, final_url, exc.headers or {}, body_bytes, truncated=truncated
             )
+            self._record(method, full_url, result)
+            return result
         except Exception as exc:  # noqa: BLE001
-            return _build_response_dict(
+            result = _build_response_dict(
                 0,
                 "",
                 full_url,
@@ -335,6 +347,8 @@ class HttpClient:
                 {},
                 error={"type": type(exc).__name__, "message": str(exc)},
             )
+            self._record(method, full_url, result)
+            return result
 
     def get(self, url: str, headers: dict[str, Any] | None = None, timeout: int | None = None) -> dict[str, Any]:
         return self.request(url, method="GET", headers=headers, timeout=timeout)
@@ -398,7 +412,14 @@ def request(
     if client is None:
         client = HttpClient(timeout=timeout, proxy=proxy)
         clients[key] = client
-    return client.request(url, method=method, headers=headers, data=data, timeout=timeout)
+    response = client.request(url, method=method, headers=headers, data=data, timeout=timeout)
+    try:
+        from .transcript import record_stateless
+
+        record_stateless(method, url, response)
+    except ImportError:  # pragma: no cover - transcript is part of core
+        pass
+    return response
 
 
 def fetch_url(url: str, timeout: int = 12, proxy: str | None = None, session: Any = None) -> dict[str, Any]:

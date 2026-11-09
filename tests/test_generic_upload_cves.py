@@ -24,7 +24,7 @@ def test_phar_inert_upload_confirmation():
         patch("proofcms.modules.generic.cve_2021_23394.upload", return_value={"added": [{"name": "ignored"}]}),
         patch("proofcms.modules.generic.cve_2021_23394.first_added", return_value={"hash": "filehash"}),
         patch("proofcms.modules.generic.cve_2021_23394.read_file", return_value="PROOFCMS_SAFE_MARK"),
-        patch("proofcms.modules.generic.cve_2021_23394.cleanup"),
+        patch("proofcms.modules.generic.cve_2021_23394._elfinder_cleanup"),
         patch("proofcms.modules.generic.cve_2021_23394.endpoint_url", return_value="https://test/connector"),
         patch("proofcms.modules.generic.cve_2021_23394.secrets.token_hex", side_effect=["MARK", "FILE"]),
     ):
@@ -39,7 +39,7 @@ def test_archive_bypass_requires_rejected_direct_control():
         patch("proofcms.modules.generic.cve_2026_81891.discover", return_value=conn),
         patch("proofcms.modules.generic.cve_2026_81891.upload", return_value={"added": [{"hash": "direct"}]}),
         patch("proofcms.modules.generic.cve_2026_81891.first_added", return_value={"hash": "direct"}),
-        patch("proofcms.modules.generic.cve_2026_81891.cleanup"),
+        patch("proofcms.modules.generic.cve_2026_81891._elfinder_cleanup"),
         patch("proofcms.modules.generic.cve_2026_81891.endpoint_url", return_value="https://test/connector"),
     ):
         result = cve_2026_81891.check("https://test", run_exploit_check=True)

@@ -25,6 +25,7 @@ class VulnerabilityModule(Protocol):
         proxy: str | None = None,
         exploit_mode: str = "safe",
         aggressive_command: str | None = None,
+        aggressive_args: dict[str, Any] | None = None,
         plugins: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> Finding:

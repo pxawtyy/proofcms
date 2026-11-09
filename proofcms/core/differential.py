@@ -55,8 +55,17 @@ def confirm_shortcode_output(
     )
 
 
-def evidence_from(result: EvaluationResult, extra: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Merge an evaluation result into a finding evidence dict."""
+def evidence_from(
+    result: EvaluationResult,
+    extra: dict[str, Any] | None = None,
+    transcript: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Merge an evaluation result into a finding evidence dict.
+
+    ``transcript`` optionally carries request/response summaries (see
+    :mod:`proofcms.core.transcript`); when present it is stored under the
+    ``"transcript"`` key so reports stay comparable across modules.
+    """
     evidence: dict[str, Any] = {
         "reflection": result.reflection[:200] if result.reflection else None,
         "marker_reflected": result.marker_present,
@@ -64,4 +73,6 @@ def evidence_from(result: EvaluationResult, extra: dict[str, Any] | None = None)
     }
     if extra:
         evidence.update(extra)
+    if transcript is not None:
+        evidence["transcript"] = transcript
     return evidence

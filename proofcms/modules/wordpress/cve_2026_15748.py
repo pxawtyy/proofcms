@@ -7,6 +7,7 @@ from typing import Any
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.probes import rand_str
+from ...core.transcript import attach_transcript
 from .forminator_advisory import COMPONENT, discover_forms, passive_result
 
 CVE_ID = "CVE-2026-15748"
@@ -188,16 +189,19 @@ def run_aggressive_probe(
     if is_transport_error(forged_resp):
         return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail=f"The forged upload could not obtain an HTTP response ({transport_error_detail(forged_resp)}).", action="Retry when the target is reachable; do not interpret transport failure as patch status.")
     forged_error = _field_error(forged_json, forge)
-    evidence: dict[str, Any] = {
-        "form_id": form_id,
-        "page_url": page_url,
-        "genuine_field": genuine,
-        "carrier_field": carrier,
-        "forge_field": forge,
-        "baseline_error": baseline_error,
-        "forged_error": forged_error,
-        "files_written": False,
-    }
+    evidence: dict[str, Any] = attach_transcript(
+        {
+            "form_id": form_id,
+            "page_url": page_url,
+            "genuine_field": genuine,
+            "carrier_field": carrier,
+            "forge_field": forge,
+            "baseline_error": baseline_error,
+            "forged_error": forged_error,
+            "files_written": False,
+        },
+        sess,
+    )
     if baseline_error and forged_error:
         return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail="The genuine upload field rejected the text-content file, and the identical file sent through a forged select-carried upload configuration was validated (and rejected) as an upload field instead of being ignored. Only the trusted forged path reaches the upload validator, which confirms the select-field injection. The mismatched content fails closed before any file is written, so the lab stays clean.", action="Upgrade Forminator to 1.56.2 or newer.", evidence=evidence)
     return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail=f"The forged upload configuration was not validated as an upload field (baseline error: {bool(baseline_error)}, forged error: {bool(forged_error)}). The target is likely patched.", action="Upgrade Forminator to 1.56.2 or newer.", evidence=evidence)

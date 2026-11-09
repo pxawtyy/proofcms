@@ -6,6 +6,7 @@ import secrets
 import urllib.parse
 from typing import Any
 
+from ...core.crawl import rest_list_links
 from ...core.evidence import generate_php_math_payload, verify_php_execution
 from ...core.http import normalize_url, request
 from ...core.models import Finding
@@ -98,22 +99,12 @@ def extract_form_data(html: str) -> dict[str, Any] | None:
 
 def _candidate_pages(target_url: str, timeout: int, proxy: str | None) -> list[str]:
     target = normalize_url(target_url)
-    urls = [f"{target}/"]
-    response = request(
-        f"{target}/?rest_route=/wp/v2/pages&per_page=30&_fields=link",
-        timeout=timeout,
-        proxy=proxy,
+    return rest_list_links(
+        lambda url: request(url, timeout=timeout, proxy=proxy),
+        target,
+        route="/wp/v2/pages",
+        per_page=30,
     )
-    if response.get("status") == 200:
-        try:
-            pages = json.loads(response.get("body", ""))
-        except (json.JSONDecodeError, TypeError):
-            pages = []
-        if isinstance(pages, list):
-            urls.extend(
-                page["link"] for page in pages if isinstance(page, dict) and isinstance(page.get("link"), str)
-            )
-    return list(dict.fromkeys(urls))
 
 
 def discover_form(target_url: str, timeout: int, proxy: str | None) -> tuple[str, dict[str, Any]] | None:

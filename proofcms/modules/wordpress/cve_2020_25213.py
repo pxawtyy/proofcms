@@ -4,6 +4,7 @@ import json
 from typing import Any
 from urllib.parse import urljoin
 
+from ...core.cleanup import cleanup_result
 from ...core.evidence import generate_php_math_payload, verify_php_execution
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
@@ -197,6 +198,66 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         cleanup_attempted=True,
         cleanup_verified=cleaned,
     )
+
+
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Remove ``proofcms-*`` leftovers from the elFinder connector.
+
+    ``--aggressive-arg file_hash=<hash>`` (recorded in the probe report as
+    ``uploaded_hash``) deletes one file directly; otherwise the hook lists
+    the upload target and removes every ``proofcms-*`` entry over HTTP.
+    """
+    del aggressive_command  # named arguments only; legacy strings carry no hash
+    base = normalize_url(target_url)
+    sess = HttpSession(base, timeout=timeout, proxy=proxy)
+    args = aggressive_args or {}
+    file_hash = str(args.get("file_hash", "")).strip()
+    if file_hash:
+        if _cleanup(sess, {"hash": file_hash}, timeout):
+            return cleanup_result(
+                removed=[f"{CONNECTOR_PATH}#{file_hash}"],
+                detail="Removed the reported elFinder file hash.",
+            )
+        return cleanup_result(
+            remaining=[f"{CONNECTOR_PATH}#{file_hash}"],
+            detail="The connector did not confirm removal; the file may already be gone or the hash expired.",
+        )
+    opened = sess.post(
+        CONNECTOR_PATH,
+        fields={"cmd": "open", "target": UPLOAD_TARGET, "init": "1"},
+        timeout=timeout,
+    )
+    if is_transport_error(opened):
+        return cleanup_result(
+            manual=["re-run with --aggressive-arg file_hash=<uploaded_hash from the probe report>"],
+            detail=f"Could not list the upload target ({transport_error_detail(opened)}).",
+        )
+    files = _json(str(opened.get("body", ""))).get("files") or []
+    candidates = [
+        item
+        for item in files
+        if isinstance(item, dict)
+        and str(item.get("name", "")).startswith("proofcms-")
+        and item.get("hash")
+    ]
+    removed: list[str] = []
+    remaining: list[str] = []
+    for item in candidates:
+        label = f"{item.get('name')}#{item.get('hash')}"
+        if _cleanup(sess, item, timeout):
+            removed.append(label)
+        else:
+            remaining.append(label)
+    if not candidates:
+        return cleanup_result(detail="Upload target lists no proofcms-* files; nothing to remove.")
+    return cleanup_result(removed=removed, remaining=remaining)
 
 
 def check(

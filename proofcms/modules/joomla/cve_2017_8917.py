@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.probes import rand_str
+from ...core.transcript import attach_transcript
 from ...core.versions import parse_version_required, parse_version_safe
 from .advisory import passive_core_finding
 
@@ -135,7 +136,7 @@ def run_aggressive_probe(
                 "CVE-2017-8917 with a read-only proof."
             ),
             action="Upgrade Joomla 3.7.0 to 3.7.1 or a currently supported release immediately.",
-            evidence=evidence,
+            evidence=attach_transcript(evidence, sess),
         )
 
     # Time-based corroboration when the selected context has at least one field.
@@ -168,7 +169,7 @@ def run_aggressive_probe(
                 "This confirms CVE-2017-8917 with a read-only proof."
             ),
             action="Upgrade Joomla 3.7.0 to 3.7.1 or a currently supported release immediately.",
-            evidence=evidence,
+            evidence=attach_transcript(evidence, sess),
         )
 
     if injected.get("status") in {403, 406} and baseline.get("status") not in {403, 406}:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urljoin, urlsplit
 
+from ...core.crawl import crawl_pages
 from ...core.http import HttpSession, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_safe
@@ -109,26 +109,14 @@ def parse_cf7_form(html: str) -> dict[str, Any] | None:
     return {"hidden": hidden, "file_field": file_field, "fill": fillable}
 
 
-def _same_site(base: str, url: str) -> bool:
-    return urlsplit(base).netloc.lower() == urlsplit(url).netloc.lower()
-
-
 def _candidate_urls(sess: HttpSession, base: str) -> list[str]:
-    candidates = [f"{base}{path}" for path in COMMON_PATHS]
-    homepage = sess.get("/", timeout=8)
-    if homepage.get("status") == 200:
-        body = str(homepage.get("body", ""))
-        for href in re.findall(r'href=["\']([^"\']+)["\']', body, re.IGNORECASE):
-            if any(marker in href.lower() for marker in SKIP_LINK_MARKERS):
-                continue
-            url = urljoin(base + "/", href)
-            if not _same_site(base, url):
-                continue
-            if url not in candidates:
-                candidates.append(url)
-            if len(candidates) >= MAX_CRAWL_PAGES:
-                break
-    return candidates
+    return crawl_pages(
+        lambda url: sess.get(url, timeout=8),
+        base,
+        common_paths=COMMON_PATHS,
+        max_pages=MAX_CRAWL_PAGES,
+        skip_markers=SKIP_LINK_MARKERS,
+    )
 
 
 def _discover_form(
