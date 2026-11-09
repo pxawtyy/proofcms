@@ -292,7 +292,6 @@ def run_aggressive_probe(
     htaccess_response, htaccess_data = _upload(
         sess, form, folder_name, token, htaccess_raw_name, HTACCESS_BODY, timeout
     )
-    htaccess_file = str(htaccess_data.get("file") or "") if htaccess_data else ""
     htaccess_written = bool(htaccess_data)
 
     proof_url = f"{base}{UPLOAD_DIR}/{folder_name}/{phar_file}"

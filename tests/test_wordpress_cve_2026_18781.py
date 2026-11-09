@@ -41,7 +41,7 @@ class FakeSession:
         return {"status": 200, "body": PAGE_HTML if self.vuln_form else DEFAULT_FORM_HTML}
 
     def post_multipart(self, url, fields, files, headers=None, timeout=None):
-        filename, content, content_type = next(iter(files.values()))
+        filename, content, _content_type = next(iter(files.values()))
         self.uploads.append((filename, content, dict(fields)))
         if "pha\x01r" in filename:
             if not self.accepted:

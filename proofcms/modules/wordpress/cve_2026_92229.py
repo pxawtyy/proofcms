@@ -6,8 +6,8 @@ from typing import Any
 
 from ...core.http import normalize_url, request
 from ...core.models import Finding
-from .forminator_advisory import COMPONENT, discover_forms, passive_result
 from ...core.probes import rand_str
+from .forminator_advisory import COMPONENT, discover_forms, passive_result
 
 CVE_ID = "CVE-2026-92229"
 NAME = "Forminator unauthenticated arbitrary shortcode execution"
