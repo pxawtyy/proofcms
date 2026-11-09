@@ -46,6 +46,7 @@ sample configuration as a baseline, then document every web-server override sepa
 | CVE-2025-0357 | WPBookit Pro | through 1.6.9 | 1.6.9 | Commercial fixture needed; fixed in 1.6.10; source is required to determine the real request contract |
 | CVE-2026-6692 | Slider Revolution (`revslider`) | 7.0.0-7.0.10 | 7.0.10 | Commercial; fixed in 7.0.11 |
 | CVE-2026-92229 | Forminator (`forminator`) | through 1.57.2 | 1.57.2 (keep 1.57.3 as patched control) | Free WordPress.org package; seed a public knowledge quiz with a share-enabled network plus a page rendering it (see `labs/cve-2026-92229`) |
+| CVE-2026-15748 | Forminator (`forminator`) | 1.18.1-1.56.1 | 1.56.1 (keep 1.56.2 as patched control) | Free WordPress.org package; seed a public custom form with a genuine upload field plus a select carrier (see `labs/cve-2026-15748`) |
 | CVE-2026-18781 | Drag and Drop Multiple File Upload for Contact Form 7 | before 1.3.9.9 | 1.3.9.8 | Also install a compatible Contact Form 7 and create a form using the upload field |
 | CVE-2026-32475 | Elementor Pro | through 4.2.1 | 4.2.1 | Commercial; also retain the matching free Elementor package and a configured vulnerable form/route |
 

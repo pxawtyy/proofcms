@@ -99,5 +99,65 @@ class TestForminatorDiscovery(unittest.TestCase):
         self.assertEqual(result.status, "NOT_CONFIRMED")
 
 
+class TestForminatorSelectInjectionProbe(unittest.TestCase):
+    PAGE = (
+        '<input type="hidden" name="form_id" value="7">'
+        '<input type="hidden" name="forminator_nonce" value="abc123">'
+        '<input type="file" name="upload-1">'
+        '<select name="select-1"><option value="a">A</option></select>'
+    )
+
+    def _run(self, baseline_body, forged_body):
+        from proofcms.modules.wordpress import cve_2026_15748 as module
+
+        fake_form = [{"has_upload": True, "has_select": True, "form_ids": ["7"], "page_url": "https://target.test/quiz/"}]
+
+        class FakeSession:
+            def get(self, url, timeout=None):
+                return {"status": 200, "body": TestForminatorSelectInjectionProbe.PAGE}
+
+            def post_multipart(self, url, fields, files, headers=None, timeout=None):
+                if "select-1[return]" in fields:
+                    return {"status": 200, "body": forged_body}
+                return {"status": 200, "body": baseline_body}
+
+        with (
+            patch.object(module, "discover_forms", return_value=fake_form),
+            patch.object(module, "HttpSession", return_value=FakeSession()),
+            patch.object(module, "rand_str", return_value="FORGE"),
+        ):
+            return module.run_aggressive_probe("https://target.test")
+
+    def test_forged_field_error_confirms_injection(self):
+        result = self._run(
+            '{"success":false,"data":{"errors":[{"upload-1":"nope"}]}}',
+            '{"success":false,"data":{"errors":[{"proofcmsFORGE":"Sorry, you are not allowed to upload this file type."}]}}',
+        )
+        self.assertEqual(result.status, "VULNERABLE")
+        self.assertEqual(result.confidence, "CONFIRMED")
+        self.assertTrue(result.evidence["forged_error"])
+        self.assertFalse(result.evidence["files_written"])
+
+    def test_silent_forged_field_is_not_confirmed(self):
+        result = self._run(
+            '{"success":false,"data":{"errors":[{"upload-1":"nope"}]}}',
+            '{"success":true,"data":{}}',
+        )
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+
+    def test_patched_version_skips_aggressive_probe(self):
+        from proofcms.modules.wordpress import cve_2026_15748 as module
+
+        with patch.object(module, "run_aggressive_probe") as probe:
+            result = module.check(
+                "https://target.test",
+                run_exploit_check=True,
+                exploit_mode="aggressive",
+                plugins={"forminator": {"found": True, "version": "1.56.2"}},
+            )
+        self.assertEqual(result.status, "PATCHED")
+        probe.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
