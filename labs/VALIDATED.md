@@ -42,7 +42,7 @@ Dispositions:
 | CVE-2026-60137 | lab `labs/cve-2026-60137` (WP 7.0.1; 6.8.5/6.9.4 share the image) | safe differential SQLi timing (harmless true/false + SLEEP, 3 paired probes, no extraction) | CONFIRMED | 7.0.2 PATCHED (version gate skips probe) | `labs/cve-2026-60137` | 2026-11-09 | `3d9f0f5` |
 | CVE-2026-63030 | lab `labs/cve-2026-60137` (shared WP image) | safe REST batch confusion | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-64638 | — | safe reflected XSS on login | NOT_YET_VALIDATED | — | — | — | — |
-| CVE-2026-87902 | lab `labs/cve-2026-87902` (WP 7.0.2) | safe differential path traversal | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-87902 | lab `labs/cve-2026-87902` (WP 7.0.2) | safe differential path traversal (wp-links-opml.php page_id=2 depth=4 vs randomized control, read-only) | CONFIRMED | 7.1.2 PATCHED (version gate skips probe) | `labs/cve-2026-87902` | 2026-11-09 | `STAMP87902` | — |
 | CVE-2026-92229 | Forminator 1.57.2 | safe registered-shortcode evaluation differential via preview quiz renderer | CONFIRMED | 1.57.3 NOT_CONFIRMED (input sanitizer strips the embedded shortcode) | `labs/cve-2026-92229` | 2026-11-09 | `9ddcd69` |
 
 ## WordPress — passive-only (out of contract scope; tracked for sourcing)
