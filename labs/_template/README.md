@@ -57,7 +57,7 @@ control where a fixed release exists). Record both runs in the README.
 | 8102 | `labs/cve-2026-57827` | Joomla 3.9 + RSFiles 1.16.29 |
 | 9101 | `labs/cve-2026-109619` | PHP 8.2.34 upload-progress / session lab (reserved) |
 | 9102 | `labs/cve-2026-109618` | PHP 8.3.35/8.3.36 OOM lab |
-| 9103 | reserved | PHP cli-server leak lab |
+| 9103 | `labs/cve-2026-109619-cli` | PHP 8.3.35/8.3.36 cli-server leak lab |
 | 9110 | `labs/cve-2019-11043` | PHP-FPM lab |
 | 9157-9158 | `labs/cve-2021-23394` | elFinder lab |
 | 9169-9170 | `labs/cve-2026-81891` | elFinder differential lab |

