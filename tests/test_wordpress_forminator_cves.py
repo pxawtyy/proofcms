@@ -58,6 +58,46 @@ class TestForminatorDiscovery(unittest.TestCase):
             result = cve_2026_92229.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "BLOCKED_EXTERNAL")
 
+    def test_shortcode_evaluation_confirms_rce_vector(self):
+        page = (
+            '<input type="hidden" name="form_id" value="7">'
+            '<input type="hidden" name="forminator_nonce" value="abc123">'
+            '<input type="radio" name="answers[q1]" value="0">'
+        )
+        with (
+            patch.object(cve_2026_92229, "discover_forms", return_value=[{"has_quiz": True, "form_ids": ["7"], "page_url": "https://target.test/quiz/"}]),
+            patch.object(cve_2026_92229, "request") as req,
+            patch.object(cve_2026_92229, "rand_str", return_value="testmark"),
+        ):
+            req.side_effect = [
+                {"status": 200, "body": page},
+                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div>Module ID attribute is required!<div data-url=\\"http://proofcmstestmark\\">"}}'},
+                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark[forminatorproofxyz]\\">"}}'},
+            ]
+            result = cve_2026_92229.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "VULNERABLE")
+        self.assertEqual(result.confidence, "CONFIRMED")
+        self.assertTrue(result.evidence["shortcode_evaluated"])
+
+    def test_stripped_shortcode_is_not_confirmed(self):
+        page = (
+            '<input type="hidden" name="form_id" value="7">'
+            '<input type="hidden" name="forminator_nonce" value="abc123">'
+            '<input type="radio" name="answers[q1]" value="0">'
+        )
+        with (
+            patch.object(cve_2026_92229, "discover_forms", return_value=[{"has_quiz": True, "form_ids": ["7"], "page_url": "https://target.test/quiz/"}]),
+            patch.object(cve_2026_92229, "request") as req,
+            patch.object(cve_2026_92229, "rand_str", return_value="testmark"),
+        ):
+            req.side_effect = [
+                {"status": 200, "body": page},
+                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark\\">"}}'},
+                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark[forminatorproofxyz]\\">"}}'},
+            ]
+            result = cve_2026_92229.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+
 
 if __name__ == "__main__":
     unittest.main()
