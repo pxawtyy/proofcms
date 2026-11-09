@@ -1,0 +1,21 @@
+# Local pre-commit checks. CI runs the same ruff/pytest/mypy steps directly
+# (see .github/workflows/ci.yml); install these hooks to catch issues early:
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check .
+        language: system
+        types: [python]
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        # Lab fixtures (plugin archives, DB dumps) must never be committed.
+        args: ["--maxkb=500"]

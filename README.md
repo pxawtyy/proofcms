@@ -313,6 +313,21 @@ New vulnerability logic belongs under `proofcms/modules/<cms>/`. Shared HTTP, ve
 Isolated, loopback-only WordPress reproduction environments are available under
 [`labs/`](labs/).
 
+Use one Python environment for everything. The `[dev]` extra is the single
+source of dev tooling (pytest, ruff, mypy):
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+Install the pre-commit hooks so lint and whitespace issues are caught before
+push (CI runs the same checks and will fail otherwise):
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
 Run the complete test suite:
 
 ```bash
@@ -327,6 +342,15 @@ python -m mypy proofcms
 ```
 
 GitHub Actions runs Ruff, the tests, and CLI smoke checks on Python 3.10, 3.11, and 3.12.
+
+Line endings are normalized to LF on commit via `.gitattributes`; do not
+commit CRLF conversions as content changes.
+
+Every module that advertises active exploit modes (`exploit_modes` non-empty
+in its `metadata()`) must have unit tests referencing it and a disposition row
+in [`labs/VALIDATED.md`](labs/VALIDATED.md). `tests/test_module_contract.py`
+enforces both; add the row (CONFIRMED, NOT_CONFIRMED, BLOCKED_EXTERNAL, or
+NOT_YET_VALIDATED with the reason) in the same commit as the module.
 
 ## Credits
 
