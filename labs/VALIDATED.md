@@ -39,7 +39,7 @@ Dispositions:
 | CVE-2026-15748 | Forminator 1.56.1 | aggressive forged select-carried upload validated as upload (mismatched content fails closed; zero files written) | CONFIRMED | 1.56.2 NOT_CONFIRMED | `labs/cve-2026-15748` | 2026-11-09 | `b19782c` |
 | CVE-2026-18781 | Drag and Drop Multiple File Upload for CF7 1.3.9.8 (+ CF7 5.9.8 for the control-char strip) | aggressive `.phar` + `.htaccess` RCE | CONFIRMED | 1.3.9.9 NOT_CONFIRMED | `labs/wordpress-plugin-fixtures` | 2026-11-08 | `8a843ee` |
 | CVE-2026-32475 | Elementor Pro 3.16.2 archive present but flagged as non-vendor build (see `labs/cve-2026-32475/README.md`) | safe one-shot PHP upload | NOT_YET_VALIDATED (needs vendor-original archive for authoritative validation) | — | — | — | — |
-| CVE-2026-60137 | lab `labs/cve-2026-60137` (WP 7.0.1; 6.8.5/6.9.4 share the image) | safe differential SQLi timing (harmless true/false + SLEEP, 3 paired probes, no extraction) | CONFIRMED | 7.0.2 PATCHED (version gate skips probe) | `labs/cve-2026-60137` | 2026-11-09 | `COMMIT60137` | — |
+| CVE-2026-60137 | lab `labs/cve-2026-60137` (WP 7.0.1; 6.8.5/6.9.4 share the image) | safe differential SQLi timing (harmless true/false + SLEEP, 3 paired probes, no extraction) | CONFIRMED | 7.0.2 PATCHED (version gate skips probe) | `labs/cve-2026-60137` | 2026-11-09 | `3d9f0f5` |
 | CVE-2026-63030 | lab `labs/cve-2026-60137` (shared WP image) | safe REST batch confusion | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-64638 | — | safe reflected XSS on login | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-87902 | lab `labs/cve-2026-87902` (WP 7.0.2) | safe differential path traversal | NOT_YET_VALIDATED | — | — | — | — |
