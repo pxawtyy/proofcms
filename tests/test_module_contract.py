@@ -68,13 +68,9 @@ def _validation_rows() -> dict[str, str]:
     return rows
 
 
-def _lab_from_row(row: str) -> str:
-    """Return the labs/ directory referenced by a row, or ''."""
-    for cell in (c.strip() for c in row.strip().strip("|").split("|")):
-        cleaned = cell.strip("`").strip()
-        if cleaned.startswith("labs/"):
-            return cleaned
-    return ""
+def _lab_from_row(row: str) -> list[str]:
+    """Return all labs/ directories referenced by a row."""
+    return re.findall(r"labs/[A-Za-z0-9_.-]+", row)
 
 
 class TestModuleContract(unittest.TestCase):
@@ -131,11 +127,13 @@ class TestModuleContract(unittest.TestCase):
             disposition = cols[3] if len(cols) >= 4 else ""
             if not re.search(r"(?<![A-Z_])CONFIRMED", disposition):
                 continue
-            lab = _lab_from_row(row)
-            if not lab:
+            labs = _lab_from_row(row)
+            if not labs:
                 missing.append(f"{cve_id} ({short}): CONFIRMED without a Lab entry")
-            elif not (REPO / lab).is_dir():
-                missing.append(f"{cve_id} ({short}): lab dir missing: {lab}")
+            else:
+                gone = [lab for lab in labs if not (REPO / lab).is_dir()]
+                if gone:
+                    missing.append(f"{cve_id} ({short}): lab dir missing: {', '.join(gone)}")
         self.assertEqual(
             missing,
             [],
