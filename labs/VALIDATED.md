@@ -104,7 +104,7 @@ Dispositions:
 | CVE-2018-9206 | lab `labs/cve-2018-9206` (blueimp v9.22.0) | safe upload | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2021-23394 | elFinder tags retained | safe upload | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-111497 | — | safe node2shell | NOT_YET_VALIDATED | — | — | — | — |
-| CVE-2026-81891 | lab `labs/cve-2026-81891` (elFinder 2.1.69/2.1.70) | safe text-only `.phtml` differential (direct upload must fail, ZIP extraction tested) | CONFIRMED (VULNERABLE_UPLOAD_ONLY; inert marker file) | 2.1.70 PATCHED (version gate skips probe) | `labs/cve-2026-81891` | 2026-11-09 | `PENDING81891` |
+| CVE-2026-81891 | lab `labs/cve-2026-81891` (elFinder 2.1.69/2.1.70) | safe text-only `.phtml` differential (direct upload must fail, ZIP extraction tested) | CONFIRMED (VULNERABLE_UPLOAD_ONLY; inert marker file) | 2.1.70 PATCHED (version gate skips probe) | `labs/cve-2026-81891` | 2026-11-09 | `656b3c4` |
 
 ## Generic web libraries — passive-only (version/config detection; no active proof)
 
