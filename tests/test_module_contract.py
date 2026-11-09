@@ -1,7 +1,8 @@
 """Contract: every module advertising active exploit modes must have unit tests
 and a disposition row in labs/VALIDATED.md.
 
-Add both in the same commit as the module (see README Development).
+CONFIRMED rows must point at a lab directory that exists. Add all three in
+the same commit as the module (see README Development).
 """
 
 from __future__ import annotations
@@ -96,6 +97,28 @@ class TestModuleContract(unittest.TestCase):
             [],
             "validation rows without a recognized disposition "
             f"{DISPOSITIONS}:\n" + "\n".join(undispositioned),
+        )
+
+    def test_confirmed_rows_have_lab_directory(self):
+        missing: list[str] = []
+        for cve_id, short in self.modules:
+            row = self.rows.get(cve_id)
+            if row is None:
+                continue
+            cols = [c.strip() for c in row.strip().strip("|").split("|")]
+            disposition = cols[3] if len(cols) >= 4 else ""
+            if not re.search(r"(?<![A-Z_])CONFIRMED", disposition):
+                continue
+            lab = cols[-1].strip("`").strip() if len(cols) >= 6 else ""
+            if not lab or lab in {"—", "-"}:
+                missing.append(f"{cve_id} ({short}): CONFIRMED without a Lab entry")
+            elif not (REPO / lab).is_dir():
+                missing.append(f"{cve_id} ({short}): lab dir missing: {lab}")
+        self.assertEqual(
+            missing,
+            [],
+            "CONFIRMED rows must point at an existing labs/ directory:\n"
+            + "\n".join(missing),
         )
 
 

@@ -2,7 +2,7 @@ name: proofcms-wordpress-plugin-fixtures
 
 services:
   db:
-    image: mariadb:10.11
+    image: mariadb:10.11@sha256:6c65a843396dc6c78dd0da19eccaa0a91d25d9d26a4c2afcb75010ac3f59f5ea
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: wordpress
@@ -37,7 +37,7 @@ services:
     networks: [lab, edge]
 
   cli:
-    image: wordpress:cli-php8.1
+    image: wordpress:cli-php8.1@sha256:f6534b40833bcc3adc261e609e99f3b2a026a43d585a54092b150c852842438b
     profiles: [tools]
     entrypoint: ["wp"]
     depends_on:

@@ -1,0 +1,75 @@
+name: proofcms-CVE-ID-LOWER
+
+# New-lab checklist (delete this comment block before committing):
+# 1. Pick an unused loopback port from the allocation table in README.md.
+# 2. Pin every image with its amd64 platform digest (containerd snapshotter
+#    needs platform digests, not manifest-list digests):
+#      docker buildx imagetools inspect <image> --format "{{json .Manifest}}"
+#    Pin the digest you validated with, not "latest".
+# 3. Seed scripts live next to this file (setup-*.php / setup-*.sh / setup-*.sql).
+#    Prefer fully automated seeding (wp-cli eval-file, Joomla CLI installer,
+#    SQL import). If a step cannot run headless, document the exact manual
+#    commands in README.md under "Guided steps" instead of pretending.
+# 4. Never commit fixtures, dumps, or credentials. Mount archives read-only
+#    from D:/ProofCMS-Labs/archives (see labs/REQUIREMENTS.md).
+# 5. Record the validation outcome in labs/VALIDATED.md (contract-enforced).
+
+services:
+  db:
+    image: mysql:8.4@sha256:72c368d898861f3b3a07af0e6d690400f44f048799ed46822783d9224cc2c86d
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: appuser
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=root mysqladmin ping -h 127.0.0.1 -u root --silent"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    volumes:
+      - db:/var/lib/mysql
+
+  # TODO: replace with the validated image@digest for this CVE.
+  # Joomla example:
+  #   image: joomla:5.4.8-apache@sha256:ce0c0ee39852bd2386c285a4016e2c1718873efcaef619e8fd1c3782f6f7f065
+  app:
+    image: wordpress:6.5-php8.1-apache@sha256:0889f277b907bb69c962f90fa5ae416a7bfb0a976ef37397711d42a84d3f9cf3
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8099:80" # TODO: allocate a free port, see README.md
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: appuser
+      WORDPRESS_DB_PASSWORD: appuser
+      WORDPRESS_DB_NAME: appdb
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 80) ? 0 : 1);'"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    volumes:
+      - app:/var/www/html
+
+  cli:
+    image: wordpress:cli-php8.1@sha256:f6534b40833bcc3adc261e609e99f3b2a026a43d585a54092b150c852842438b
+    profiles: ["tools"]
+    entrypoint: ["wp"]
+    depends_on:
+      app:
+        condition: service_healthy
+    user: "0:0"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: appuser
+      WORDPRESS_DB_PASSWORD: appuser
+      WORDPRESS_DB_NAME: appdb
+    volumes:
+      - app:/var/www/html
+      - ./setup-form.php:/tmp/setup-form.php:ro
+
+volumes:
+  db:
+  app:
