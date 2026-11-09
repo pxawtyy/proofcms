@@ -62,9 +62,19 @@ REST_NAMESPACE_PLUGINS = {
 }
 
 PLUGIN_MAIN_FILES = {
+    "contact-form-7": "wp-contact-form-7.php",
+    "drag-and-drop-multiple-file-upload-contact-form-7": "drag-n-drop-upload-cf7.php",
     "elementor": "elementor.php",
     "elementor-pro": "elementor-pro.php",
+    "essential-addons-elementor": "essential_adons_elementor.php",
+    "essential-addons-for-elementor-lite": "essential_adons_elementor.php",
     "forminator": "forminator.php",
+    "litespeed-cache": "litespeed-cache.php",
+    "really-simple-ssl": "rlrsssl-really-simple-ssl.php",
+    "revslider": "revslider.php",
+    "ultimate-member": "ultimate-member.php",
+    "woocommerce-payments": "woocommerce-payments.php",
+    "wp-file-manager": "file_folder_manager.php",
 }
 
 
@@ -231,9 +241,13 @@ def wordpress_signal_score(info: CMSInfo) -> int:
 
 
 def parse_wordpress_plugin_version(body: str) -> str | None:
+    # NOTE: the release header `Version:` wins over `Stable tag:`. Readme
+    # files lag the shipped code (seen on Forminator 1.57.2/1.57.3, where the
+    # readme still named the previous release), so a stale tag must never
+    # override the version header of the plugin that is actually installed.
     patterns = [
-        r"^\s*Stable\s+tag:\s*([^\r\n<]+)",
         r"(?:^|[\r\n])\s*(?:\*\s*)?Version:\s*([^\r\n<]+)",
+        r"^\s*Stable\s+tag:\s*([^\r\n<]+)",
         r'"version"\s*:\s*"([^"]+)"',
         r"Plugin\s+URI:.*?\b([0-9]+(?:\.[0-9]+){1,3})\b",
     ]
@@ -325,43 +339,46 @@ def detect_wordpress_plugins(
         source = f"/wp-content/plugins/{slug}/"
         if slug in rest_plugins and slug not in asset_slugs:
             source = f"/wp-json/:{rest_plugins[slug]}"
-
-        readme = _fetch(f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt", timeout=timeout, proxy=proxy)
-        readme_body = readme.get("body", "")
         marker = KNOWN_PLUGIN_MARKERS.get(slug)
-        valid_readme = marker is None or bool(re.search(marker, readme_body, re.IGNORECASE))
+
+        # Prefer the main plugin file: its `Version:` header is written by the
+        # release process, while readme `Stable tag:` values have been observed
+        # lagging behind the shipped code.
+        main_file = PLUGIN_MAIN_FILES.get(slug, f"{slug}.php")
+        main = _fetch(
+            f"{target.rstrip('/')}/wp-content/plugins/{slug}/{main_file}",
+            timeout=timeout,
+            proxy=proxy,
+        )
+        main_body = str(main.get("body", ""))
+        valid_main = marker is None or bool(re.search(marker, main_body, re.IGNORECASE))
         if (
-            not is_baseline_match(readme, baseline)
-            and readme.get("status") == 200
-            and len(readme_body) > 20
-            and valid_readme
+            not is_baseline_match(main, baseline)
+            and main.get("status") == 200
+            and len(main_body) > 20
+            and valid_main
         ):
-            found = True
-            parsed = parse_wordpress_plugin_version(readme_body)
+            parsed = parse_wordpress_plugin_version(main_body)
             if parsed:
+                found = True
                 version = parsed
-                source = f"{source}readme.txt"
+                source = f"{source}{main_file}"
 
         if not version:
-            main_file = PLUGIN_MAIN_FILES.get(slug, f"{slug}.php")
-            main = _fetch(
-                f"{target.rstrip('/')}/wp-content/plugins/{slug}/{main_file}",
-                timeout=timeout,
-                proxy=proxy,
-            )
-            main_body = str(main.get("body", ""))
-            valid_main = marker is None or bool(re.search(marker, main_body, re.IGNORECASE))
+            readme = _fetch(f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt", timeout=timeout, proxy=proxy)
+            readme_body = readme.get("body", "")
+            valid_readme = marker is None or bool(re.search(marker, readme_body, re.IGNORECASE))
             if (
-                not is_baseline_match(main, baseline)
-                and main.get("status") == 200
-                and len(main_body) > 20
-                and valid_main
+                not is_baseline_match(readme, baseline)
+                and readme.get("status") == 200
+                and len(readme_body) > 20
+                and valid_readme
             ):
-                parsed = parse_wordpress_plugin_version(main_body)
+                found = True
+                parsed = parse_wordpress_plugin_version(readme_body)
                 if parsed:
-                    found = True
                     version = parsed
-                    source = f"{source}{main_file}"
+                    source = f"{source}readme.txt"
 
         if not version:
             asset_match = re.search(

@@ -4,6 +4,7 @@ import re
 import urllib.parse
 from typing import Any
 
+from ...core.differential import confirm_shortcode_output, evidence_from
 from ...core.http import normalize_url, request
 from ...core.models import Finding
 from ...core.probes import rand_str
@@ -78,39 +79,44 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     if not answers:
         return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail="A public quiz was found, but no answer inputs could be parsed from its HTML, so the result renderer could not be reached.", action="Upgrade Forminator to 1.57.3 or newer; re-test with a quiz whose answers render as form inputs.")
     marker = f"proofcms{rand_str(8)}"
-    current_url = f"http://{marker}[{PROBE_TAG}]"
-    data: dict[str, Any] = {
-        "action": "forminator_submit_preview_form_quizzes",
-        "form_id": form_id,
-        "current_url": current_url,
-        "page_id": "0",
-        "form_type": "quizzes",
-    }
-    for field, value in answers.items():
-        data[f"answers[{field}]"] = value
-    if nonce:
-        data["forminator_nonce"] = nonce
-    response = request(
-        f"{normalize_url(target_url)}/wp-admin/admin-ajax.php",
-        method="POST",
-        data=urllib.parse.urlencode(data).encode(),
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Referer": page_url},
-        timeout=timeout,
-        proxy=proxy,
+
+    def fetch(current_url: str) -> str:
+        data: dict[str, Any] = {
+            "action": "forminator_submit_preview_form_quizzes",
+            "form_id": form_id,
+            "current_url": current_url,
+            "page_id": "0",
+            "form_type": "quizzes",
+        }
+        for field, value in answers.items():
+            data[f"answers[{field}]"] = value
+        if nonce:
+            data["forminator_nonce"] = nonce
+        response = request(
+            f"{normalize_url(target_url)}/wp-admin/admin-ajax.php",
+            method="POST",
+            data=urllib.parse.urlencode(data).encode(),
+            headers={"Content-Type": "application/x-www-form-urlencoded", "Referer": page_url},
+            timeout=timeout,
+            proxy=proxy,
+        )
+        return str(response.get("body", ""))
+
+    outcome = confirm_shortcode_output(
+        fetch, _data_url, marker, probe_tag=PROBE_TAG, expected_output=EVAL_MARKER
     )
-    body = str(response.get("body", ""))
-    reflection = _data_url(body)
-    evaluated = EVAL_MARKER in body
-    evidence: dict[str, Any] = {
-        "form_id": form_id,
-        "page_url": page_url,
-        "answers": answers,
-        "reflection": reflection[:200] if reflection else None,
-        "marker_reflected": marker in body,
-        "shortcode_evaluated": evaluated,
-        "preview_action": True,
-    }
-    if evaluated and marker in body:
+    reflection = outcome.reflection
+    evaluated = outcome.evaluated
+    evidence = evidence_from(
+        outcome,
+        {
+            "form_id": form_id,
+            "page_url": page_url,
+            "answers": answers,
+            "preview_action": True,
+        },
+    )
+    if evaluated:
         return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{normalize_url(target_url)}/wp-admin/admin-ajax.php", detail="The preview quiz renderer evaluated a harmless Forminator shortcode embedded in current_url, rendering its fixed error text into the response. No executable shortcode and no state-changing request were sent, and the preview action stores no entry.", action="Upgrade Forminator to 1.57.3 or newer immediately.", evidence=evidence)
     if reflection is None:
         return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, detail="The quiz result did not render a social share block, so the current_url sink was not observable. Enable share icons on the quiz to make the sink testable.", action="Upgrade Forminator to 1.57.3 or newer.", evidence=evidence)

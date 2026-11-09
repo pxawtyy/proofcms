@@ -71,8 +71,7 @@ class TestForminatorDiscovery(unittest.TestCase):
         ):
             req.side_effect = [
                 {"status": 200, "body": page},
-                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div>Module ID attribute is required!<div data-url=\\"http://proofcmstestmark\\">"}}'},
-                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark[forminatorproofxyz]\\">"}}'},
+                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div>Module ID attribute is required!<div data-url=\\"http://proofcmstestmarkModule ID attribute is required!\\">"}}'},
             ]
             result = cve_2026_92229.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "VULNERABLE")
@@ -93,10 +92,50 @@ class TestForminatorDiscovery(unittest.TestCase):
             req.side_effect = [
                 {"status": 200, "body": page},
                 {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark\\">"}}'},
-                {"status": 200, "body": '{"success":true,"data":{"finalText":"<div data-url=\\"http://proofcmstestmark[forminatorproofxyz]\\">"}}'},
             ]
             result = cve_2026_92229.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "NOT_CONFIRMED")
+
+
+class TestPluginVersionSourcePriority(unittest.TestCase):
+    def test_main_file_version_beats_stale_readme(self):
+        def fake_fetch(url, timeout, proxy=None):
+            if url.endswith("/wp-content/plugins/forminator/forminator.php"):
+                return {"status": 200, "body": "<?php\n/*\n * Plugin Name: Forminator\n * Version: 1.57.2\n */", "body_hash": "main"}
+            if url.endswith("/wp-content/plugins/forminator/readme.txt"):
+                return {"status": 200, "body": "=== Forminator ===\nStable tag: 1.57.1", "body_hash": "readme"}
+            return {"status": 404, "body": "", "body_hash": "missing"}
+
+        with patch.object(wordpress, "_fetch", side_effect=fake_fetch), patch.object(wordpress, "is_baseline_match", return_value=False):
+            inventory = wordpress.detect_wordpress_plugins("https://target.test", timeout=2)
+        self.assertEqual(inventory["plugins"]["forminator"]["version"], "1.57.2")
+        self.assertIn("forminator.php", inventory["plugins"]["forminator"]["source"])
+
+    def test_readme_is_fallback_when_main_file_missing(self):
+        def fake_fetch(url, timeout, proxy=None):
+            if url.endswith("/wp-content/plugins/forminator/forminator.php"):
+                return {"status": 404, "body": "not found", "body_hash": "missing"}
+            if url.endswith("/wp-content/plugins/forminator/readme.txt"):
+                return {"status": 200, "body": "=== Forminator ===\nStable tag: 1.56.1", "body_hash": "readme"}
+            return {"status": 404, "body": "", "body_hash": "missing"}
+
+        with patch.object(wordpress, "_fetch", side_effect=fake_fetch), patch.object(wordpress, "is_baseline_match", return_value=False):
+            inventory = wordpress.detect_wordpress_plugins("https://target.test", timeout=2)
+        self.assertEqual(inventory["plugins"]["forminator"]["version"], "1.56.1")
+        self.assertIn("readme.txt", inventory["plugins"]["forminator"]["source"])
+
+    def test_nonstandard_main_file_is_detected(self):
+        def fake_fetch(url, timeout, proxy=None):
+            if url.endswith("/wp-content/plugins/contact-form-7/wp-contact-form-7.php"):
+                return {"status": 200, "body": "<?php\n/*\n * Plugin Name: Contact Form 7\n * Version: 5.3.1\n */", "body_hash": "main"}
+            if url.endswith("/wp-content/plugins/contact-form-7/readme.txt"):
+                return {"status": 200, "body": "=== Contact Form 7 ===\nStable tag: 5.3", "body_hash": "readme"}
+            return {"status": 404, "body": "", "body_hash": "missing"}
+
+        with patch.object(wordpress, "_fetch", side_effect=fake_fetch), patch.object(wordpress, "is_baseline_match", return_value=False):
+            inventory = wordpress.detect_wordpress_plugins("https://target.test", timeout=2)
+        self.assertEqual(inventory["plugins"]["contact-form-7"]["version"], "5.3.1")
+        self.assertIn("wp-contact-form-7.php", inventory["plugins"]["contact-form-7"]["source"])
 
 
 class TestForminatorSelectInjectionProbe(unittest.TestCase):

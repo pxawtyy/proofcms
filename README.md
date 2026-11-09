@@ -134,6 +134,27 @@ If an HTTP target redirects to HTTPS with an expired or self-signed
 certificate, TLS verification will fail by design; use `--insecure` only in
 an isolated, authorized lab where bypassing certificate validation is safe.
 
+### Designing proofs: prefer non-mutating differentials
+
+Reflection alone never proves evaluation. A marker echoed back verbatim may
+simply have been reflected, so new probes must demonstrate that the server
+*acted* on the input — without writing files or changing state when a
+differential allows it:
+
+- **Known-output differential.** Submit a registered construct whose handler
+  renders fixed, observable output (e.g. a self-evaluating shortcode with no
+  attributes) and require both the marker and the handler output in the
+  response. `proofcms.core.differential.confirm_shortcode_output` implements
+  this; CVE-2026-92229 is the reference user.
+- **Validation-error differential.** Submit input that only a trusted code
+  path validates, and key the verdict on a field-specific validation error
+  (CVE-2026-15748: the forged upload field is rejected while an identical
+  baseline is processed normally). Nothing is written.
+- **Do not claim evaluation from reflection.** A public Forminator PoC treated
+  a reflected marker as exploitation even though `esc_url()` had already
+  percent-encoded the brackets, so no shortcode could parse. Require handler
+  output or a behavioral difference instead.
+
 ## Implemented vulnerability checks
 
 | CVE | Component | Affected rule | Verification modes |
