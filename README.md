@@ -365,6 +365,10 @@ Five patterns used to be copy-pasted across modules; they live in core now:
 Isolated, loopback-only WordPress reproduction environments are available under
 [`labs/`](labs/).
 
+> **AI agents:** read [`.agents/AGENTS.md`](.agents/AGENTS.md) first. It holds
+> the repo conventions (loopback-only labs, validation-matrix rules, shared
+> framework, Windows/Docker gotchas) plus an index of the focused guides.
+
 Use one Python environment for everything. The `[dev]` extra is the single
 source of dev tooling (pytest, ruff, mypy):
 
