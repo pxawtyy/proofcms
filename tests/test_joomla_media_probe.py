@@ -136,7 +136,7 @@ def test_phar_probe_reports_exposed_surface_when_payload_is_rejected():
         )
     assert result.status == "NOT_CONFIRMED"
     assert result.evidence["upload_surface_found"] is True
-    assert "live anonymous com_media upload form" in result.detail
+    assert "live com_media upload form" in result.detail
 
 
 def test_helix3_probe_is_skipped_when_component_is_not_detected():

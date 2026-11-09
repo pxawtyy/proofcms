@@ -7,8 +7,10 @@ import urllib.parse
 from typing import Any
 
 from ...core.http import HttpSession, normalize_url
+from ...core.probes import extract_csrf_from_html
 
 MEDIA_FORM_PATH = "/index.php?option=com_media&view=images&tmpl=component"
+ADMIN_MEDIA_FORM_PATH = "/administrator/index.php?option=com_media&view=images&tmpl=component"
 
 
 def _attrs(tag: str) -> dict[str, str]:
@@ -54,6 +56,33 @@ def discover_media_form(
     return None
 
 
+def admin_login(
+    session: HttpSession,
+    username: str,
+    password: str,
+    timeout: int = 12,
+) -> bool:
+    """Log in to the Joomla administrator so the media manager form is reachable."""
+    page = session.get("/administrator/index.php", timeout=timeout)
+    token = extract_csrf_from_html(page.get("body", ""))
+    if not token:
+        return False
+    response = session.post(
+        "/administrator/index.php",
+        fields={
+            "username": username,
+            "passwd": password,
+            "option": "com_login",
+            "task": "login",
+            "return": "aW5kZXgucGhw",
+            token: "1",
+        },
+        timeout=timeout,
+    )
+    body = str(response.get("body", ""))
+    return "com_cpanel" in body or "Dashboard" in body
+
+
 def _stored_upload_path(body: str) -> str | None:
     """Extract Joomla's authoritative success message, not the client filename."""
     text = html.unescape(re.sub(r"<[^>]+>", " ", body))
@@ -77,10 +106,24 @@ def probe_media_upload(
     content_type: str,
     timeout: int = 12,
     proxy: str | None = None,
+    admin_user: str | None = None,
+    admin_pass: str | None = None,
 ) -> dict[str, Any]:
     base = normalize_url(target_url)
     session = HttpSession(base_url=base, timeout=timeout, proxy=proxy)
-    surface = session.get(MEDIA_FORM_PATH)
+    if admin_user and admin_pass:
+        if not admin_login(session, admin_user, admin_pass, timeout=timeout):
+            return {
+                "surface_found": False,
+                "surface_state": "login_failed",
+                "surface_status": 0,
+                "accepted": False,
+                "attempts": ["administrator login failed"],
+            }
+        form_path = ADMIN_MEDIA_FORM_PATH
+    else:
+        form_path = MEDIA_FORM_PATH
+    surface = session.get(form_path)
     form = discover_media_form(session, surface)
     if not form:
         status = surface.get("status", 0)
@@ -112,9 +155,9 @@ def probe_media_upload(
     if not stored_path:
         message_page = session.get(form["source"])
         stored_path = _stored_upload_path(str(message_page.get("body", "")))
-    proof_path = stored_path or f"/images/{urllib.parse.quote(filename)}"
-    if not proof_path.startswith("/"):
-        proof_path = "/" + proof_path
+    proof_path = stored_path or f"/{urllib.parse.quote(filename)}"
+    if not proof_path.startswith("/images/"):
+        proof_path = "/images" + (proof_path if proof_path.startswith("/") else "/" + proof_path)
     proof = session.get(proof_path)
     missing = session.get(f"/images/proofcms-missing-{secrets.token_hex(8)}.txt")
     verified = (
