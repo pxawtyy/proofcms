@@ -26,6 +26,8 @@ sample configuration as a baseline, then document every web-server override sepa
 | CVE-2026-60137 | 6.8.0-6.8.5, 6.9.0-6.9.4, 7.0.0-7.0.1 | 6.9.4 | Keep 6.8.5 or 7.0.1 too if branch-specific regression coverage is desired |
 | CVE-2026-63030 | 6.9.0-6.9.4, 7.0.0-7.0.1 | 6.9.4 | Same image can cover the `wp2shell` chain with CVE-2026-60137 |
 | CVE-2026-87902 | affected branch releases from 4.7.0 through 7.1.1 | 6.8.3 fixture already used | Requires a theme/page-template layout satisfying the vulnerable path; keep the working theme and database seed |
+| CVE-2024-4439 | 6.0.x–6.5.1 branch backports (Avatar block XSS) | none (version detection only) | Passive advisory; the PoC is recorded as metadata but never sent automatically |
+| WPVDB-df1ca42d / aa354358 / 5e9804e5 | branch-specific WPScan ranges (comment XSS, object injection) | none (version detection only) | WPScan IDs with no CVE; passive advisory, no fixture |
 
 ## WordPress plugins
 
@@ -87,6 +89,7 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-57830 | Helix Ultimate | through 2.2.6 | 2.2.6 | Covers deletion module; use disposable files only |
 | CVE-2026-78079 | Helix Ultimate | 1.0-2.2.9 | 2.2.9 | Keep 2.2.6 too if sharing with CVE-2026-57830 |
 | CVE-2026-61424 | DJ-Classifieds | before 3.11.2 | 3.11.1 | Commercial archive likely required; configure public upload flow |
+| PROOFCMS-K2-REGISTRATION-AVATAR | K2 user-profile integration | public registration surface | none (detection only) | Companion surface probe for CVE-2019-19576/19634; needs Joomla + K2 with public registration enabled, no package to retain |
 
 The current `dj_classifieds_3.11` archive on this workstation is not an installable extension: it contains only
 eight XML data/export files and no PHP code or Joomla package manifest. A complete DJ-Classifieds 3.11.1 installer
@@ -99,6 +102,18 @@ is still required for CVE-2026-61424.
 | CVE-2012-1823 | PHP-CGI before 5.3.13 or 5.4.0-5.4.2 | PHP 5.4.2 | Apache CGI mapping; do not use mod_php or PHP-FPM |
 | CVE-2019-11043 | PHP-FPM 7.1 before 7.1.33, 7.2 before 7.2.24, or 7.3 before 7.3.11 | PHP-FPM 7.3.10 | Nginx with the historically vulnerable `fastcgi_split_path_info`/`PATH_INFO` configuration; isolate because active historical PoCs can crash workers |
 | CVE-2024-4577 | Windows PHP-CGI; unsupported branches or 8.1 before 8.1.29, 8.2 before 8.2.20, 8.3 before 8.3.8 | PHP 8.2.19 plus 8.2.20 control | Requires Windows, Apache/IIS CGI, and an affected Windows Best-Fit code page. A normal Linux Docker container cannot reproduce it; use an isolated Windows VM or Windows-container host |
+| CVE-2026-109618 / CVE-2026-109619 | PHP 8.2 before 8.2.35, 8.3 before 8.3.36, 8.4 before 8.4.27, 8.5 before 8.5.12 | none (version detection only) | Memory-safety advisories; no safe execution harness exists, so these stay passive version checks |
+
+## Passive platform advisories (version/config detection only — no fixture)
+
+| CVE | Component | What blocks active proof |
+|---|---|---|
+| CVE-2018-8284 / CVE-2023-21722 / CVE-2023-36560 / CVE-2023-36899 | .NET Framework / ASP.NET | Passive version detection only: exact servicing build + Windows/IIS prerequisites required; no lab harness. |
+| CVE-2026-42945 / CVE-2026-9256 | NGINX rewrite module | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
+| CVE-2026-42530 / CVE-2026-90439 | NGINX HTTP/3 module | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
+| CVE-2026-42055 | NGINX proxy-v2 / gRPC modules | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |
+| CVE-2026-42533 | NGINX map-regex | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
+| CVE-2026-56434 / CVE-2026-60005 | NGINX SSI / slice modules | Passive version/config detection only: needs the respective module configured; no safe lab harness. |
 
 ## Shared infrastructure to retain
 

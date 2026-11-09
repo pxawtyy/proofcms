@@ -369,9 +369,12 @@ commit CRLF conversions as content changes.
 
 Every module that advertises active exploit modes (`exploit_modes` non-empty
 in its `metadata()`) must have unit tests referencing it and a disposition row
-in [`labs/VALIDATED.md`](labs/VALIDATED.md). `tests/test_module_contract.py`
-enforces both; add the row (CONFIRMED, NOT_CONFIRMED, BLOCKED_EXTERNAL, or
-NOT_YET_VALIDATED with the reason) in the same commit as the module.
+in [`labs/VALIDATED.md`](labs/VALIDATED.md), and every registered check must
+have a row there (passive-only modules link to what blocks active proof).
+`tests/test_module_contract.py` enforces all three; add the row (CONFIRMED,
+NOT_CONFIRMED, BLOCKED_EXTERNAL, or NOT_YET_VALIDATED with the reason, plus
+the lab directory and validation date/commit for CONFIRMED runs) in the same
+commit as the module.
 
 ## Credits
 
