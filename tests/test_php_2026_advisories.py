@@ -109,3 +109,69 @@ def test_109618_patched_version_skips_probe():
         )
     assert result.status == "PATCHED"
     probe.assert_not_called()
+
+
+def _109619_script(responses):
+    calls = {"n": 0}
+
+    def fake_exchange(host, port, request, timeout, read_cap=1 << 20):
+        calls["n"] += 1
+        return dict(responses[min(calls["n"] - 1, len(responses) - 1)])
+
+    return fake_exchange, calls
+
+
+def test_109619_dead_followup_with_live_control_confirms():
+    from proofcms.modules.php import cve_2026_109619
+
+    fake, _ = _109619_script(
+        [
+            {"status": 200, "body": "SID=abc123\nOK\n", "headers": {}},
+            {"status": 200, "body": "fatal", "headers": {}},
+            {"status": 0, "body": "", "headers": {}},
+            {"status": 200, "body": "SID=xyz\nOK\n", "headers": {}},
+        ]
+    )
+    with patch.object(cve_2026_109619, "_raw_exchange", side_effect=fake):
+        result = cve_2026_109619.run_aggressive_probe("http://lab.test")
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["followup_status"] == 0
+    assert result.evidence["control_status"] == 200
+
+
+def test_109619_clean_followup_does_not_confirm():
+    from proofcms.modules.php import cve_2026_109619
+
+    fake, _ = _109619_script(
+        [
+            {"status": 200, "body": "SID=abc123\nOK\n", "headers": {}},
+            {"status": 200, "body": "fatal", "headers": {}},
+            {
+                "status": 200,
+                "body": "SID=other\nOK\n",
+                "headers": {"set-cookie": ["PHPSESSID=freshcookie12345678901234567890; path=/"]},
+            },
+            {"status": 200, "body": "SID=zzz\nOK\n", "headers": {}},
+        ]
+    )
+    with patch.object(cve_2026_109619, "_raw_exchange", side_effect=fake):
+        result = cve_2026_109619.run_aggressive_probe("http://lab.test")
+    assert result.status == "NOT_CONFIRMED"
+
+
+def test_109619_dead_control_is_inconclusive():
+    from proofcms.modules.php import cve_2026_109619
+
+    fake, _ = _109619_script(
+        [
+            {"status": 200, "body": "SID=abc123\nOK\n", "headers": {}},
+            {"status": 200, "body": "fatal", "headers": {}},
+            {"status": 0, "body": "", "headers": {}},
+            {"status": 0, "body": "", "headers": {}},
+        ]
+    )
+    with patch.object(cve_2026_109619, "_raw_exchange", side_effect=fake):
+        result = cve_2026_109619.run_aggressive_probe("http://lab.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert result.confidence == "LOW"
