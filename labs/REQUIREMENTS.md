@@ -102,7 +102,8 @@ is still required for CVE-2026-61424.
 | CVE-2012-1823 | PHP-CGI before 5.3.13 or 5.4.0-5.4.2 | PHP 5.4.2 | Apache CGI mapping; do not use mod_php or PHP-FPM |
 | CVE-2019-11043 | PHP-FPM 7.1 before 7.1.33, 7.2 before 7.2.24, or 7.3 before 7.3.11 | PHP-FPM 7.3.10 | Nginx with the historically vulnerable `fastcgi_split_path_info`/`PATH_INFO` configuration; isolate because active historical PoCs can crash workers |
 | CVE-2024-4577 | Windows PHP-CGI; unsupported branches or 8.1 before 8.1.29, 8.2 before 8.2.20, 8.3 before 8.3.8 | PHP 8.2.19 plus 8.2.20 control | Requires Windows, Apache/IIS CGI, and an affected Windows Best-Fit code page. A normal Linux Docker container cannot reproduce it; use an isolated Windows VM or Windows-container host |
-| CVE-2026-109618 / CVE-2026-109619 | PHP 8.2 before 8.2.35, 8.3 before 8.3.36, 8.4 before 8.4.27, 8.5 before 8.5.12 | none (version detection only) | Memory-safety advisories; no safe execution harness exists, so these stay passive version checks |
+| CVE-2026-109618 | PHP 8.2 before 8.2.35, 8.3 before 8.3.36, 8.4 before 8.4.27, 8.5 before 8.5.12 | lab `labs/cve-2026-109618` (PHP 8.3.35 image + single-worker + 16M OOM geometry) | Aggressive OOM crash differential; keep the 8.3.36 image as patched control |
+| CVE-2026-109619 | same ranges as CVE-2026-109618 | none yet (lab pending: needs 8.2.34 + long `session.cookie_path` for the send_cookie OOM-gate unit) | Memory-safety advisory; filename-poison race tested on 8.2.34 AND fixed 8.2.35 — app-level primitive, not a CVE discriminator; do not ship it as a PoC |
 
 ## Passive platform advisories (version/config detection only — no fixture)
 

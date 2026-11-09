@@ -130,5 +130,5 @@ Dispositions:
 | CVE-2012-1823 | PHP-CGI historical fixture per REQUIREMENTS | safe | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2024-4577 | Windows PHP-CGI lab per REQUIREMENTS | safe | NOT_YET_VALIDATED (needs Windows VM/container host) | — | — | — | — |
 | CVE-2019-11043 | lab `labs/cve-2019-11043` (PHP-FPM 7.3.10 + nginx vulnerable PATH_INFO config) | passive detector only (`exploit_modes` empty) | NOT_YET_VALIDATED (lab exists; no active proof implemented) | — | `labs/cve-2019-11043` | — | — |
-| CVE-2026-109618 | — | passive version detection only (memory-safety: OOM HashTable corruption; no safe execution harness) | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-109618 | lab `labs/cve-2026-109618` (PHP 8.3.35 mod_php, single worker, memory_limit=16M) | aggressive OOM-shape crash differential: worker death + PID respawn vs clean fatal | CONFIRMED | 8.3.36 NOT_CONFIRMED (HTTP 200 fatal + same PID; version gate reports PATCHED) | `labs/cve-2026-109618` | 2026-11-09 | `4849634` |
 | CVE-2026-109619 | — | passive version detection only (memory-safety: shutdown UAF; no safe execution harness) | NOT_YET_VALIDATED | — | — | — | — |
