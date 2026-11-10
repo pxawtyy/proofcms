@@ -71,7 +71,7 @@ Dispositions:
 | CVE-2019-19634 | K2 2.6.8 archive retained | aggressive Verot `.pht` dangerous-file bypass | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2024-40744 | Convert Forms 5.0.4 archive retained | safe upload | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-102426 | SP Page Builder 3.8.9/6.0.0 | safe DCF XSS reflection | NOT_CONFIRMED (marker not reflected; 6.0.0 outside module range — possible range gap, review separately) | 6.10.0 NOT_AFFECTED per module | — | — | — |
-| CVE-2026-21627 | lab `labs/cve-2026-21627` (nrframework via Convert Forms 5.0.4) | safe access control | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-21627 | lab `labs/cve-2026-21627` (nrframework 6.0.15 via Convert Forms 5.0.4) | safe access control (unauthenticated gadget write + readback + self-delete, no executable content) | CONFIRMED | 6.0.38 via Convert Forms 5.1.0 PATCHED (version gate skips probe) | `labs/cve-2026-21627` | 2026-11-09 | `PENDING21627` |
 | CVE-2026-48907 | JCE 2.9.99.x archives retained | safe upload route | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-48908 | SP Page Builder 6.0.0 (Joomla 5.4.9) | aggressive icon-package upload + `.htaccess`/non-PHP RCE | CONFIRMED | 3.8.9 NOT_CONFIRMED (no handler); 6.10.0 PATCHED (403) | `labs/cve-2026-48908` | 2026-11-09 | `12814af` |
 | CVE-2026-48939 | iCagenda 3.7.21 archive retained | aggressive upload | NOT_YET_VALIDATED | — | — | — | — |
