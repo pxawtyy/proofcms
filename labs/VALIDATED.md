@@ -127,7 +127,7 @@ Dispositions:
 
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated | Commit |
 |---|---|---|---|---|---|---|---|
-| CVE-2012-1823 | lab `labs/cve-2012-1823` (PHP 5.3.12 CGI built from museum source + classic Action/AddHandler mapping) | safe marker execution from request body (`auto_prepend_file=php://input`, no files written) | CONFIRMED | same binary without the CGI mapping: probe runs (5.3.12 detected) but marker not returned (NOT_CONFIRMED) | `labs/cve-2012-1823` | 2026-11-09 | `PENDING1823` |
+| CVE-2012-1823 | lab `labs/cve-2012-1823` (PHP 5.3.12 CGI built from museum source + classic Action/AddHandler mapping) | safe marker execution from request body (`auto_prepend_file=php://input`, no files written) | CONFIRMED | same binary without the CGI mapping: probe runs (5.3.12 detected) but marker not returned (NOT_CONFIRMED) | `labs/cve-2012-1823` | 2026-11-09 | `24f32a1` |
 | CVE-2024-4577 | Windows PHP-CGI lab per REQUIREMENTS | safe | NOT_YET_VALIDATED (needs Windows VM/container host) | — | — | — | — |
 | CVE-2019-11043 | lab `labs/cve-2019-11043` (PHP-FPM 7.3.10 + nginx vulnerable PATH_INFO config) | passive detector only (`exploit_modes` empty) | NOT_YET_VALIDATED (lab exists; no active proof implemented) | — | `labs/cve-2019-11043` | — | — |
 | CVE-2026-109618 | lab `labs/cve-2026-109618` (PHP 8.3.35 mod_php, single worker, memory_limit=16M) | aggressive OOM-shape crash differential: worker death + PID respawn vs clean fatal | CONFIRMED | 8.3.36 NOT_CONFIRMED (HTTP 200 fatal + same PID; version gate reports PATCHED) | `labs/cve-2026-109618` | 2026-11-09 | `4849634` |
