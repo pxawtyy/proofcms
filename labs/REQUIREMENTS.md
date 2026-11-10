@@ -73,7 +73,7 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 |---|---|---:|---:|---|
 | CVE-2024-40744 | Convert Forms | before 4.4.8 | 3.2.9 or 3.2.12 already available | Create a public form with a file-upload field |
 | CVE-2025-26854 | Articles Good Search | 1.0.0-1.2.4.0011 | 1.2.4.0011 | Retain component/plugin package and a searchable article dataset |
-| CVE-2026-21627 | `plg_system_nrframework` / Tassos Framework | 4.10.14-6.0.37 | 6.0.2 preferred | Can come bundled with affected Convert Forms, EngageBox, Google Structured Data, Advanced Custom Fields, Smile Pack, or MailChimp Auto-Subscribe; the existing 4.9.62 fixture is below the affected range and cannot reproduce this CVE |
+| CVE-2026-21627 | `plg_system_nrframework` / Tassos Framework | 4.10.14-6.0.37 | 6.0.15 via Convert Forms 5.0.4 (validated lab) | Fixed control: 6.0.38 via Convert Forms 5.1.0 free (`convert_forms_5.1.0_free.zip`, vendor download) |
 | CVE-2026-21627 | Convert Forms | 3.2.12-5.1.0 product range reported | Prefer a package bundling nrframework 6.0.2 | Keep the exact bundled framework version |
 | CVE-2026-21627 | EngageBox | 6.0.0-7.1.0 product range reported | Any package bundling affected nrframework | Optional alternative fixture |
 | CVE-2026-21627 | Google Structured Data | 5.1.7-6.1.0 product range reported | Any package bundling affected nrframework | Optional alternative fixture |
