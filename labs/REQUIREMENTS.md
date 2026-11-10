@@ -71,7 +71,7 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 
 | CVE | Extension/archive | Vulnerable range | Recommended fixture | Notes |
 |---|---|---:|---:|---|
-| CVE-2024-40744 | Convert Forms | before 4.4.8 | 3.2.9 or 3.2.12 already available | Create a public form with a file-upload field |
+| CVE-2024-40744 | Convert Forms | before 4.4.6 (extension check missing; NVD/vendor cite before 4.4.8, which also fixed the companion XSS) | 4.4.5 (`convert_forms_4.4.5_free.zip`, official Tassos release) + fixed control 4.4.6 (`convert_forms_4.4.6_free.zip`) | Public form with a File Upload field (`image/*` + allow-unsafe, per the validated PoC config); see `labs/cve-2024-40744` |
 | CVE-2025-26854 | Articles Good Search | 1.0.0-1.2.4.0011 | 1.2.4.0011 | Retain component/plugin package and a searchable article dataset |
 | CVE-2026-21627 | `plg_system_nrframework` / Tassos Framework | 4.10.14-6.0.37 | 6.0.15 via Convert Forms 5.0.4 (validated lab) | Fixed control: 6.0.38 via Convert Forms 5.1.0 free (`convert_forms_5.1.0_free.zip`, vendor download) |
 | CVE-2026-21627 | Convert Forms | 3.2.12-5.1.0 product range reported | Prefer a package bundling nrframework 6.0.2 | Keep the exact bundled framework version |

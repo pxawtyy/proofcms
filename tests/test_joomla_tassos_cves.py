@@ -6,8 +6,8 @@ from proofcms.modules.joomla import cve_2024_40744, cve_2026_21627
 
 class TestJoomlaTassosCVEs(unittest.TestCase):
     def test_convert_forms_upload_version_boundary(self):
-        self.assertEqual(cve_2024_40744.classify_version("4.4.7"), "LIKELY_VULNERABLE")
-        self.assertEqual(cve_2024_40744.classify_version("4.4.8"), "PATCHED")
+        self.assertEqual(cve_2024_40744.classify_version("4.4.5"), "LIKELY_VULNERABLE")
+        self.assertEqual(cve_2024_40744.classify_version("4.4.6"), "PATCHED")
 
     def test_framework_range_boundaries(self):
         plugins = {"nrframework": {"found": True, "version": "6.0.37"}}

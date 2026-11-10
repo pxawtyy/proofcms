@@ -10,8 +10,13 @@ from .convertforms_probe import probe_upload
 CVE_ID = "CVE-2024-40744"
 NAME = "Convert Forms unrestricted file upload"
 COMPONENT = "Convert Forms"
-AFFECTED_RULE = "Convert Forms before 4.4.8"
-PATCHED_VERSION = "4.4.8"
+# NVD/vendor cite "before 4.4.8" (which also fixed the companion XSS), but the
+# upload-validation fix itself (extension allow-list enforcement in
+# NRFramework checkMimeOrDie) shipped in 4.4.6: verified by live differential
+# (4.4.5 executes an image/*-allowed .php polyglot; 4.4.6 rejects it) and by
+# diffing the official free packages.
+AFFECTED_RULE = "Convert Forms before 4.4.6"
+PATCHED_VERSION = "4.4.6"
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe"]
@@ -49,7 +54,7 @@ def passive_check(
     status = classify_version(version)
     if status == "LIKELY_VULNERABLE":
         detail = f"Detected Convert Forms {version}, which is below the fixed release."
-        action = "Upgrade Convert Forms to 4.4.8 or newer and inspect upload locations for unexpected files."
+        action = "Upgrade Convert Forms to 4.4.6 or newer and inspect upload locations for unexpected files."
         confidence = "HIGH"
     elif status == "PATCHED":
         detail = f"Detected Convert Forms {version}, which is outside the published affected range."
@@ -124,7 +129,7 @@ def run_safe_probe(
             "Unauthenticated PHP upload and execution were confirmed with a runtime math marker. "
             "The proof script requested self-deletion after execution."
         )
-        passive.action = "Upgrade Convert Forms to 4.4.8 or newer and verify that the temporary proof file was deleted."
+        passive.action = "Upgrade Convert Forms to 4.4.6 or newer and verify that the temporary proof file was deleted."
         return passive
 
     passive.status = "VULNERABLE_UPLOAD_ONLY"
@@ -133,7 +138,7 @@ def run_safe_probe(
         "A disallowed PHP-named file was accepted and retrieved from the web-accessible Joomla temporary directory, "
         "but PHP execution was not observed."
     )
-    passive.action = f"Upgrade Convert Forms to 4.4.8 or newer and delete {proof['uploaded_filename']} from the Joomla temporary directory."
+    passive.action = f"Upgrade Convert Forms to 4.4.6 or newer and delete {proof['uploaded_filename']} from the Joomla temporary directory."
     return passive
 
 
@@ -171,9 +176,9 @@ def metadata() -> dict[str, Any]:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-09-29",
-        "updated": "2026-09-29",
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-10",
+        "updated": "2026-11-10",
         "required_detectors": ["convertforms"],
         "references": [
             "https://www.cve.org/CVERecord?id=CVE-2024-40744",
