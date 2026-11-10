@@ -62,7 +62,7 @@ Dispositions:
 |---|---|---|---|---|---|---|---|
 | CVE-2010-4166 | Joomla 1.5.21 package retained | safe filter_order SQLi | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2015-7857 | — | safe content-history SQLi | NOT_YET_VALIDATED | — | — | — | — |
-| CVE-2015-8562 | Joomla 3.4.4 (PHP 5.6) | aggressive header PHP-object-injection | AGGRESSIVE_SENT (blind; marker not executed — needs PHP 5.4/5.5 session-handler fixture) | — | — | — | — |
+| CVE-2015-8562 | lab `labs/cve-2015-8562` (Joomla 3.4.4 on PHP 5.6.27, mysqli; vendor 3.4.4 full package) | aggressive header PHP-object-injection (blind; timing differential attempted, no execution observed) | AGGRESSIVE_SENT (probe runs green against the lab; CONFIRMED blocked: gadget needs header NULs, rejected with HTTP 400 by Apache 2.4.10/2.4.25; literal-`\0` form cannot bind after the mysqli round-trip; multipart-filename breakout unsolved) | 3.4.6+ out of scope (no fixed-branch PHP 5.x fixture) | `labs/cve-2015-8562` | 2026-11-09 | `PENDING8562` |
 | CVE-2016-8869 | Joomla 3.6.3 (`allowUserRegistration=0`) | aggressive group-7 registration + admin login | CONFIRMED | 3.7.0 PATCHED (`user.register` removed) | `labs/cve-2016-8869` | 2026-11-09 | `12814af` |
 | CVE-2016-8870 | Joomla 3.6.3 (`allowUserRegistration=0`) | aggressive `user.register` account creation | CONFIRMED | 3.7.0 PATCHED | `labs/cve-2016-8869` | 2026-11-09 | `12814af` |
 | CVE-2017-8917 | Joomla 3.7.0 | aggressive `extractvalue()` marker + SLEEP fallback (read-only) | CONFIRMED | 3.8.11 NOT_CONFIRMED | `labs/cve-2017-8917` | 2026-11-09 | `12814af` |

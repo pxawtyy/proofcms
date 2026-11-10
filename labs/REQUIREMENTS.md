@@ -60,7 +60,7 @@ fixed release is ideal for differential testing.
 | CVE | Vulnerable range | Recommended Joomla fixture | Extra requirements |
 |---|---:|---:|---|
 | CVE-2010-4166 | Joomla 1.5.x through 1.5.21 | 1.5.21 | PHP/MySQL versions old enough to run Joomla 1.5; `com_weblinks` enabled |
-| CVE-2015-8562 | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | 3.4.5 | Historical PHP session behavior matters; use the PHP version required by the original PoC |
+| CVE-2015-8562 | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | 3.4.4 (`joomla_3.4.4_full.zip`, vendor download) + PHP 5.6.27 via joomla:3.6.3-apache image | Historical PHP session behavior matters; assert(string) must execute (PHP 5.x). See labs/cve-2015-8562/README.md for the Apache-NUL delivery analysis |
 | CVE-2017-8917 | Joomla 3.7.0 | 3.7.0 | Core `com_fields` present |
 | CVE-2018-15882 | before Joomla 3.8.12 | 3.8.11 | Upload surface and PHP PHAR support/configuration required for full reproduction |
 | CVE-2026-73373 | 1.0.0-5.4.7 and 6.0.0-6.1.2 | 5.4.7 and optionally 6.1.2 | Needs an accessible upload surface; current ProofCMS proof can use a Convert Forms upload field; SSI execution additionally requires server SSI configuration |
