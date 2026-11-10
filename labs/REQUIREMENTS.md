@@ -79,7 +79,7 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-21627 | Google Structured Data | 5.1.7-6.1.0 product range reported | Any package bundling affected nrframework | Optional alternative fixture |
 | CVE-2026-21627 | Advanced Custom Fields | 2.2.0-3.1.0 product range reported | Any package bundling affected nrframework | Optional alternative fixture |
 | CVE-2026-21627 | Smile Pack / MailChimp Auto-Subscribe | affected releases bundling nrframework | Exact archive containing nrframework 4.10.14-6.0.37 | Optional; record bundled framework version rather than inferring it from product name |
-| CVE-2026-48907 | JCE Editor | before 2.9.99.5 | 2.9.99.4, or existing 2.7.17 | Configure the upload route required by the proof |
+| CVE-2026-48907 | JCE Editor | before 2.9.99.5 | 2.9.99.1 (`jce-2.9.99.1`, installer layout) + fixed control 2.9.99.13 (`jce-2.9.99.13`) | Anonymous profiles.import surface; no form/menu seeding needed (CSRF token from any public page) |
 | CVE-2026-48908 | SP Page Builder | 1.0.0-6.6.1 | 6.6.1 | Commercial/current distribution may require a legitimate archive |
 | CVE-2026-48939 | iCagenda | 3.2.1-3.9.14 and 4.0.0-4.0.7 | 3.9.14 and 4.0.7 | Keep both branch endpoints if testing boundary behavior |
 | CVE-2026-49049 | Helix3 Framework | 1.0-3.1.0 | 3.1.0 | Install compatible Helix3 template/framework and expose `com_ajax` |
