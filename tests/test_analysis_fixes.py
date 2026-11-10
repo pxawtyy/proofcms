@@ -39,7 +39,8 @@ def test_invalid_jce_version_never_reports_patched(value):
 
 def test_invalid_k2_version_never_reports_patched():
     result = check_k2_dangerous_extension(
-        cve="CVE-TEST", name="test", extension="phar", target_url="https://fixture.test",
+        cve="CVE-TEST", name="test", extension="phar", fixed_version="2.27",
+        target_url="https://fixture.test",
         plugins={"k2": {"found": True, "version": "unknown-build"}}, run_exploit_check=False,
         exploit_mode="safe", timeout=1, proxy=None,
     )

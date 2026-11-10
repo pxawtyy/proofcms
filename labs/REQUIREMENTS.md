@@ -89,6 +89,8 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-57830 | Helix Ultimate | through 2.2.6 | 2.2.6 | Covers deletion module; use disposable files only |
 | CVE-2026-78079 | Helix Ultimate | 1.0-2.2.9 | 2.2.9 | Keep 2.2.6 too if sharing with CVE-2026-57830 |
 | CVE-2026-61424 | DJ-Classifieds | before 3.11.2 | 3.11.1 | Commercial archive likely required; configure public upload flow |
+| CVE-2019-19576 | K2 | before 2.27 | 2.8.0 (CVE-reported release; git-sourced tree `K2_v2.8.0` from getk2/k2 commit e6b875ef) + Joomla 3.6.3/PHP 5.6.27 | Backend item-save needs an admin session (lab admin/admin); fixed control 2.28 (`K2_v2.28`). Note: 2.11.20240911 still stores plain .phar (model file_new_name_ext defeats the lib rename) — not a valid control. 2.6.8 unusable on PHP 5.6+ (pre-PCRE-safe Verot: all uploads fail MIME detection) |
+| CVE-2019-19634 | K2 | before 2.28 | 2.8.0 (same fixture as CVE-2019-19576) | .pht additionally requires the aligned block lists (2.27 still serves .pht); same backend flow and control |
 | PROOFCMS-K2-REGISTRATION-AVATAR | K2 user-profile integration | public registration surface | none (detection only) | Companion surface probe for CVE-2019-19576/19634; needs Joomla + K2 with public registration enabled, no package to retain |
 
 The current `dj_classifieds_3.11` archive on this workstation is not an installable extension: it contains only

@@ -6,7 +6,6 @@ from ...core.models import Finding
 from ...core.versions import parse_version_safe, version_lt
 from .k2_upload_probe import probe_inert_extension
 
-FIXED_K2_VERSION = "2.11.20240911"
 COMPONENT = "K2"
 
 
@@ -15,16 +14,23 @@ def check_k2_dangerous_extension(
     cve: str,
     name: str,
     extension: str,
+    fixed_version: str = "2.28",
     target_url: str,
     plugins: dict[str, Any] | None,
     run_exploit_check: bool,
     exploit_mode: str,
     timeout: int,
     proxy: str | None,
+    aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
 ) -> Finding:
     k2 = (plugins or {}).get("k2", {})
     version = k2.get("version")
-    affected_rule = f"K2 releases bundling Verot class.upload before {FIXED_K2_VERSION} ({extension} filter bypass)"
+    affected_rule = (
+        f"K2 releases before {fixed_version} (Verot class.upload .{extension} "
+        "dangerous-file bypass: the 2019/2024 library renames are defeated by "
+        "K2's file_new_name_ext override until the handler deny-list)"
+    )
     base = {
         "cve": cve,
         "name": name,
@@ -48,15 +54,15 @@ def check_k2_dangerous_extension(
             status="INCONCLUSIVE",
             confidence="MEDIUM",
             detail=f"K2 was detected, but version value {version!r} could not be parsed.",
-            action=f"Manually verify K2 and upgrade to {FIXED_K2_VERSION} or newer if needed.",
+            action=f"Manually verify K2 and upgrade to {fixed_version} or newer if needed.",
         )
-    if parsed_version is not None and not version_lt(version, FIXED_K2_VERSION):
+    if parsed_version is not None and not version_lt(version, fixed_version):
         return Finding(
             **base,
             status="PATCHED",
             confidence="HIGH",
-            detail=f"K2 {version} includes the updated upload library used to block dangerous extensions.",
-            action=f"Keep K2 at {FIXED_K2_VERSION} or newer.",
+            detail=f"K2 {version} includes the attachment handler deny-list blocking .{extension} uploads.",
+            action=f"Keep K2 at {fixed_version} or newer.",
         )
 
     result = Finding(
@@ -69,7 +75,7 @@ def check_k2_dangerous_extension(
             if version
             else "K2 was detected, but its version could not be classified."
         ),
-        action=f"Upgrade K2 to {FIXED_K2_VERSION} or newer and inspect media/k2/attachments for .{extension} files.",
+        action=f"Upgrade K2 to {fixed_version} or newer and inspect media/k2/attachments for .{extension} files.",
     )
     if not run_exploit_check:
         return result
@@ -79,28 +85,46 @@ def check_k2_dangerous_extension(
         )
         return result
 
-    proof = probe_inert_extension(target_url, extension, timeout=timeout, proxy=proxy)
+    admin_user = admin_pass = None
+    if aggressive_args and aggressive_args.get("admin_user"):
+        admin_user = str(aggressive_args["admin_user"])
+        admin_pass = str(aggressive_args.get("admin_password", ""))
+    elif aggressive_command and ":" in aggressive_command:
+        admin_user, admin_pass = aggressive_command.split(":", 1)
+
+    proof = probe_inert_extension(
+        target_url,
+        extension,
+        timeout=timeout,
+        proxy=proxy,
+        admin_user=admin_user,
+        admin_pass=admin_pass,
+    )
     result.exploit_ran = True
     if proof.get("accepted"):
+        via = "backend" if proof.get("form_path", "").startswith("/administrator") else "frontend"
         result.status = "VULNERABLE_UPLOAD_ONLY"
         result.confidence = "CONFIRMED"
         result.proof_url = proof["proof_url"]
         result.uploaded_filename = proof["filename"]
         result.detail = (
-            f"K2 accepted an inert .{extension} attachment through its frontend item-save flow and returned the exact "
+            f"K2 accepted an inert .{extension} attachment through its {via} item-save flow and returned the exact "
             f"unique marker from {proof['proof_url']}. No executable code was uploaded."
         )
         result.action = (
             f"Delete {proof['filename']} and its unpublished ProofCMS K2 item, then upgrade K2 to "
-            f"{FIXED_K2_VERSION} or newer."
+            f"{fixed_version} or newer."
         )
         return result
     if not proof.get("form_found"):
+        reason = proof.get("reason", "")
         result.status = "NOT_CONFIRMED"
         result.confidence = "MEDIUM"
         result.detail = (
-            f"K2 {version or 'version unknown'} is affected by version, but no public frontend item form with "
-            "attachment and category fields was available. The CVE requires K2 author/item-creation access."
+            f"K2 {version or 'version unknown'} is affected by version, but no usable item-save attachment surface "
+            f"was reached.{' ' + reason + '.' if reason else ''} The CVE requires a K2 item-creation upload surface; "
+            "supply administrator credentials via --aggressive-arg admin_user=<u> --aggressive-arg admin_password=<p> "
+            "(or --aggressive-command user:pass)."
         )
         return result
 
@@ -108,7 +132,7 @@ def check_k2_dangerous_extension(
     result.status = "NOT_CONFIRMED"
     result.confidence = "MEDIUM"
     result.detail = (
-        f"The K2 frontend form was reached, but the inert .{extension} attachment was not retrievable with its unique "
+        f"The K2 item form was reached, but the inert .{extension} attachment was not retrievable with its unique "
         f"marker. Upload status: {upload.get('status', 0)}; redirected={upload.get('redirected', False)}."
     )
     return result

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from .k2_dangerous_extension import check_k2_dangerous_extension
 
 CVE_ID = "CVE-2019-19576"
@@ -14,18 +16,23 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     plugins: dict | None = None,
+    aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     **kwargs,
 ):
     return check_k2_dangerous_extension(
         cve=CVE_ID,
         name=NAME,
         extension="phar",
+        fixed_version="2.27",
         target_url=target_url,
         plugins=plugins,
         run_exploit_check=run_exploit_check,
         exploit_mode=exploit_mode,
         timeout=timeout,
         proxy=proxy,
+        aggressive_command=aggressive_command,
+        aggressive_args=aggressive_args,
     )
 
 
@@ -34,15 +41,15 @@ def metadata() -> dict:
         "cve": CVE_ID,
         "name": NAME,
         "component": "K2",
-        "affected_rule": "K2 releases bundling Verot class.upload before 2.11.20240911",
+        "affected_rule": "K2 before 2.27 (attachment handler lacks the server-executable extension deny-list)",
         "affected_joomla_versions": ["*"],
         "exploit_available": True,
         "exploit_modes": ["aggressive"],
         "intrusive": True,
         "required_detectors": ["k2"],
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-10-04",
-        "updated": "2026-10-04",
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-10",
+        "updated": "2026-11-10",
         "references": [
             "https://nvd.nist.gov/vuln/detail/CVE-2019-19576",
             "https://github.com/getk2/k2/blob/master/CHANGELOG.md",
