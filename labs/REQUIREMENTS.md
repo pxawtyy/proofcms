@@ -82,7 +82,7 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-48907 | JCE Editor | before 2.9.99.5 | 2.9.99.1 (`jce-2.9.99.1`, installer layout) + fixed control 2.9.99.13 (`jce-2.9.99.13`) | Anonymous profiles.import surface; no form/menu seeding needed (CSRF token from any public page) |
 | CVE-2026-48908 | SP Page Builder | 1.0.0-6.6.1 | 6.6.1 | Commercial/current distribution may require a legitimate archive |
 | CVE-2026-48939 | iCagenda | 3.2.1-3.9.14 and 4.0.0-4.0.7 (RCE transition needs Joomla 6.0.0-6.1.1; older Joomla cores block via safe-file checks) | 4.0.7 (`icagenda_4.0.7_package.zip`, official JoomliC Core) + fixed control 4.0.8 (`icagenda_4.0.8_package.zip`) on Joomla 6.1.0-rc1 (`joomla:6.1-rc-apache` digest-pinned) | 4.x needs a public submit menu item (guest submitAccess) + one event category; 3.x branch (3.9.15 fixed) uses different controllers and is core-blocked on old Joomla |
-| CVE-2026-49049 | Helix3 Framework | 1.0-3.1.0 | 3.1.0 | Install compatible Helix3 template/framework and expose `com_ajax` |
+| CVE-2026-49049 | Helix3 Framework | 1.0-3.1.0 | 2.2 (`Helix3-2.2`, installer layout) + J3 security-patch control (`Helix3-j3-security`, git tag j3-security-v1.0.0) | Joomla 3.10/PHP 7.4 stack (`joomla:3.10-php7.4-apache` digest-pinned); endpoint needs no form/menu, CSRF token not required pre-fix |
 | CVE-2026-56290 | Page Builder CK | reported legacy 1.x/2.x and affected 3.x builds | Exact PoC-confirmed vulnerable archive | Public range is still ambiguous; retain source and build identifier |
 | CVE-2026-56291 | Balbooa Forms | through 2.4.0 | 2.4.0 | Create a public form/upload route |
 | CVE-2026-57827 | RSFiles! | before 1.17.12 | 1.17.11 | Commercial archive likely required |
