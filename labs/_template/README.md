@@ -71,6 +71,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9219 | `labs/cve-2026-48907` | Joomla 5.2.3 + JCE 2.9.99.1 lab |
 | 9221 | `labs/cve-2026-48939` | Joomla 6.1.0-rc1 + iCagenda 4.0.7 lab |
 | 9223 | `labs/cve-2026-49049` | Joomla 3.10 + Helix3 2.2 lab |
+| 9225 | `labs/cve-2026-57830` (also covers CVE-2026-57829) | Joomla 3.10 + Helix Ultimate 1.1.4 lab |
 
 ## Minimal README skeleton
 

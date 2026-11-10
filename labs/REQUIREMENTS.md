@@ -86,7 +86,8 @@ Old Joomla releases should use dedicated images rather than forcing incompatible
 | CVE-2026-56290 | Page Builder CK | reported legacy 1.x/2.x and affected 3.x builds | Exact PoC-confirmed vulnerable archive | Public range is still ambiguous; retain source and build identifier |
 | CVE-2026-56291 | Balbooa Forms | through 2.4.0 | 2.4.0 | Create a public form/upload route |
 | CVE-2026-57827 | RSFiles! | before 1.17.12 | 1.17.11 | Commercial archive likely required |
-| CVE-2026-57830 | Helix Ultimate | through 2.2.6 | 2.2.6 | Covers deletion module; use disposable files only |
+| CVE-2026-57829 | Helix Ultimate | through 2.2.6 (stored XSS via saveMegaMenuSettings) | 1.1.4 (`helix-ultimate-1.1.4`, installer layout) — safe probe is reachability-only by design (no state-changing write), so the lab ceiling is BLOCKED_EXTERNAL | Same Joomla 3.10 lab as CVE-2026-57830; no form/menu needed |
+| CVE-2026-57830 | Helix Ultimate | through 2.2.6 (media manager via helix=ultimate AJAX) | 1.1.4 (vuln) + j3-security-v1.0.0 control (`plg_system_helixultimate_j3_v2.1.4-j3sec.zip` + extracted tree, GitHub release asset) on Joomla 3.10/PHP 7.4 | Same lab as above: unauthenticated, token from any public page; the com_ajax plugin= route never dispatches on this branch |
 | CVE-2026-78079 | Helix Ultimate | 1.0-2.2.9 | 2.2.9 | Keep 2.2.6 too if sharing with CVE-2026-57830 |
 | CVE-2026-61424 | DJ-Classifieds | before 3.11.2 | 3.11.1 | Commercial archive likely required; configure public upload flow |
 | CVE-2019-19576 | K2 | before 2.27 | 2.8.0 (CVE-reported release; git-sourced tree `K2_v2.8.0` from getk2/k2 commit e6b875ef) + Joomla 3.6.3/PHP 5.6.27 | Backend item-save needs an admin session (lab admin/admin); fixed control 2.28 (`K2_v2.28`). Note: 2.11.20240911 still stores plain .phar (model file_new_name_ext defeats the lib rename) — not a valid control. 2.6.8 unusable on PHP 5.6+ (pre-PCRE-safe Verot: all uploads fail MIME detection) |

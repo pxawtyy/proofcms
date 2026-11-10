@@ -19,7 +19,7 @@ EXPLOIT_MODES = ["safe"]
 AFFECTED_JOOMLA_VERSIONS = ["*"]
 AFFECTED_RULE = "plg_system_helixultimate up to and including 2.2.6"
 FIXED_RULE = "Update Helix Ultimate to 2.2.7 or newer"
-AJAX_BASE = "/component/ajax/?format=json&plugin=helixultimate&request=task"
+AJAX_BASE = "/component/ajax/?format=json&helix=ultimate&request=task"
 AJAX_ENDPOINT = f"{AJAX_BASE}&action=view-media"
 
 
