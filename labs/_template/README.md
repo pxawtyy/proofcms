@@ -69,6 +69,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |
 | 9217 | `labs/cve-2024-40744` | Joomla 5.2.3 + Convert Forms 4.4.5 lab |
 | 9219 | `labs/cve-2026-48907` | Joomla 5.2.3 + JCE 2.9.99.1 lab |
+| 9221 | `labs/cve-2026-48939` | Joomla 6.1.0-rc1 + iCagenda 4.0.7 lab |
 
 ## Minimal README skeleton
 
