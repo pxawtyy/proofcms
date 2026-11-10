@@ -80,8 +80,8 @@ Dispositions:
 | CVE-2026-56291 | Balbooa Forms 2.4.3.1/2.4.4.0 | aggressive upload (forced) | PATCHED (both; source already has `checkToken`) | 2.4.0 BLOCKED_EXTERNAL (no archive) | — | — | — |
 | CVE-2026-56292 | — | safe SQLi | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-57827 | RSFiles 1.16.29 | aggressive session-warmed upload + RCE | CONFIRMED | 1.17.12 BLOCKED_EXTERNAL (no archive) | `labs/cve-2026-57827` | 2026-11-09 | `12814af` |
-| CVE-2026-57829 | Helix Ultimate 1.1.4/2.2.4 archives retained | safe stored XSS | NOT_YET_VALIDATED | — | — | — | — |
-| CVE-2026-57830 | Helix Ultimate 2.2.4/2.2.6 | safe file deletion (disposable files) | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-57829 | Helix Ultimate 1.1.4 (installer package) on Joomla 3.10/PHP 7.4 | safe saveMegaMenuSettings reachability check (no write payload by design) | BLOCKED_EXTERNAL (dispatcher responds; stored-XSS write intentionally not tested) | — (same stack; write path out of scope for the safe probe) | `labs/cve-2026-57830` (shared Helix Ultimate lab) | 2026-11-10 | `e6eb998` |
+| CVE-2026-57830 | Helix Ultimate 1.1.4 (installer package) on Joomla 3.10/PHP 7.4 | safe read-only media listing via helix=ultimate AJAX endpoint + nonexistent-action control differential (+ webroot-boundary check) | CONFIRMED (VULNERABLE) | j3-security-v1.0.0 NOT_CONFIRMED (admin+CSRF-gated AJAX; no listing signature) | `labs/cve-2026-57830` | 2026-11-10 | `e6eb998` |
 | CVE-2026-71573 | — | safe CORS origin validation | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-73373 | Joomla 5.4.7 package retained | safe SHTML upload (needs upload surface; Convert Forms field usable) | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-78079 | Helix Ultimate 1.0-2.2.9 archives retained | safe open redirect | NOT_YET_VALIDATED | — | — | — | — |
