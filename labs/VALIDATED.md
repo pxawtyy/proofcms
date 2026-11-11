@@ -91,6 +91,7 @@ Dispositions:
 | CVE-2026-78079 | Helix Ultimate 1.0-2.2.9 archives retained | safe open redirect | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-90915 | Joomla 5.4.8 | aggressive canary directory deletion via cache purge | CONFIRMED | 5.4.9 NOT_CONFIRMED (HTTP 500, canary intact) | `labs/cve-2026-90915` | 2026-11-09 | `12814af` |
 | CVE-2026-92222 | Joomla 5.4.8/PHP 8.3 + published public newsfeed with `file://` marker link + internal gopher listener | safe guest crawl: stored non-http(s) feed link + rendered retrieved items (server-side file read) | CONFIRMED (VULNERABLE; marker rendered) | 5.4.9 NOT_CONFIRMED ("Invalid field: Link", nothing stored; also PATCHED version-gated) + behavioral gopher differential | `labs/cve-2026-92222` | 2026-11-11 | `655f9f3` |
+| CVE-2026-92227 | Joomla 5.4.8/PHP 8.3 + TOTP-enrolled victim + com_users silent-login options | aggressive password login + remember, then cookie-only session check | CONFIRMED (VULNERABLE; cookie-only session fully authenticated, no MFA step) | 5.4.9 PATCHED (version gate) + behavioral: no pre-MFA cookie issued | `labs/cve-2026-92227` | 2026-11-11 | `de3c457` |
 | CVE-2026-94132 | — | safe mailbox attachment RCE vector | NOT_YET_VALIDATED | — | — | — | — |
 
 ## Joomla — passive-only (out of contract scope; tracked for sourcing)
