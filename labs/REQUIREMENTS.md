@@ -59,7 +59,7 @@ fixed release is ideal for differential testing.
 
 | CVE | Vulnerable range | Recommended Joomla fixture | Extra requirements |
 |---|---:|---:|---|
-| CVE-2010-4166 | Joomla 1.5.x through 1.5.21 | 1.5.21 | PHP/MySQL versions old enough to run Joomla 1.5; `com_weblinks` enabled |
+| CVE-2010-4166 | Joomla 1.5.x through 1.5.21 | 1.5.21 (vuln, retained `Joomla_1.5.21-Stable-Full_Package.zip`) + 1.5.22 control (official full package, MD5 `71e57ac6fd588e4ac737a10e726f81e9`, retained) | Period stack: php:5.6-apache (ext/mysql+mysqli) + mysql:5.5; `com_weblinks` enabled via sample data (category id=2). Note: remote detector reads 1.5.15 from stale en-GB.xml; version.php is authoritative (1.5.21). |
 | CVE-2015-8562 | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | 3.4.4 (`joomla_3.4.4_full.zip`, vendor download) + PHP 5.6.27 via joomla:3.6.3-apache image | Historical PHP session behavior matters; assert(string) must execute (PHP 5.x). See labs/cve-2015-8562/README.md for the Apache-NUL delivery analysis |
 | CVE-2017-8917 | Joomla 3.7.0 | 3.7.0 | Core `com_fields` present |
 | CVE-2018-15882 | before Joomla 3.8.12 | 3.8.11 | Upload surface and PHP PHAR support/configuration required for full reproduction |
