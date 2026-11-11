@@ -50,6 +50,7 @@ _CVE_TYPES = {
     "CVE-2026-78079": VulnerabilityType.OPEN_REDIRECT,
     "CVE-2026-90915": VulnerabilityType.FILE_DELETION,
     "CVE-2026-92222": VulnerabilityType.SSRF,
+    "CVE-2018-6376": VulnerabilityType.SQL_INJECTION,
     "CVE-2023-28121": VulnerabilityType.AUTHENTICATION_BYPASS,
     "CVE-2023-32243": VulnerabilityType.PRIVILEGE_ESCALATION,
     "CVE-2023-3460": VulnerabilityType.PRIVILEGE_ESCALATION,
