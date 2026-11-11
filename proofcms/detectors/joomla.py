@@ -690,6 +690,14 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_smilepack"],
         "markers": r"com_smilepack|Smile\s+Pack",
     },
+    "jctables": {
+        "manifests": [
+            "/administrator/components/com_jctables/jctables.xml",
+            "/components/com_jctables/jctables.xml",
+        ],
+        "routes": ["/?option=com_jctables"],
+        "markers": r"com_jctables|JCTables|JC\s+Tables",
+    },
     "mailchimp_auto_subscribe": {
         "manifests": [
             "/plugins/system/nr_mailchimp/nr_mailchimp.xml",
