@@ -5,6 +5,7 @@ from ..core.models import CMSInfo
 from .aspnet import detect_aspnet_runtime
 from .joomla import (
     detect_baforms,
+    detect_gridbox,
     detect_helix3,
     detect_helixultimate,
     detect_icagenda,
@@ -65,6 +66,7 @@ __all__ = [
     "detect_aspnet_runtime",
     "detect_baforms",
     "detect_cms",
+    "detect_gridbox",
     "detect_helix3",
     "detect_helixultimate",
     "detect_icagenda",

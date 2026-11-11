@@ -19,6 +19,7 @@ class VulnerabilityType:
     MEMORY_CORRUPTION = "Memory Corruption"
     INFORMATION_DISCLOSURE = "Information Disclosure"
     CORS = "Improper CORS Validation"
+    CSRF = "Cross-Site Request Forgery (CSRF)"
     CODE_EXECUTION = "Remote Code Execution"
     DENIAL_OF_SERVICE = "Denial of Service"
     SECURITY_FEATURE_BYPASS = "Security Feature Bypass"
@@ -57,6 +58,16 @@ _CVE_TYPES = {
     "CVE-2024-10924": VulnerabilityType.AUTHENTICATION_BYPASS,
     "CVE-2024-4439": VulnerabilityType.XSS,
     "CVE-2024-28000": VulnerabilityType.PRIVILEGE_ESCALATION,
+    "CVE-2026-61425": VulnerabilityType.AUTHENTICATION_BYPASS,
+    "CVE-2026-65884": VulnerabilityType.PRIVILEGE_ESCALATION,
+    "CVE-2026-65885": VulnerabilityType.FILE_UPLOAD,
+    "CVE-2026-65886": VulnerabilityType.PATH_TRAVERSAL,
+    "CVE-2026-65887": VulnerabilityType.AUTHENTICATION_BYPASS,
+    "CVE-2026-65888": VulnerabilityType.AUTHENTICATION_BYPASS,
+    "CVE-2026-65889": VulnerabilityType.FILE_DELETION,
+    "CVE-2026-65890": VulnerabilityType.SQL_INJECTION,
+    "CVE-2026-65947": VulnerabilityType.CSRF,
+    "CVE-2026-102784": VulnerabilityType.CSRF,
     "CVE-2026-63030": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-64638": VulnerabilityType.XSS,
     "CVE-2026-73373": VulnerabilityType.FILE_UPLOAD,

@@ -56,6 +56,7 @@ control where a fixed release exists). Record both runs in the README.
 | 8099 | `labs/cve-2016-8869` (also covers CVE-2016-8870) | Joomla 3.6.3 |
 | 8100 | `labs/cve-2018-15882` | Joomla 3.8.11 (+3.8.12 control) |
 | 9220 | `labs/cve-2018-6376` | Joomla 3.8.3 + Hathor postinstall SQLi lab (:9220 reused across labs; run one at a time) |
+| 9220 | `labs/cve-2026-61425` | Joomla 5.2.3 + Gridbox 2.20.0.2 (shared Gridbox CVE lab; :9220 reused across labs) |
 | 8101 | `labs/cve-2026-48908` | Joomla 5.4.9 + SP Page Builder 6.0.0 |
 | 8102 | `labs/cve-2026-57827` | Joomla 3.9 + RSFiles 1.16.29 |
 | 8103 | (temporary) RSFiles 1.17.12 control | Same Joomla 3.9 stack; torn down after run |
