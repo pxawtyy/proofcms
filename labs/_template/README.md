@@ -55,6 +55,7 @@ control where a fixed release exists). Record both runs in the README.
 | 8100 | `labs/cve-2018-15882` | Joomla 3.8.11 (+3.8.12 control) |
 | 8101 | `labs/cve-2026-48908` | Joomla 5.4.9 + SP Page Builder 6.0.0 |
 | 8102 | `labs/cve-2026-57827` | Joomla 3.9 + RSFiles 1.16.29 |
+| 8103 | (temporary) RSFiles 1.17.12 control | Same Joomla 3.9 stack; torn down after run |
 | 9101 | `labs/cve-2026-109619` | PHP 8.2.34 upload-progress / session lab (reserved) |
 | 9102 | `labs/cve-2026-109618` | PHP 8.3.35/8.3.36 OOM lab |
 | 9103 | `labs/cve-2026-109619-cli` | PHP 8.3.35/8.3.36 cli-server leak lab |
