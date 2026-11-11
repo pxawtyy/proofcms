@@ -302,17 +302,63 @@ class TestHelix3Cleanup(unittest.TestCase):
 
 
 class TestPageBuilderCkPolicy(unittest.TestCase):
-    """User Adjustment 1: Page Builder CK affected range remains inconclusive/unknown."""
+    """Page Builder CK affected range: <=3.5.10 LIKELY_VULNERABLE, >=3.6.0 PATCHED."""
 
-    def test_pagebuilderck_inconclusive_when_detected(self):
+    def test_pagebuilderck_likely_vulnerable_when_detected(self):
         result = cve_2026_56290.check(
             "http://target",
             joomla_version="3.9.0",
             run_exploit_check=False,
             plugins={"pagebuilderck": {"found": True, "version": "3.5.10", "source": "test"}},
         )
+        self.assertEqual(result.status, "LIKELY_VULNERABLE")
+        self.assertIn("3.5.10", result.detail)
+
+    def test_pagebuilderck_patched_when_fixed(self):
+        result = cve_2026_56290.check(
+            "http://target",
+            joomla_version="3.9.0",
+            run_exploit_check=False,
+            plugins={"pagebuilderck": {"found": True, "version": "3.6.7", "source": "test"}},
+        )
+        self.assertEqual(result.status, "PATCHED")
+
+    def test_pagebuilderck_legacy_line_stays_inconclusive(self):
+        result = cve_2026_56290.check(
+            "http://target",
+            joomla_version="3.9.0",
+            run_exploit_check=False,
+            plugins={"pagebuilderck": {"found": True, "version": "3.1.4", "source": "test"}},
+        )
         self.assertEqual(result.status, "INCONCLUSIVE")
-        self.assertIn("ambiguous", result.detail.lower())
+
+    def test_pbck_marker_fallback_confirms_upload_only(self):
+        with (
+            patch("proofcms.modules.joomla.cve_2026_56290.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_56290.extract_csrf", return_value=("aabbcc", "1")),
+            patch("proofcms.modules.joomla.cve_2026_56290.rand_str", return_value="MARKER01"),
+            patch("time.sleep"),
+        ):
+            mock_req.side_effect = [
+                {"status": 200, "body": "upload ok"},
+                {"status": 404, "body": "not found"},
+                {"status": 200, "body": "upload ok"},
+                {"status": 404, "body": "not found"},
+                {"status": 200, "body": "upload ok"},
+                {"status": 404, "body": "not found"},
+                {"status": 200, "body": "upload ok"},
+                {"status": 404, "body": "not found"},
+                {"status": 200, "body": "upload ok"},
+                {
+                    "status": 200,
+                    "body": "ProofCMS authorized audit marker PROOFCMS_PBCK_MARKER01",
+                },
+            ]
+            result = cve_2026_56290.run_aggressive_probe("http://target")
+            self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
+            self.assertEqual(result.confidence, "CONFIRMED")
+            self.assertTrue(result.exploit_ran)
+            self.assertIn("gfonts", result.proof_url)
 
 
 class TestStatusSeparation(unittest.TestCase):

