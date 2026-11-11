@@ -45,6 +45,7 @@ control where a fixed release exists). Record both runs in the README.
 | Port | Lab | Target |
 |---|---|---|
 | 8091 | `labs/cve-2026-87902` | WordPress 7.0.2 |
+| 8090 | (temporary) WordPress 7.0.2 control | Same 6.9/7.0 stack as 60137 lab; torn down after run |
 | 8092 | `labs/cve-2026-60137` | WordPress 6.9.x / 7.0.x |
 | 8093 | `labs/cve-2026-32475` | WordPress 6.3.1 + Elementor |
 | 8094 | `labs/cve-2026-1357` | WordPress 6.5 + WPvivid 0.9.123 |
