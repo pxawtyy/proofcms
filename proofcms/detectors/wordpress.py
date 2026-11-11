@@ -20,6 +20,7 @@ KNOWN_PLUGIN_MARKERS = {
     "woocommerce-payments": r"Woo(?:Commerce\s+)?Payments|WooPayments",
     "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
     "wp-file-manager": r"(?:WP\s+)?File\s+Manager",
+    "wpvivid-backuprestore": r"WPvivid|wpvivid-backuprestore",
     "keydatas": r"keydatas|简数",
     "elementor": r"(?:^|/)elementor(?:/|$)|Elementor",
     "google-site-kit": r"google[-_ ]site[-_ ]kit|Site\s+Kit",
@@ -75,6 +76,7 @@ PLUGIN_MAIN_FILES = {
     "ultimate-member": "ultimate-member.php",
     "woocommerce-payments": "woocommerce-payments.php",
     "wp-file-manager": "file_folder_manager.php",
+    "wpvivid-backuprestore": "wpvivid-backuprestore.php",
 }
 
 

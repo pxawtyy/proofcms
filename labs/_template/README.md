@@ -47,6 +47,7 @@ control where a fixed release exists). Record both runs in the README.
 | 8091 | `labs/cve-2026-87902` | WordPress 7.0.2 |
 | 8092 | `labs/cve-2026-60137` | WordPress 6.9.x / 7.0.x |
 | 8093 | `labs/cve-2026-32475` | WordPress 6.3.1 + Elementor |
+| 8094 | `labs/cve-2026-1357` | WordPress 6.5 + WPvivid 0.9.123 |
 | 8095 | `labs/cve-2026-92229` | WordPress 6.5 + Forminator 1.57.2 |
 | 8096 | `labs/cve-2026-15748` | WordPress 6.5 + Forminator 1.56.1 |
 | 8097 | `labs/cve-2026-90915` | Joomla 5.4.8/5.4.9 |
