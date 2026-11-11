@@ -398,6 +398,28 @@ class TestPhpExecutionProofAcrossModules(unittest.TestCase):
             result = cve_2026_56291.run_aggressive_probe("http://target")
             self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
 
+    def test_baforms_marker_fallback_confirms_upload_only(self):
+        with (
+            patch("proofcms.modules.joomla.cve_2026_56291.request") as mock_req,
+            patch("proofcms.modules.joomla.cve_2026_56291.poll_paths") as mock_poll,
+            patch("proofcms.modules.joomla.cve_2026_56291.rand_str", return_value="MARKER01"),
+            patch("time.sleep"),
+        ):
+            mock_req.return_value = {"status": 200, "body": "{}"}
+            mock_poll.side_effect = [
+                (None, None, 1),
+                (
+                    {"status": 200, "body": "ProofCMS authorized audit marker PROOFCMS_BAFORMS_MARKER01"},
+                    "http://target/images/baforms/uploads/form-0/jvh-baforms-x.txt",
+                    1,
+                ),
+            ]
+            result = cve_2026_56291.run_aggressive_probe("http://target")
+            self.assertEqual(result.status, "VULNERABLE_UPLOAD_ONLY")
+            self.assertEqual(result.confidence, "CONFIRMED")
+            self.assertTrue(result.exploit_ran)
+            self.assertIn("form-0", result.proof_url)
+
     def test_rsfiles_leakage_reports_upload_only(self):
         with (
             patch("proofcms.modules.joomla.cve_2026_57827.request") as mock_req,

