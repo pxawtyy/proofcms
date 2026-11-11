@@ -60,7 +60,7 @@ Dispositions:
 
 | CVE | Fixture (vuln) | Probe | Disposition | Patched control | Lab | Validated | Commit |
 |---|---|---|---|---|---|---|---|
-| CVE-2010-4166 | Joomla 1.5.21 package retained | safe filter_order SQLi | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2010-4166 | Joomla 1.5.21 on PHP 5.6 + MySQL 5.5 + sample data | safe differential filter_order SQLi (benign control + 2 injections, error diff) | CONFIRMED (VULNERABLE; differential mysql_num_rows error) | 1.5.22 (official full package, MD5-verified) NOT_CONFIRMED (HTTP 200, no differential error) | `labs/cve-2010-4166` | 2026-11-10 | `1828849` |
 | CVE-2015-7857 | — | safe content-history SQLi | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2015-8562 | lab `labs/cve-2015-8562` (Joomla 3.4.4 on PHP 5.6.27, mysqli; vendor 3.4.4 full package) | aggressive header PHP-object-injection (blind; timing differential attempted, no execution observed) | AGGRESSIVE_SENT (probe runs green against the lab; CONFIRMED blocked: gadget needs header NULs, rejected with HTTP 400 by Apache 2.4.10/2.4.25; literal-`\0` form cannot bind after the mysqli round-trip; multipart-filename breakout unsolved) | 3.4.6+ out of scope (no fixed-branch PHP 5.x fixture) | `labs/cve-2015-8562` | 2026-11-09 | `adec193` |
 | CVE-2016-8869 | Joomla 3.6.3 (`allowUserRegistration=0`) | aggressive group-7 registration + admin login | CONFIRMED | 3.7.0 PATCHED (`user.register` removed) | `labs/cve-2016-8869` | 2026-11-09 | `12814af` |
