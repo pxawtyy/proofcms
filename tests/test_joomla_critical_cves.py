@@ -69,12 +69,11 @@ class TestJoomlaCriticalVersionPolicies(unittest.TestCase):
         extension = cve_2026_61424.check(
             "https://target.test",
             plugins={"djclassifieds": {"found": True, "version": "3.11.1"}},
-            run_exploit_check=True,
         )
         self.assertEqual(core.status, "LIKELY_VULNERABLE")
         self.assertEqual(extension.status, "LIKELY_VULNERABLE")
         self.assertTrue(core.exploit_available)
-        self.assertFalse(extension.exploit_available)
+        self.assertTrue(extension.exploit_available)
 
     def test_high_privilege_requirement_prevents_false_positive(self):
         unauthenticated = cve_2026_92222.check("https://target.test", joomla_version="4.4.0")
