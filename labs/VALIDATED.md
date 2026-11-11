@@ -51,6 +51,7 @@ Dispositions:
 | CVE | Note |
 |---|---|
 | CVE-2024-6220 (Keydatas) | BLOCKED_EXTERNAL: vulnerable branch (<=2.5.2) unsourcable (versioned zip 404s, plugins Trac bot-walled); wordpress.org currently serves patched 2.8.1. |
+| CVE-2026-1830 (Quick Playground) | BLOCKED_EXTERNAL: plugin fatals the whole WP bootstrap at plugins_loaded via is_plugin_active() (undefined outside admin context) — verified HTTP 500 on /, /wp-json/, admin-ajax, wp-login for both 1.3.1 and 1.3.2 on stock WP 6.5/PHP 8.1; the vulnerable REST endpoint is unreachable without modifying the plugin. Module is passive-only (version via readme.txt). |
 | CVE-2026-6692 (Slider Revolution) | Parked: 7.0.6 front AJAX is read-only and upload handlers enforce mime/extension; needs the advisory detail or a 7.0.10/7.0.11 diff. |
 | CVE-2024-4439 | Passive advisory only (`exploit_modes` empty; PoC recorded as metadata but never sent automatically): unauthenticated stored XSS in the Avatar block, WP 6.0.x–6.5.1 branch backports. No fixture needed — version detection from the core manifest. |
 | WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77 | Passive advisory only (WPScan ID, no CVE): core comment-moderation stored XSS, branch-specific fixes. No fixture needed — version detection. |
