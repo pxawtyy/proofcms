@@ -64,6 +64,7 @@ fixed release is ideal for differential testing.
 | CVE-2017-8917 | Joomla 3.7.0 | 3.7.0 | Core `com_fields` present |
 | CVE-2018-15882 | before Joomla 3.8.12 | 3.8.11 | Upload surface and PHP PHAR support/configuration required for full reproduction |
 | CVE-2026-73373 | 1.0.0-5.4.7 and 6.0.0-6.1.2 | 5.4.7 (vuln, `joomla:5.4.7-php8.3-apache@sha256:f8c0f159…`) + 5.4.8 control (`joomla:5.4.8-php8.3-apache@sha256:ce0c0ee3…`) | Convert Forms 5.0.4 upload field (images + shtml/shtm, allow_unsafe=0 so core isSafeFile runs) + Apache SSI for tmp/ via conf snippet. Vuln ceiling is VULNERABLE_UPLOAD_ONLY (#exec blocked in this container). |
+| CVE-2026-92222 | 4.0.0-5.4.8 and 6.0.0-6.1.3 | 5.4.8 (vuln, `joomla:5.4.8-php8.3-apache@sha256:ce0c0ee3…`) + 5.4.9 control (`joomla:5.4.9-php8.3-apache@sha256:8b2b8dd0…`) | Published public newsfeed storing a `file://` marker link (admin form flow; default Uncategorised com_newsfeeds category id 5); internal-only gopher listener service for the transport differential. 5.4.9 adds `schemes="http,https"` to the link field + scheduler task URL. |
 
 Old Joomla releases should use dedicated images rather than forcing incompatible versions into one shared image.
 
