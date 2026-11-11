@@ -68,6 +68,8 @@ _CVE_TYPES = {
     "CVE-2026-65890": VulnerabilityType.SQL_INJECTION,
     "CVE-2026-65947": VulnerabilityType.CSRF,
     "CVE-2026-102784": VulnerabilityType.CSRF,
+    "CVE-2026-105607": VulnerabilityType.XSS,
+    "CVE-2026-107903": VulnerabilityType.XSS,
     "CVE-2026-63030": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-64638": VulnerabilityType.XSS,
     "CVE-2026-73373": VulnerabilityType.FILE_UPLOAD,
