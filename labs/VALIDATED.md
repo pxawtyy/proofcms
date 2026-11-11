@@ -79,6 +79,7 @@ Dispositions:
 | CVE-2026-56290 | Page Builder CK (ambiguous 1.x/2.x/3.x range) | aggressive upload | NOT_YET_VALIDATED (needs exact PoC-confirmed archive) | — | — | — | — |
 | CVE-2026-56291 | Balbooa Forms 2.4.3.1/2.4.4.0 | aggressive upload (forced) | PATCHED (both; source already has `checkToken`) | 2.4.0 BLOCKED_EXTERNAL (no archive) | — | — | — |
 | CVE-2026-56292 | — | safe SQLi | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-61424 | DJ-Classifieds 3.11.1 (bundle with installable inner package) on Joomla 5.2.3/PHP 8.3 | safe unauthenticated valid-GIF marker upload via imageupload task + public read-back from tmp/djupload/ | CONFIRMED (VULNERABLE_UPLOAD_ONLY; served as image/gif, execution server-dependent; no executable content uploaded) | 3.11.2 NOT_CONFIRMED (Session::checkToken gate; nothing stored, no upload dir created) | `labs/cve-2026-61424` | 2026-11-11 | `0d7a693` |
 | CVE-2026-57827 | RSFiles 1.16.29 | aggressive session-warmed upload + RCE | CONFIRMED | 1.17.12 BLOCKED_EXTERNAL (no archive) | `labs/cve-2026-57827` | 2026-11-09 | `12814af` |
 | CVE-2026-57829 | Helix Ultimate 1.1.4 (installer package) on Joomla 3.10/PHP 7.4 | safe saveMegaMenuSettings reachability check (no write payload by design) | BLOCKED_EXTERNAL (dispatcher responds; stored-XSS write intentionally not tested) | — (same stack; write path out of scope for the safe probe) | `labs/cve-2026-57830` (shared Helix Ultimate lab) | 2026-11-10 | `e6eb998` |
 | CVE-2026-57830 | Helix Ultimate 1.1.4 (installer package) on Joomla 3.10/PHP 7.4 | safe read-only media listing via helix=ultimate AJAX endpoint + nonexistent-action control differential (+ webroot-boundary check) | CONFIRMED (VULNERABLE) | j3-security-v1.0.0 NOT_CONFIRMED (admin+CSRF-gated AJAX; no listing signature) | `labs/cve-2026-57830` | 2026-11-10 | `e6eb998` |
@@ -93,7 +94,7 @@ Dispositions:
 | CVE | Note |
 |---|---|
 | CVE-2025-26854 (Articles Good Search) | BLOCKED_EXTERNAL: needs 1.2.4.0011 package. |
-| CVE-2026-61424 (DJ-Classifieds) | BLOCKED_EXTERNAL: local `dj_classifieds_3.11` archive is data exports only, not an installable extension; needs complete 3.11.1. |
+| CVE-2026-61424 (DJ-Classifieds) | Validated via active safe probe; see Joomla active-probes table (`labs/cve-2026-61424`). |
 | CVE-2026-92222 (core SSRF) | No active proof: JSST advisory names no endpoint/parameter and 5.4.8→5.4.9 shows broad hardening; CVE requires high privileges. |
 | PROOFCMS-K2-REGISTRATION-AVATAR | Companion surface probe (no CVE): reports the public K2 registration avatar upload surface used by CVE-2019-19576/19634. Passive detection only — needs Joomla + K2 with public registration enabled. |
 
