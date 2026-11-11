@@ -79,7 +79,8 @@ control where a fixed release exists). Record both runs in the README.
 | 9220 | `labs/cve-2026-56290` | Joomla 5.2.3 + Page Builder CK 3.5.4 lab |
 | 9220 | `labs/cve-2026-56291` | Joomla 5.2.3 + Balbooa Forms 2.4.0 lab |
 | 9220 | `labs/cve-2026-61424` | Joomla 5.2.3 + DJ-Classifieds 3.11.1 lab |
-| 9220 | `labs/cve-2026-92222` | Joomla 5.4.8 + newsfeeds SSRF lab (:9220 reused across labs; run one at a time) |
+| 9220 | `labs/cve-2026-92222` | Joomla 5.4.8 + newsfeeds SSRF lab |
+| 9220 | `labs/cve-2026-92227` | Joomla 5.4.8 + MFA remember-me lab (:9220 reused across labs; run one at a time) |
 | 9226 | `labs/cve-2026-73373` | Joomla 5.4.7 + Convert Forms 5.0.4 SHTML lab |
 
 ## Minimal README skeleton
