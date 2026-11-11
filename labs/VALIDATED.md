@@ -87,6 +87,7 @@ Dispositions:
 | CVE-2026-73373 | Joomla 5.4.7/PHP 8.3 + Convert Forms 5.0.4 upload field (images + shtml/shtm, allow_unsafe=0) + SSI for tmp/ | safe SHTML upload via Convert Forms, read-back check | CONFIRMED (VULNERABLE_UPLOAD_ONLY; #exec blocked in this container, #echo/#printenv run — execution is server-dependent per the advisory) | 5.4.8 PATCHED (version-gated) + behavioral: same-form .shtml rejected HTTP 500, nothing stored | `labs/cve-2026-73373` | 2026-11-10 | `22ee8f7` |
 | CVE-2026-78079 | Helix Ultimate 1.0-2.2.9 archives retained | safe open redirect | NOT_YET_VALIDATED | — | — | — | — |
 | CVE-2026-90915 | Joomla 5.4.8 | aggressive canary directory deletion via cache purge | CONFIRMED | 5.4.9 NOT_CONFIRMED (HTTP 500, canary intact) | `labs/cve-2026-90915` | 2026-11-09 | `12814af` |
+| CVE-2026-92222 | Joomla 5.4.8/PHP 8.3 + published public newsfeed with `file://` marker link + internal gopher listener | safe guest crawl: stored non-http(s) feed link + rendered retrieved items (server-side file read) | CONFIRMED (VULNERABLE; marker rendered) | 5.4.9 NOT_CONFIRMED ("Invalid field: Link", nothing stored; also PATCHED version-gated) + behavioral gopher differential | `labs/cve-2026-92222` | 2026-11-11 | `655f9f3` |
 | CVE-2026-94132 | — | safe mailbox attachment RCE vector | NOT_YET_VALIDATED | — | — | — | — |
 
 ## Joomla — passive-only (out of contract scope; tracked for sourcing)
@@ -95,7 +96,7 @@ Dispositions:
 |---|---|
 | CVE-2025-26854 (Articles Good Search) | BLOCKED_EXTERNAL: needs 1.2.4.0011 package. |
 | CVE-2026-61424 (DJ-Classifieds) | Validated via active safe probe; see Joomla active-probes table (`labs/cve-2026-61424`). |
-| CVE-2026-92222 (core SSRF) | No active proof: JSST advisory names no endpoint/parameter and 5.4.8→5.4.9 shows broad hardening; CVE requires high privileges. |
+| CVE-2026-92222 (core SSRF) | Resolved via active safe probe; see Joomla active-probes table (`labs/cve-2026-92222`). |
 | PROOFCMS-K2-REGISTRATION-AVATAR | Companion surface probe (no CVE): reports the public K2 registration avatar upload surface used by CVE-2019-19576/19634. Passive detection only — needs Joomla + K2 with public registration enabled. |
 
 ## Generic web libraries — active probes
