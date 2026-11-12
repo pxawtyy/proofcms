@@ -71,6 +71,7 @@ fixed release is ideal for differential testing.
 | CVE-2026-92227 | Joomla 4.0.0-5.4.8 and 6.0.0-6.1.3 (PR:N/AT:P) | 5.4.8 (vuln, same digest as above) + 5.4.9 control (same digest as above) | Victim user + TOTP MFA record + com_users silent-login options seeded via SQL; cookie plugin on by default. Probe needs victim creds via --aggressive-arg. |
 | CVE-2026-48897 | Joomla 4.0.0-5.4.5 and 6.0.0-6.1.0 | 5.4.5 (vuln, `joomla:5.4.5-php8.3-apache@sha256:d1ab9e1b…`) + 5.4.8 control (same digest as above) | TOTP-enrolled victim + a no-MFA account. Probe logs in as the no-MFA user (sets `mfa_checked=1`), then as the victim in the same session with `remember=0`. |
 | CVE-2026-90907 | Joomla 1.5.0-5.4.8 and 6.0.0-6.1.3 | 5.4.8 (vuln, `joomla:5.4.8-php8.3-apache@sha256:ce0c0ee3…`) + 5.4.9 control (same digest as above) | Registration off and `change_login_name=1`; probe posts `profile.save` as a guest and reads the created `user_id` from the redirect. |
+| CVE-2025-25227 | Joomla 4.0.0-4.4.12 and 5.0.0-5.2.5 | 5.2.5 (vuln, `joomla:5.2.5-php8.3-apache@sha256:1b059a09…`) + 5.2.6 control (`joomla:5.2.6-php8.3-apache@sha256:de29819c…`) | TOTP-enrolled victim; probe logs in with the password and requests `task=method.add`. |
 
 Old Joomla releases should use dedicated images rather than forcing incompatible versions into one shared image.
 

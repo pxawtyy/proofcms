@@ -59,6 +59,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9220 | `labs/cve-2026-61425` | Joomla 5.2.3 + Gridbox 2.20.0.2 (shared Gridbox CVE lab; :9220 reused across labs) |
 | 9220 | `labs/cve-2026-48897` | Joomla 5.4.5 + stale MFA state lab |
 | 9220 | `labs/cve-2026-90907` | Joomla 5.4.8 guest profile.save lab |
+| 9220 | `labs/cve-2025-25227` | Joomla 5.2.5 MFA method-add lab |
 | 8101 | `labs/cve-2026-48908` | Joomla 5.4.9 + SP Page Builder 6.0.0 |
 | 8102 | `labs/cve-2026-57827` | Joomla 3.9 + RSFiles 1.16.29 |
 | 8103 | (temporary) RSFiles 1.17.12 control | Same Joomla 3.9 stack; torn down after run |
