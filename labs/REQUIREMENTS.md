@@ -26,7 +26,8 @@ sample configuration as a baseline, then document every web-server override sepa
 | CVE-2026-60137 | 6.8.0-6.8.5, 6.9.0-6.9.4, 7.0.0-7.0.1 | 6.9.4 | Keep 6.8.5 or 7.0.1 too if branch-specific regression coverage is desired |
 | CVE-2026-63030 | 6.9.0-6.9.4, 7.0.0-7.0.1 | 7.0.1 (vuln, shared `labs/cve-2026-60137` image) + 7.0.2 control (`wordpress:7.0.2-php8.3-apache@sha256:62bce9e6…`, temp :8090 stack) | Nested batch request must reach the SQL timing sink; 7.0.2 answers the batch route but the timing differential is flat |
 | CVE-2026-87902 | affected branch releases from 4.7.0 through 7.1.1 | 6.8.3 fixture already used | Requires a theme/page-template layout satisfying the vulnerable path; keep the working theme and database seed |
-| CVE-2024-4439 | 6.0.x–6.5.1 branch backports (Avatar block XSS) | none (version detection only) | Passive advisory; the PoC is recorded as metadata but never sent automatically |
+| CVE-2026-64638 | 4.7.0 through the branch-specific releases fixed in 4.7.34-7.0.3 | 7.0.2 (vuln, `wordpress:7.0.2-php8.3-apache`) + 7.0.3 control (`wordpress:7.0.3-php8.3-apache`), `labs/cve-2026-64638` | Inert `< area>` parser-differential marker posted to `/wp-login.php`; 7.0.2 normalizes it to a raw `<area>`, 7.0.3 escapes it. |
+| CVE-2024-4439 | 6.0.x-6.5.1 branch backports (Avatar block XSS) | none (version detection only) | Passive advisory; the PoC is recorded as metadata but never sent automatically |
 | WPVDB-df1ca42d / aa354358 / 5e9804e5 | branch-specific WPScan ranges (comment XSS, object injection) | none (version detection only) | WPScan IDs with no CVE; passive advisory, no fixture |
 
 ## WordPress plugins
