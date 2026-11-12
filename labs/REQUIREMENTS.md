@@ -76,6 +76,7 @@ fixed release is ideal for differential testing.
 | CVE-2026-90907 | Joomla 1.5.0-5.4.8 and 6.0.0-6.1.3 | 5.4.8 (vuln, `joomla:5.4.8-php8.3-apache@sha256:ce0c0ee3…`) + 5.4.9 control (same digest as above) | Registration off and `change_login_name=1`; probe posts `profile.save` as a guest and reads the created `user_id` from the redirect. |
 | CVE-2025-25227 | Joomla 4.0.0-4.4.12 and 5.0.0-5.2.5 | 5.2.5 (vuln, `joomla:5.2.5-php8.3-apache@sha256:1b059a09…`) + 5.2.6 control (`joomla:5.2.6-php8.3-apache@sha256:de29819c…`) | TOTP-enrolled victim; probe logs in with the password and requests `task=method.add`. |
 | CVE-2026-72531 | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2 | 5.4.7 (vuln, `joomla:5.4.7-php8.3-apache@sha256:63a884c5…`) + 5.4.8 control | Author API token + `core.login.api`; passive-only (the field-creation POST body shape is still pending). |
+| CVE-2026-71573 | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2 | 5.4.7 (vuln, same digest as above) + 5.4.8 control | CORS enabled with a non-wildcard whitelist in `configuration.php` + an admin API token; probe reflects an untrusted Origin on an authenticated GET. |
 | CVE-2017-14596 | Joomla before 3.8.0 | none (needs an LDAP server fixture) | LDAP authentication plugin; passive-only version/code-path check. |
 
 Old Joomla releases should use dedicated images rather than forcing incompatible versions into one shared image.

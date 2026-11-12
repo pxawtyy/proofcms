@@ -61,6 +61,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9220 | `labs/cve-2026-90907` | Joomla 5.4.8 guest profile.save lab |
 | 9220 | `labs/cve-2025-25227` | Joomla 5.2.5 MFA method-add lab |
 | 9220 | `labs/cve-2026-72531` | Joomla 5.4.7 com_fields API ACL lab |
+| 9220 | `labs/cve-2026-71573` | Joomla 5.4.7 CORS origin lab |
 | 8101 | `labs/cve-2026-48908` | Joomla 5.4.9 + SP Page Builder 6.0.0 |
 | 8102 | `labs/cve-2026-57827` | Joomla 3.9 + RSFiles 1.16.29 |
 | 8103 | (temporary) RSFiles 1.17.12 control | Same Joomla 3.9 stack; torn down after run |
