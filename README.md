@@ -201,7 +201,9 @@ differential allows it:
 | `CVE-2026-57829` | Helix Ultimate unauthenticated stored XSS | 1.0–2.2.6 | `safe` precondition probe |
 | `CVE-2026-102426` | SP Page Builder Dynamic Content Filter reflected XSS | 3.0.0–5.6.1p2 | `safe` marker probe |
 | `CVE-2026-61424` | DJ-Classifieds arbitrary file upload | Before 3.11.2 | passive |
-| `CVE-2026-73373` | Joomla core SHTML upload | 1.0.0–5.4.7 and 6.0.0–6.1.2 | `safe` |
+| `CVE-2026-71573` | Joomla core CORS origin validation | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2; CORS enabled | `safe` preflight + credentialed reflection check |
+| `CVE-2026-72531` | Joomla core `com_fields` API ACL | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2 | `aggressive` field creation |
+| `CVE-2026-73373` | Joomla core SHTML upload | 1.0.0-5.4.7 and 6.0.0-6.1.2 | `safe` |
 | `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
 | `CVE-2026-90915` | Joomla cache purge | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3 | passive |
 | `CVE-2026-92222` | Joomla core extensions SSRF | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3; PR:H required | passive (not confirmed without high-privilege evidence) |
@@ -221,7 +223,7 @@ differential allows it:
 | `CVE-2026-63030` | WordPress core | 6.9.0–6.9.4 and 7.0.0–7.0.1 | `safe` |
 | `CVE-2026-87902` | WordPress core | Branch-specific ranges from 4.7.0 through 7.1.1 | `safe` |
 | `CVE-2024-4439` | WordPress core Avatar block stored XSS | 6.0.x–6.5.1 (branch-specific backports) | passive advisory + documented PoC |
-| `CVE-2026-64638` | WordPress core login reflected XSS | 4.7.x–7.0.2 (branch-specific backports) | passive advisory |
+| `CVE-2026-64638` | WordPress core login reflected XSS | 4.7.x-7.0.2 (branch-specific backports) | `safe` parser-differential reflection |
 | `WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77` | WordPress core comment-moderation stored XSS | branch-specific WPScan ranges | passive advisory |
 | `WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa` | WordPress core comment stored XSS | branch-specific WPScan ranges | passive advisory |
 | `WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225` | WordPress core insecure deserialization | branch-specific WPScan ranges | passive advisory |
