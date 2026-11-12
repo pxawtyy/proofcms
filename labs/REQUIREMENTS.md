@@ -63,6 +63,9 @@ fixed release is ideal for differential testing.
 |---|---:|---:|---|
 | CVE-2010-4166 | Joomla 1.5.x through 1.5.21 | 1.5.21 (vuln, retained `Joomla_1.5.21-Stable-Full_Package.zip`) + 1.5.22 control (official full package, MD5 `71e57ac6fd588e4ac737a10e726f81e9`, retained) | Period stack: php:5.6-apache (ext/mysql+mysqli) + mysql:5.5; `com_weblinks` enabled via sample data (category id=2). Note: remote detector reads 1.5.15 from stale en-GB.xml; version.php is authoritative (1.5.21). |
 | CVE-2015-8562 | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | 3.4.4 (`joomla_3.4.4_full.zip`, vendor download) + PHP 5.6.27 via joomla:3.6.3-apache image | Historical PHP session behavior matters; assert(string) must execute (PHP 5.x). See labs/cve-2015-8562/README.md for the Apache-NUL delivery analysis |
+| CVE-2015-7297 | Joomla 3.2.0 through 3.4.4 | 3.4.4 (`joomla_3.4.4_full.zip`) + 3.4.5 control (`joomla_3.4.5_full.zip`), same PHP 5.6 runtime as CVE-2015-8562 | Unauthenticated `com_contenthistory` front-end route; advisory 20151001 also covers 7857/7858 |
+| CVE-2015-7857 | Joomla 3.2.0 through 3.4.4 | 3.4.4 + 3.4.5 control (same archives) | Same `list[select]` sink; safe unknown-column differential |
+| CVE-2015-7858 | Joomla 3.2.0 through 3.4.4 | 3.4.4 + 3.4.5 control (same archives) | Same sink; POST subquery-against-missing-table differential |
 | CVE-2017-8917 | Joomla 3.7.0 | 3.7.0 | Core `com_fields` present |
 | CVE-2018-15882 | before Joomla 3.8.12 | 3.8.11 | Upload surface and PHP PHAR support/configuration required for full reproduction |
 | CVE-2018-6376 | 3.7.0 through 3.8.3 | 3.8.3 (vuln, archive-built PHP 7.1) + 3.8.11 control (official `joomla:3.8.11-apache` image) | Manager backend account; stock schema already carries the Hathor postinstall message (extension_id 700). Probe stores `admin_style[0]` via the profile form, then times the dashboard. |

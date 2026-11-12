@@ -2,7 +2,9 @@
 
 from . import (
     cve_2010_4166,
+    cve_2015_7297,
     cve_2015_7857,
+    cve_2015_7858,
     cve_2015_8562,
     cve_2016_8869,
     cve_2016_8870,
@@ -56,7 +58,9 @@ from . import (
 
 AVAILABLE_CVES: dict[str, str] = {
     "CVE-2010-4166": "proofcms.modules.joomla.cve_2010_4166",
+    "CVE-2015-7297": "proofcms.modules.joomla.cve_2015_7297",
     "CVE-2015-7857": "proofcms.modules.joomla.cve_2015_7857",
+    "CVE-2015-7858": "proofcms.modules.joomla.cve_2015_7858",
     "CVE-2015-8562": "proofcms.modules.joomla.cve_2015_8562",
     "CVE-2016-8869": "proofcms.modules.joomla.cve_2016_8869",
     "CVE-2016-8870": "proofcms.modules.joomla.cve_2016_8870",
@@ -111,7 +115,9 @@ AVAILABLE_CVES: dict[str, str] = {
 __all__ = [
     "AVAILABLE_CVES",
     "cve_2010_4166",
+    "cve_2015_7297",
     "cve_2015_7857",
+    "cve_2015_7858",
     "cve_2015_8562",
     "cve_2016_8869",
     "cve_2016_8870",

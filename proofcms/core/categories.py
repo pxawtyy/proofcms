@@ -29,6 +29,9 @@ class VulnerabilityType:
 
 _CVE_TYPES = {
     "CVE-2015-8562": VulnerabilityType.OBJECT_INJECTION,
+    "CVE-2015-7297": VulnerabilityType.SQL_INJECTION,
+    "CVE-2015-7857": VulnerabilityType.SQL_INJECTION,
+    "CVE-2015-7858": VulnerabilityType.SQL_INJECTION,
     "CVE-2016-8869": VulnerabilityType.PRIVILEGE_ESCALATION,
     "CVE-2016-8870": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2019-19576": VulnerabilityType.FILE_UPLOAD,

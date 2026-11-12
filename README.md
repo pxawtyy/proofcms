@@ -180,7 +180,9 @@ differential allows it:
 | `CVE-2024-6220` | Keydatas | Through 2.5.2 | passive |
 | `CVE-2010-4166` | Joomla `com_weblinks` | Joomla 1.5.x through 1.5.21 | `safe` |
 | `CVE-2015-8562` | Joomla core | Joomla 1.5.x, 2.x, and 3.x before 3.4.6 | `aggressive` |
-| `CVE-2015-7857` | Joomla core content history | Joomla 3.2.0–3.4.4 | `safe` SQL-error differential |
+| `CVE-2015-7297` | Joomla core content history | Joomla 3.2.0-3.4.4 | `safe` error-based differential |
+| `CVE-2015-7857` | Joomla core content history | Joomla 3.2.0-3.4.4 | `safe` SQL-error differential |
+| `CVE-2015-7858` | Joomla core content history | Joomla 3.2.0-3.4.4 | `safe` POST subquery differential |
 | `CVE-2016-8869` | Joomla registration privileges | Joomla 3.4.4–3.6.3 | `aggressive` account creation |
 | `CVE-2016-8870` | Joomla disabled-registration account creation | Joomla 3.4.4–3.6.3 | `aggressive` account creation |
 | `CVE-2017-8917` | Joomla core `com_fields` | Joomla 3.7.0 | passive |
