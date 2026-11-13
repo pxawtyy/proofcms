@@ -5,7 +5,7 @@
 Never commit target-identifying data to this public repository:
 
 - hostnames, subdomains, or IP addresses of scanned systems
-- government/education domains (for example, a `*.gov.br` or `*.edu.br` host)
+- government/education domains
 - target codenames or report-directory names derived from a target
 - vendor build IDs or exact stack versions tied to one deployment
 
