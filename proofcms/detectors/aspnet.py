@@ -36,6 +36,7 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     client = HttpClient(base_url=application_base, timeout=timeout, proxy=proxy)
     response = client.get("/")
     responses = [response]
+    selected_path = "/"
     root_body = str(response.get("body", ""))[:512_000]
     candidate_paths: list[str] = []
     for match in re.finditer(r"(?:href|src)\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE):
@@ -77,6 +78,7 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
             or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", candidate_body, re.IGNORECASE)
         ):
             response = candidate_response
+            selected_path = path
             break
     headers = _headers(response)
     body = str(response.get("body", ""))[:512_000]
@@ -98,12 +100,13 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     powered_by_aspnet = "asp.net" in headers.get("x-powered-by", "").lower()
     detected = bool(asp_version or powered_by_aspnet or session_cookie or (server and "asp.net" in server.lower()))
     sources = []
+    source_prefix = selected_path if selected_path.startswith("/") else f"/{selected_path}"
     if asp_version:
-        sources.append("/:X-AspNet-Version")
+        sources.append(f"{source_prefix}:X-AspNet-Version")
     if powered_by_aspnet:
-        sources.append("/:X-Powered-By")
+        sources.append(f"{source_prefix}:X-Powered-By")
     if session_cookie:
-        sources.append("/:Set-Cookie")
+        sources.append(f"{source_prefix}:Set-Cookie")
     generator_match = _GENERATOR.search(fingerprint_body)
     version_match = _VERSION_META.search(fingerprint_body)
     comment_match = _GENERATOR_COMMENT.search(fingerprint_body)
@@ -124,9 +127,9 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     dbms = dbms_match.group(1).lower() if dbms_match else None
     gx_sources = []
     if generator or comment_match:
-        gx_sources.append("/:html")
+        gx_sources.append(f"{source_prefix}:html")
     if re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", fingerprint_body, re.IGNORECASE):
-        gx_sources.append("/:GeneXus-assets")
+        gx_sources.append(f"{source_prefix}:GeneXus-assets")
     return AspNetRuntimeInfo(
         detected=detected,
         version=asp_version,

@@ -36,6 +36,22 @@ def legacy_passive(
             vulnerability_type=vulnerability_type,
         )
     version = runtime.get("version")
+    if not version:
+        return Finding(
+            cve=cve,
+            name=name,
+            status=Status.INCONCLUSIVE,
+            confidence=Confidence.MEDIUM,
+            component="ASP.NET/.NET Framework",
+            affected_rule=rule,
+            exploit_available=False,
+            detail=(
+                "ASP.NET was detected, but the runtime version was not exposed in public responses; "
+                "the .NET Framework branch cannot be established from headers alone."
+            ),
+            action=remediation,
+            vulnerability_type=vulnerability_type,
+        )
     if is_netfx2(runtime):
         return Finding(
             cve=cve,

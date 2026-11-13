@@ -59,3 +59,17 @@ def test_aspnet_cves_are_not_confirmed_from_header_only():
 def test_aspnet_cves_are_not_detected_without_runtime():
     result = cve_2023_36899.check("https://target.test", aspnet_runtime={})
     assert result.status == "NOT_DETECTED"
+
+
+def test_source_records_the_response_path_with_the_version_header():
+    root = {"status": 200, "headers": {}, "body": "<a href='login.aspx'>login</a>"}
+    login = {"status": 200, "headers": {"X-AspNet-Version": "2.0.50727"}, "body": "<html></html>"}
+
+    class Client:
+        def get(self, path):
+            return login if path == "login.aspx" else root
+
+    with patch("proofcms.detectors.aspnet.HttpClient", return_value=Client()):
+        info = detect_aspnet_runtime("https://target.test")
+    assert info.version == "2.0.50727"
+    assert info.source.startswith("/login.aspx:X-AspNet-Version")

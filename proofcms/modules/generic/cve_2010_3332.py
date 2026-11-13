@@ -13,7 +13,34 @@ NAME = "ASP.NET padding oracle (MS10-070)"
 RULE = "ASP.NET 1.1 SP1, 2.0 SP1/SP2, 3.5, 3.5.1, and 4.0 without MS10-070"
 TYPE = "Information Disclosure / Remote Code Execution"
 CVSS = "9.1"
-_RE = re.compile(r"""(?:ScriptResource|WebResource)\.axd\?d=([^"'&\s]+)""", re.IGNORECASE)
+_AXD = re.compile(r"""(?:ScriptResource|WebResource)\.axd\?d=([^"'&\s]+)""", re.IGNORECASE)
+_VIEWSTATE = re.compile(r"""name=["']__VIEWSTATE["']""", re.IGNORECASE)
+_SCRIPTMANAGER = re.compile(r"\bScriptManager\b", re.IGNORECASE)
+_SURFACE_PATHS = ("/", "/login.aspx", "/default.aspx", "/app.aspx", "/applogin.aspx")
+
+
+def _find_surface(client: HttpClient, timeout: int) -> dict[str, Any] | None:
+    for path in _SURFACE_PATHS:
+        page = client.get(path, timeout=timeout)
+        body = str(page.get("body") or "")
+        match = _AXD.search(body)
+        if match:
+            return {
+                "path": path,
+                "url": str(page.get("final_url") or path),
+                "match": match,
+                "viewstate": bool(_VIEWSTATE.search(body)),
+                "scriptmanager": bool(_SCRIPTMANAGER.search(body)),
+            }
+        if _VIEWSTATE.search(body) or _SCRIPTMANAGER.search(body):
+            return {
+                "path": path,
+                "url": str(page.get("final_url") or path),
+                "match": None,
+                "viewstate": bool(_VIEWSTATE.search(body)),
+                "scriptmanager": bool(_SCRIPTMANAGER.search(body)),
+            }
+    return None
 
 
 def check(
@@ -27,11 +54,12 @@ def check(
     **kwargs: Any,
 ):
     del cms_version, kwargs
+    runtime = aspnet_runtime or {}
     finding = legacy_passive(
         cve=CVE_ID,
         name=NAME,
         rule=RULE,
-        aspnet_runtime=aspnet_runtime,
+        aspnet_runtime=runtime,
         detail=(
             "If MS10-070 is not installed, the padding oracle can decrypt and forge ViewState "
             "and authentication payloads."
@@ -40,42 +68,59 @@ def check(
         vulnerability_type=TYPE,
         cvss=CVSS,
     )
-    if not run_exploit_check or finding.status != Status.LIKELY_VULNERABLE:
+    if finding.status != Status.LIKELY_VULNERABLE:
+        return finding
+
+    client = HttpClient(base_url=normalize_url(target_url), timeout=timeout, proxy=proxy)
+    surface = _find_surface(client, timeout)
+    if surface is None:
+        finding.status = Status.INCONCLUSIVE
+        finding.confidence = Confidence.HIGH
+        finding.detail += (
+            f" The 2.0.50727 header was observed at {runtime.get('source', 'an ASP.NET response')}, "
+            f"but none of {', '.join(_SURFACE_PATHS)} exposed ScriptResource/WebResource, "
+            "__VIEWSTATE, or ScriptManager. The MS10-070 oracle surface is absent, so the "
+            "version match alone does not make this endpoint exploitable."
+        )
+        return finding
+
+    finding.status = Status.LIKELY_VULNERABLE
+    finding.confidence = Confidence.HIGH
+    finding.evidence = {
+        "surface_path": surface["path"],
+        "surface_url": surface["url"],
+        "viewstate": surface["viewstate"],
+        "scriptmanager": surface["scriptmanager"],
+    }
+    if not run_exploit_check:
         return finding
     if exploit_mode != "safe":
         finding.detail += " This module supports only the safe padding-oracle differential."
         return finding
-
-    base = normalize_url(target_url)
-    client = HttpClient(timeout=timeout, proxy=proxy)
-    page = client.get("/", timeout=timeout)
-    body = str(page.get("body") or "")
-    match = _RE.search(body)
-    if not match:
+    if surface["match"] is None:
         finding.exploit_ran = True
-        finding.status = Status.LIKELY_VULNERABLE
-        finding.confidence = Confidence.HIGH
         finding.detail += (
-            " No ScriptResource/WebResource token was exposed on the landing page, so the remote "
-            "oracle differential could not be exercised; the EOL runtime remains the finding."
+            " A Web Forms surface was found, but it exposed no ScriptResource/WebResource token; "
+            "the oracle differential was not exercised."
         )
         return finding
 
-    token = match.group(1)
+    token = surface["match"].group(1)
     tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
-    path = match.group(0).split("?", 1)[0]
-    control = client.get(f"{base}/{path}?d={urllib.parse.quote(token, safe='')}", timeout=timeout)
-    probe = client.get(f"{base}/{path}?d={urllib.parse.quote(tampered, safe='')}", timeout=timeout)
-    evidence = {
-        "resource": path,
+    resource_url = urllib.parse.urljoin(surface["url"], surface["match"].group(0))
+    prefix = resource_url.split("d=", 1)[0]
+    control = client.get(f"{prefix}d={urllib.parse.quote(token, safe='')}", timeout=timeout)
+    probe = client.get(f"{prefix}d={urllib.parse.quote(tampered, safe='')}", timeout=timeout)
+    finding.exploit_ran = True
+    finding.proof_url = f"{prefix}d=<token>"
+    finding.evidence = {
+        **finding.evidence,
+        "resource": surface["match"].group(0).split("?", 1)[0],
         "control_status": control.get("status"),
         "probe_status": probe.get("status"),
         "control_hash": control.get("body_hash"),
         "probe_hash": probe.get("body_hash"),
     }
-    finding.exploit_ran = True
-    finding.proof_url = f"{base}/{path}?d=<token>"
-    finding.evidence = evidence
     if (
         control.get("status") == 200
         and probe.get("status") == 500
@@ -110,7 +155,7 @@ def metadata() -> dict[str, Any]:
         "exploit_modes": ["safe"],
         "intrusive": False,
         "vulnerability_type": TYPE,
-        "module_version": "1.0.0",
+        "module_version": "1.1.0",
         "last_reviewed": "2026-11-13",
         "updated": "2026-11-13",
         "required_detectors": ["aspnet"],
