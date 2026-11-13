@@ -129,7 +129,7 @@ Dispositions:
 |---|---|---|---|---|---|---|---|
 | CVE-2018-9206 | lab `labs/cve-2018-9206` (blueimp v9.22.0) | safe upload (inert text file, upload + readback + handler delete, no executable content) | CONFIRMED (VULNERABLE_UPLOAD_ONLY) | 9.22.1 PATCHED (version gate skips probe) | `labs/cve-2018-9206` | 2026-11-09 | `1f39981` |
 | CVE-2021-23394 | lab `labs/cve-2021-23394` (elFinder 2.1.57 vuln :9157 / 2.1.58 patched :9158) | safe inert `.phar` upload (missing PHAR MIME denial, no PHP code, cleaned via connector rm) | CONFIRMED (VULNERABLE_UPLOAD_ONLY) | 2.1.58 PATCHED (version gate skips probe) | `labs/cve-2021-23394` | 2026-11-09 | `65d091d` |
-| CVE-2026-111497 | — | safe node2shell | NOT_YET_VALIDATED | — | — | — | — |
+| CVE-2026-111497 | Node.js 24.22.0 (vuln) + 24.22.1 control (`labs/cve-2026-111497`) | safe malformed block-switch vector; decoder error-code differential | CONFIRMED (VULNERABLE; `BLOCK_LENGTH_1` marker on 24.22.0) | 24.22.1 PATCHED (version gate) + behavioral `BLOCK_SWITCH` marker | `labs/cve-2026-111497` | 2026-11-13 | `TODO` |
 | CVE-2026-81891 | lab `labs/cve-2026-81891` (elFinder 2.1.69/2.1.70) | safe text-only `.phtml` differential (direct upload must fail, ZIP extraction tested) | CONFIRMED (VULNERABLE_UPLOAD_ONLY; inert marker file) | 2.1.70 PATCHED (version gate skips probe) | `labs/cve-2026-81891` | 2026-11-09 | `656b3c4` |
 
 ## Generic web libraries — passive-only (version/config detection; no active proof)

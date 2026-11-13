@@ -129,6 +129,12 @@ inner `pkg_djclassifieds_3.11.1.zip`) and the 3.11.2 extracted tree
 (`djclassifieds_3.11.2/`, 22 entries with the package manifest) are retained
 for CVE-2026-61424 (see the active-probes table).
 
+## Node.js runtime labs
+
+| CVE | Component | Affected range | Recommended fixture | Notes |
+|---|---|---:|---:|---|
+| CVE-2026-111497 | Node.js bundled Brotli decoder | 22.x <22.23.4, 24.x <24.22.1, 26.x <26.12.1; EOL lines | 24.22.0 (vuln, `node:24.22.0`) + 24.22.1 control (`node:24.22.1`), `labs/cve-2026-111497` | Safe malformed block-switch vector; vulnerable reports `BLOCK_LENGTH_1`, patched reports `BLOCK_SWITCH`. No OOB/RCE stream is sent. |
+
 ## PHP runtime labs
 
 | CVE | Runtime required | Recommended fixture | Host/configuration requirements |

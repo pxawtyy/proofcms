@@ -15,6 +15,11 @@ TYPE = "Remote Code Execution"
 # harmless marker and is deliberately unrelated to the public crash/RCE payload.
 _VALID_BROTLI = bytes.fromhex("8b0c8050726f6f66434d5320736166652042726f746c692070726f626503")
 
+# A safe malformed block-switch vector from the public detection work.  It is
+# not the OOB/RCE stream: vulnerable decoders report BLOCK_LENGTH_1, patched
+# decoders report BLOCK_SWITCH, and no crash payload is sent.
+_BLOCK_SWITCH_VECTOR = bytes.fromhex("200010414141fcffff07002228f00b60f7f41f000000")
+
 
 def classify_version(version: str | None) -> str:
     value = parse_version_safe(version)
@@ -33,7 +38,12 @@ def classify_version(version: str | None) -> str:
 
 
 def safe_brotli_probe(target_url: str, timeout: int, proxy: str | None) -> dict[str, Any]:
-    """Send valid and truncated tiny Brotli bodies; never sends the exploit stream."""
+    """Send a valid control and a safe malformed block-switch vector.
+
+    The malformed vector never reaches the OOB write: it only makes the
+    decoder report a format error. Vulnerable builds report
+    ``BLOCK_LENGTH_1``; patched builds report ``BLOCK_SWITCH``.
+    """
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
     headers = {
         "Content-Type": "application/octet-stream",
@@ -41,18 +51,24 @@ def safe_brotli_probe(target_url: str, timeout: int, proxy: str | None) -> dict[
         "X-ProofCMS-Probe": "node2shell-safe",
     }
     valid = client.post("/", data=_VALID_BROTLI, headers=headers, timeout=timeout)
-    truncated = client.post("/", data=_VALID_BROTLI[:-1], headers=headers, timeout=timeout)
+    block_switch = client.post("/", data=_BLOCK_SWITCH_VECTOR, headers=headers, timeout=timeout)
     valid_status = int(valid.get("status") or 0)
-    truncated_status = int(truncated.get("status") or 0)
+    block_switch_status = int(block_switch.get("status") or 0)
+    body = str(block_switch.get("body") or "")
+    body_lower = body.lower()
+    vulnerable_marker = "block_length_1" in body_lower
+    patched_marker = "block_switch" in body_lower
     return {
         "path": "/",
         "valid_status": valid_status,
-        "truncated_status": truncated_status,
+        "block_switch_status": block_switch_status,
         "valid_body_hash": valid.get("body_hash"),
-        "truncated_body_hash": truncated.get("body_hash"),
+        "block_switch_body_hash": block_switch.get("body_hash"),
         "valid_error": valid.get("error"),
-        "truncated_error": truncated.get("error"),
-        "differential": bool(valid_status > 0 and truncated_status > 0 and valid_status != truncated_status),
+        "block_switch_error": block_switch.get("error"),
+        "vulnerable_marker": vulnerable_marker,
+        "patched_marker": patched_marker,
+        "differential": bool(valid_status > 0 and block_switch_status > 0 and valid_status != block_switch_status),
     }
 
 
@@ -136,25 +152,43 @@ def check(
     if run_exploit_check:
         probe = safe_brotli_probe(target_url, timeout, proxy)
         evidence.update(probe, safe_probe=True)
-        if probe["differential"]:
+        if probe["vulnerable_marker"] and not probe["patched_marker"]:
+            result_status = Status.VULNERABLE
+            confidence = Confidence.CONFIRMED
+            detail = (
+                "The target's Brotli decoder returned the pre-patch BLOCK_LENGTH_1 error for the safe "
+                "block-switch vector; the patched decoder returns BLOCK_SWITCH. This confirms the vulnerable "
+                "decoder build. No crash or RCE payload was sent."
+            )
+        elif probe["patched_marker"]:
+            result_status = Status.PATCHED
+            confidence = Confidence.HIGH
+            detail = (
+                "The target's Brotli decoder returned the patched BLOCK_SWITCH error for the safe "
+                "block-switch vector, so the fixed decoder is present."
+            )
+        elif probe["differential"]:
             if version_status == Status.DETECTED_VERSION_UNKNOWN:
                 result_status = Status.INCONCLUSIVE
                 confidence = Confidence.MEDIUM
                 detail = (
-                    "A Node.js-like runtime was detected and valid versus truncated Brotli request bodies produced "
-                    "different responses, indicating a decompression path; the runtime version is unknown, so the "
-                    "CVE cannot be confirmed from public evidence."
+                    "A Node.js-like runtime was detected and valid versus malformed Brotli request bodies "
+                    "produced different responses, indicating a decompression path; the runtime version is "
+                    "unknown, so the CVE cannot be confirmed from public evidence."
                 )
             else:
                 result_status = Status.LIKELY_VULNERABLE
                 confidence = Confidence.HIGH
                 detail = (
-                    f"Node.js {version} is in the affected range and the safe valid/truncated Brotli differential "
-                    "indicates that this endpoint processes attacker-controlled Brotli request bodies. No crash or "
-                    "RCE payload was sent."
+                    f"Node.js {version} is in the affected range and the safe valid/malformed Brotli "
+                    "differential indicates that this endpoint processes attacker-controlled Brotli request "
+                    "bodies. No crash or RCE payload was sent."
                 )
         else:
-            detail += " The safe valid/truncated Brotli differential did not establish request-body decompression."
+            detail += (
+                " The safe block-switch differential did not expose a decoder error code; the endpoint may not "
+                "return Brotli errors in its response body."
+            )
 
     return Finding(
         CVE_ID,
