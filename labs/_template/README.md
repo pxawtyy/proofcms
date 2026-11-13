@@ -89,6 +89,8 @@ control where a fixed release exists). Record both runs in the README.
 | 9229 | `labs/cve-2024-27956` | WordPress 6.4.3 + WP Automatic 3.92.0 lab |
 | 9230 | `labs/cve-2024-1071` | WordPress 6.4.3 + Ultimate Member 2.8.2 lab |
 | 9231 | `labs/cve-2024-1071` | Ultimate Member 2.8.3 patched control |
+| 9232 | `labs/cve-2023-28121` | WordPress 6.4.3 + WooPayments 5.6.1 lab |
+| 9233 | `labs/cve-2023-28121` | WooPayments 5.6.2 patched control |
 | 9208 | `labs/cve-2025-55315` | ASP.NET Core 8.0.20 vulnerable Kestrel lab |
 | 9209 | `labs/cve-2025-55315` | ASP.NET Core 8.0.21 patched control |
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |

@@ -30,11 +30,11 @@ Dispositions:
 |---|---|---|---|---|---|---|
 | CVE-2020-25213 | WP File Manager 6.0 | aggressive elFinder upload + PHP execution, `rm` cleanup | CONFIRMED | — | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
 | CVE-2020-35489 | Contact Form 7 5.3.1 | aggressive control-char filename bypass | CONFIRMED (VULNERABLE_UPLOAD_ONLY; 5.3.2 sanitizes the saved name, so the probe is version-gated, not a standalone patch discriminator) | — | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
-| CVE-2023-28121 | — | safe auth bypass | NOT_YET_VALIDATED | — | — | — |
 | CVE-2023-32243 | Essential Addons Lite 5.7.1 + Pro 5.6.2 | aggressive admin password reset + login (destructive; restore password after run) | CONFIRMED | — | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
 | CVE-2023-3460 | Ultimate Member 2.6.6 | aggressive privileged registration | CONFIRMED | — | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
 | CVE-2024-10402 | — | safe probe blocked by design (needs Contributor session) | BLOCKED_EXTERNAL (credentialed session required) | — | — | — |
 | CVE-2024-10924 | Really Simple Security 9.1.1.1 | safe 2FA skip-onboarding bypass | CONFIRMED | 9.1.1.2 NOT_CONFIRMED | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
+| CVE-2023-28121 | WooPayments 5.6.1 + WooCommerce 8.6.1 (`labs/cve-2023-28121`) | safe `X-WCPAY-PLATFORM-CHECKOUT-USER: 1` on `/wp-json/wp/v2/users/me?context=edit` | CONFIRMED (read-only REST request authenticated as user ID 1) | 5.6.2 PATCHED (version gate; safe probe skipped) | `labs/cve-2023-28121` | 2026-11-13 |
 | CVE-2024-1071 | Ultimate Member 2.8.2 | safe `um_get_members` `sorting=user_login,SLEEP(4)` timing differential | CONFIRMED (control 0.05s vs proof 4.03s; total_users=1) | 2.8.3 PATCHED (same request no sleep with total_users=1) | `labs/cve-2024-1071` | 2026-11-13 |
 | CVE-2024-28000 | LiteSpeed Cache 6.3.0.1 | aggressive hash/seed recovery + admin impersonation (Apache) | CONFIRMED | OLS-side impersonation BLOCKED_EXTERNAL (image WAF 403s any request with the `litespeed_role` cookie) | `labs/wordpress-plugin-fixtures` | 2026-11-08 |
 | CVE-2026-1357 | WPvivid 0.9.123 on WordPress 6.5/PHP 8.1 | safe null-key send_to_site chunk (AES-CBC null key + unsanitized traversal name) + public read-back from uploads/ | CONFIRMED (VULNERABLE_UPLOAD_ONLY; marker stored + read back) | 0.9.124 NOT_CONFIRMED ("The key is invalid.", nothing stored; also PATCHED version-gated) | `labs/cve-2026-1357` | 2026-11-11 |
