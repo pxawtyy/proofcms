@@ -161,7 +161,8 @@ differential allows it:
 |---|---|---|---|
 | `CVE-2012-1823` | PHP-CGI runtime | Before 5.3.13 and 5.4.0–5.4.2 | `safe` |
 | `CVE-2019-11043` | PHP-FPM with Nginx | Affected PHP 7.1–7.3 branches with vulnerable PATH_INFO configuration | passive |
-| `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1–8.3 releases | `safe` |
+| `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1-8.3 releases | `safe` |
+| `CVE-2024-8929` | PHP mysqlnd heap over-read | 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 (and EOL branches) | passive version check + lab PoC |
 | `CVE-2018-9206` | Blueimp jQuery File Upload sample handler | Through 9.22.0 with public PHP handler | `safe` |
 | `CVE-2021-23394` | elFinder | Before 2.1.58 | `safe` |
 | `CVE-2026-81891` | elFinder ZIP extraction | Before 2.1.70 | `safe` |
