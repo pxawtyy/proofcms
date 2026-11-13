@@ -50,6 +50,7 @@ def test_sqli_safe_probe_confirms_only_constant_json_differential():
             pass
 
         def get(self, url, timeout=12):
+            assert "join=" in url
             if "UNION" in url:
                 return {
                     "status": 200,
