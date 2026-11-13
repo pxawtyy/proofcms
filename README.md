@@ -173,6 +173,7 @@ differential allows it:
 | `CVE-2024-58288` | GeneXus Protection Server unquoted service path | 9.7.2.10 (Windows) | passive (Windows local service) |
 | `CVE-2025-55315` | ASP.NET Core Kestrel request smuggling | 2.3 <2.3.6, 8.0 <8.0.21, 9.0 <9.0.10 | `safe` chunk-extension differential |
 | `CVE-2026-102870` | ASP.NET Core Blazor WebAssembly debugger code injection | 10.0.0-10.0.12, 11.0.0-preview | passive (debug proxy required) |
+| `CVE-2026-88092` | ASP.NET Core Kestrel request smuggling (2026 variant) | 8.0 <8.0.32, 9.0 <9.0.21, 10.0 <10.0.13 | passive (variant not reduced) |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |

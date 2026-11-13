@@ -141,6 +141,7 @@ for CVE-2026-61424 (see the active-probes table).
 |---|---|---:|---|
 | CVE-2025-55315 | ASP.NET Core 2.3 <2.3.6, 8.0 <8.0.21, 9.0 <9.0.10 | 8.0.20 (vuln, `mcr.microsoft.com/dotnet/aspnet:8.0.20`) + 8.0.21 control, `labs/cve-2025-55315` | Minimal `net8.0` app; raw-TCP chunk-extension differential. No smuggled request is sent. |
 | CVE-2026-102870 | ASP.NET Core 10.0.0-10.0.12 / 11.0.0-preview Blazor WebAssembly server package | none | Requires the Blazor WebAssembly debug proxy and a browser debugger session; passive version check only. |
+| CVE-2026-88092 | ASP.NET Core 8.0 <8.0.32, 9.0 <9.0.21, 10.0 <10.0.13 | none | Different request-smuggling variant from CVE-2025-55315; no safe wire differential yet. |
 
 ## PHP runtime labs
 
