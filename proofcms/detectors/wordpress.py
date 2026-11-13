@@ -21,6 +21,7 @@ KNOWN_PLUGIN_MARKERS = {
     "woocommerce-payments": r"Woo(?:Commerce\s+)?Payments|WooPayments",
     "revslider": r"Slider\s+Revolution|Revolution\s+Slider|revslider",
     "wp-file-manager": r"(?:WP\s+)?File\s+Manager",
+    "wp-automatic": r"WP\s*Automatic|wp-automatic|ValvePress",
     "wpvivid-backuprestore": r"WPvivid|wpvivid-backuprestore",
     "keydatas": r"keydatas|简数",
     "elementor": r"(?:^|/)elementor(?:/|$)|Elementor",
@@ -63,6 +64,10 @@ REST_NAMESPACE_PLUGINS = {
     "wp-rocket": "wp-rocket",
     "monsterinsights": "monsterinsights",
     "yoast": "yoast",
+}
+
+PLUGIN_EXTRA_VERSION_FILES = {
+    "wp-automatic": ("changelog", r"^\s*Version\s+([0-9]+(?:\.[0-9]+)+)"),
 }
 
 PLUGIN_MAIN_FILES = {
@@ -384,6 +389,26 @@ def detect_wordpress_plugins(
                 if parsed:
                     version = parsed
                     source = f"{source}readme.txt"
+
+        if not version:
+            extra = PLUGIN_EXTRA_VERSION_FILES.get(slug)
+            if extra:
+                extra_file, extra_pattern = extra
+                extra_response = _fetch(
+                    f"{target.rstrip('/')}/wp-content/plugins/{slug}/{extra_file}",
+                    timeout=timeout,
+                    proxy=proxy,
+                )
+                extra_body = str(extra_response.get("body", ""))
+                extra_match = re.search(extra_pattern, extra_body, re.IGNORECASE | re.MULTILINE)
+                if (
+                    not is_baseline_match(extra_response, baseline)
+                    and extra_response.get("status") == 200
+                    and extra_match
+                ):
+                    found = True
+                    version = extra_match.group(1)
+                    source = f"{source}{extra_file}"
 
         if not version:
             asset_match = re.search(

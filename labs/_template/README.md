@@ -86,6 +86,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9205 | `labs/cve-2024-2961` | PHP 8.4.27/glibc 2.41 patched control |
 | 9227 | `labs/cve-2023-6553` | WordPress 6.4.3 + Backup Migration 1.3.7 lab |
 | 9228 | `labs/cve-2023-6553` | Backup Migration 1.3.8 patched control |
+| 9229 | `labs/cve-2024-27956` | WordPress 6.4.3 + WP Automatic 3.92.0 lab |
 | 9208 | `labs/cve-2025-55315` | ASP.NET Core 8.0.20 vulnerable Kestrel lab |
 | 9209 | `labs/cve-2025-55315` | ASP.NET Core 8.0.21 patched control |
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |
