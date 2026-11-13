@@ -135,6 +135,12 @@ for CVE-2026-61424 (see the active-probes table).
 |---|---|---:|---:|---|
 | CVE-2026-111497 | Node.js bundled Brotli decoder | 22.x <22.23.4, 24.x <24.22.1, 26.x <26.12.1; EOL lines | 24.22.0 (vuln, `node:24.22.0`) + 24.22.1 control (`node:24.22.1`), `labs/cve-2026-111497` | Safe malformed block-switch vector; vulnerable reports `BLOCK_LENGTH_1`, patched reports `BLOCK_SWITCH`. No OOB/RCE stream is sent. |
 
+## ASP.NET Core runtime labs
+
+| CVE | Runtime required | Recommended fixture | Host/configuration requirements |
+|---|---|---:|---|
+| CVE-2025-55315 | ASP.NET Core 2.3 <2.3.6, 8.0 <8.0.21, 9.0 <9.0.10 | 8.0.20 (vuln, `mcr.microsoft.com/dotnet/aspnet:8.0.20`) + 8.0.21 control, `labs/cve-2025-55315` | Minimal `net8.0` app; raw-TCP chunk-extension differential. No smuggled request is sent. |
+
 ## PHP runtime labs
 
 | CVE | Runtime required | Recommended fixture | Host/configuration requirements |
@@ -154,7 +160,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2026-42530 / CVE-2026-90439 | NGINX HTTP/3 module | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-42055 | NGINX proxy-v2 / gRPC modules | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |
 | CVE-2026-42533 | NGINX map-regex | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
-| CVE-2024-58288 | GeneXus Protection Server | Windows service unquoted-path local privilege escalation: needs a Windows host and the 9.7.2.10 installer; no Linux web harness. Detector fixture: `labs/genexus-fixture` (markers only). |
+| CVE-2024-58288 | GeneXus Protection Server | Windows service unquoted-path local privilege escalation: needs a Windows host and the 9.7.2.10 installer; no Linux web harness. |
 | CVE-2026-56434 / CVE-2026-60005 | NGINX SSI / slice modules | Passive version/config detection only: needs the respective module configured; no safe lab harness. |
 
 ## Shared infrastructure to retain

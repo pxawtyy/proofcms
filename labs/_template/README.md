@@ -82,7 +82,8 @@ control where a fixed release exists). Record both runs in the README.
 | 9215 | `labs/cve-2026-94132` | Joomla 5.2.5 + AcyMailing 11.0.5 + GreenMail POP3 lab |
 | 9216 | `labs/cve-2026-111497` | Node.js 24.22.0 vulnerable Brotli lab |
 | 9217 | `labs/cve-2026-111497` | Node.js 24.22.1 patched Brotli control |
-| 9218 | `labs/genexus-fixture` | GeneXus detector fixture (static markers) |
+| 9208 | `labs/cve-2025-55315` | ASP.NET Core 8.0.20 vulnerable Kestrel lab |
+| 9209 | `labs/cve-2025-55315` | ASP.NET Core 8.0.21 patched control |
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |
 | 9217 | `labs/cve-2024-40744` | Joomla 5.2.3 + Convert Forms 4.4.5 lab |
 | 9219 | `labs/cve-2026-48907` | Joomla 5.2.3 + JCE 2.9.99.1 lab |
