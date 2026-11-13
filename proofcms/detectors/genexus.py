@@ -83,7 +83,7 @@ def detect_genexus(target_url: str, timeout: int = 12, proxy: str | None = None)
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
     home = client.get("/")
     evidence, version, body = _inspect(home)
-    source = "body" if version else ""
+    source = "/:body" if version else ""
 
     if not evidence:
         redirect = _JS_REDIRECT.search(body)
@@ -97,7 +97,7 @@ def detect_genexus(target_url: str, timeout: int = 12, proxy: str | None = None)
                     body = login_body
                     if login_version:
                         version = login_version
-                        source = "/:redirect"
+                        source = f"{target}:redirect"
 
     if "gxcfg" in body.lower():
         config = client.get("/gxcfg.js")
@@ -113,7 +113,7 @@ def detect_genexus(target_url: str, timeout: int = 12, proxy: str | None = None)
     return {
         "detected": detected,
         "version": version,
-        "source": source or ("body" if detected else "not-detected"),
+        "source": source or ("/:body" if detected else "not-detected"),
         "evidence": evidence,
         "raw": body[:2000],
     }

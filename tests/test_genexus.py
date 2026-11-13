@@ -58,6 +58,39 @@ def test_genexus_detector_follows_login_redirect():
     assert any(item.startswith("body:gxstate") for item in info["evidence"])
 
 
+def test_genexus_body_source_includes_the_path():
+    home = {
+        "status": 200,
+        "headers": {},
+        "body": '<script>gx.version = "10.1.8";</script><a href="/gxajax.aspx">x</a>',
+    }
+    with patch("proofcms.detectors.genexus.HttpClient.get", return_value=home):
+        info = detect_genexus("https://fixture.test", timeout=1)
+    assert info["version"] == "10.1.8"
+    assert info["source"] == "/:body"
+
+
+def test_genexus_redirect_source_records_the_login_path():
+    home = {
+        "status": 200,
+        "headers": {},
+        "body": "<script>document.location='login.aspx'</script>",
+        "final_url": "https://fixture.test/portal/",
+    }
+    login = {
+        "status": 200,
+        "headers": {"Set-Cookie": "GX_SESSION_ID=abc; path=/"},
+        "body": (
+            '<meta name="Version" content="10.1.8">'
+            '<input type="hidden" name="GXState" value="{}">'
+        ),
+    }
+    with patch("proofcms.detectors.genexus.HttpClient.get", side_effect=[home, login]):
+        info = detect_genexus("https://fixture.test/portal/", timeout=1)
+    assert info["version"] == "10.1.8"
+    assert info["source"] == "login.aspx:redirect"
+
+
 def test_genexus_protection_server_97210_is_likely_vulnerable():
     result = cve_2024_58288.check(
         "https://fixture.test",
