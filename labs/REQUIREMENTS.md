@@ -148,6 +148,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2023-6553 | Backup Migration 1.0.8-1.3.7 | 1.3.7 (vuln) + 1.3.8 control, `labs/cve-2023-6553` | WordPress 6.4.3 + plugin, installed with WP-CLI; plugin archives fetched at build time. Safe `Content-Dir` filter-chain `sleep(0)`/`sleep(4)` differential. |
 | CVE-2024-8929 | PHP 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 | 8.3.13 (vuln) + 8.3.14 control, `labs/cve-2024-8929` | Official GHSA fake MySQL server + mysqli client; `docker compose run --rm vuln/patched`; one-shot CLI, no published ports. |
 | CVE-2023-3824 | PHP 8.0 <8.0.30, 8.1 <8.1.22, 8.2 <8.2.8 | 8.2.7 (vuln) + 8.2.9 control, `labs/cve-2023-3824` | Crafted phar with 4095/4096-byte entry names; `docker compose run --rm vuln/patched`; one-shot CLI, no published ports. |
+| CVE-2024-8932 | PHP 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 (32-bit) | 8.3.13 i386 (vuln) + 8.3.14 control, `labs/cve-2024-8932` | i386 PHP CLI + ldap; 1,431,655,766-byte input; one-shot CLI, no published ports. |
 | CVE-2024-1071 | Ultimate Member 2.1.3-2.8.2 | 2.8.2 (vuln) + 2.8.3 control, `labs/cve-2024-1071` | WordPress 6.4.3 + plugin; own-table directory mode; seeded member so ORDER BY evaluates; safe constant-sleep differential. |
 | CVE-2024-27956 | WP Automatic through 3.92.0 | 3.92.0 (vuln), `labs/cve-2024-27956` | WordPress 6.4.3 + plugin; package fetched at build time from the public PoC mirror because WordPress.org removed it. Safe `auth=%00` constant-sleep SQL differential. |
 

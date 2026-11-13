@@ -164,6 +164,7 @@ differential allows it:
 | `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1-8.3 releases | `safe` |
 | `CVE-2024-8929` | PHP mysqlnd heap over-read | 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 (and EOL branches) | passive version check + lab PoC |
 | `CVE-2023-3824` | PHP phar directory entry buffer overflow | 8.0 <8.0.30, 8.1 <8.1.22, 8.2 <8.2.8 | passive version check + lab PoC |
+| `CVE-2024-8932` | PHP ldap_escape 32-bit integer overflow | 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 (32-bit) | passive version check + lab PoC |
 | `CVE-2018-9206` | Blueimp jQuery File Upload sample handler | Through 9.22.0 with public PHP handler | `safe` |
 | `CVE-2021-23394` | elFinder | Before 2.1.58 | `safe` |
 | `CVE-2026-81891` | elFinder ZIP extraction | Before 2.1.70 | `safe` |
