@@ -32,6 +32,32 @@ def test_genexus_detector_ignores_generic_mentions():
     assert info["version"] is None
 
 
+def test_genexus_detector_follows_login_redirect():
+    home = {
+        "status": 200,
+        "headers": {},
+        "body": "<html><script>function desvia(){document.location='login.aspx'}</script></html>",
+        "final_url": "https://fixture.test/portal/",
+    }
+    login = {
+        "status": 200,
+        "headers": {"Set-Cookie": "GX_SESSION_ID=abc; path=/"},
+        "body": (
+            '<meta name="Generator" content="GeneXus C#">'
+            '<meta name="Version" content="10.1.8-<build>">'
+            '<input type="hidden" name="GXState" value="{}">'
+            '<script src="gxcfg.js"></script>'
+        ),
+    }
+    config = {"status": 200, "headers": {}, "body": 'gx.version = "10.1.8";'}
+    with patch("proofcms.detectors.genexus.HttpClient.get", side_effect=[home, login, config]):
+        info = detect_genexus("https://fixture.test/portal/", timeout=1)
+    assert info["detected"] is True
+    assert info["version"] == "10.1.8"
+    assert info["source"] == "/gxcfg.js"
+    assert any(item.startswith("body:gxstate") for item in info["evidence"])
+
+
 def test_genexus_protection_server_97210_is_likely_vulnerable():
     result = cve_2024_58288.check(
         "https://fixture.test",
