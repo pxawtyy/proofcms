@@ -302,7 +302,7 @@ def main():
     parser.add_argument("-l", "--list", help="File with one target URL per line")
     parser.add_argument(
         "--cms",
-        choices=["auto", "joomla", "wordpress"],
+        choices=["auto", "joomla", "wordpress", "genexus"],
         default="auto",
         help="CMS detection mode. Default: auto",
     )

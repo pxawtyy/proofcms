@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..core.http import probe_target_baseline
 from ..core.models import CMSInfo
 from .aspnet import detect_aspnet_runtime
+from .genexus import detect_genexus
 from .joomla import (
     detect_baforms,
     detect_gridbox,
@@ -45,6 +46,10 @@ def detect_cms(target: str, args, baseline: dict | None = None) -> CMSInfo:
         wordpress = detect_wordpress(target, args.timeout, proxy=args.proxy, baseline=baseline)
         return wordpress
 
+    if mode == "genexus":
+        genexus = detect_genexus(target, timeout=args.timeout, proxy=args.proxy)
+        return CMSInfo("genexus", genexus["detected"], genexus["version"], genexus["source"], genexus["raw"])
+
     wordpress = detect_wordpress(target, args.timeout, proxy=args.proxy, baseline=baseline)
     joomla = detect_joomla(target, args, baseline=baseline)
 
@@ -59,6 +64,10 @@ def detect_cms(target: str, args, baseline: dict | None = None) -> CMSInfo:
             return wordpress
         return CMSInfo("joomla", True, joomla.version, joomla.source, joomla.raw)
 
+    genexus = detect_genexus(target, timeout=args.timeout, proxy=args.proxy)
+    if genexus["detected"]:
+        return CMSInfo("genexus", True, genexus["version"], genexus["source"], genexus["raw"])
+
     return CMSInfo("unknown", False, None, "cms:auto", "")
 
 
@@ -66,6 +75,7 @@ __all__ = [
     "detect_aspnet_runtime",
     "detect_baforms",
     "detect_cms",
+    "detect_genexus",
     "detect_gridbox",
     "detect_helix3",
     "detect_helixultimate",

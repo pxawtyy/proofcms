@@ -154,6 +154,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2026-42530 / CVE-2026-90439 | NGINX HTTP/3 module | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-42055 | NGINX proxy-v2 / gRPC modules | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |
 | CVE-2026-42533 | NGINX map-regex | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
+| CVE-2024-58288 | GeneXus Protection Server | Windows service unquoted-path local privilege escalation: needs a Windows host and the 9.7.2.10 installer; no Linux web harness. Detector fixture: `labs/genexus-fixture` (markers only). |
 | CVE-2026-56434 / CVE-2026-60005 | NGINX SSI / slice modules | Passive version/config detection only: needs the respective module configured; no safe lab harness. |
 
 ## Shared infrastructure to retain
