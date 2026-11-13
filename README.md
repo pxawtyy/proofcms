@@ -176,6 +176,7 @@ differential allows it:
 | `CVE-2026-88092` | ASP.NET Core Kestrel request smuggling (2026 variant) | 8.0 <8.0.32, 9.0 <9.0.21, 10.0 <10.0.13 | passive (variant not reduced) |
 | `CVE-2010-3332` | ASP.NET padding oracle (MS10-070) | .NET 1.1 SP1, 2.0 SP1/SP2, 3.5, 3.5.1, 4.0 | `safe` ScriptResource differential |
 | `CVE-2011-3416` | ASP.NET Forms Authentication bypass (MS11-100) | .NET 1.1 SP1, 2.0 SP2, 3.5 SP1, 3.5.1, 4.0 | passive |
+| `CVE-2024-2961` | PHP glibc iconv buffer overflow | PHP 5.6.0-8.3.6, glibc <=2.39 | `safe` file-read precondition probe |
 | `CVE-2020-35489` | Contact Form 7 | Before 5.3.2 | passive |
 | `CVE-2020-25213` | WP File Manager | 6.0–6.8 | passive |
 | `CVE-2023-28121` | WooPayments | Branch-specific unpatched releases from 4.8.0 | `safe` |

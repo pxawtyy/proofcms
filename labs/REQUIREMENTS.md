@@ -144,6 +144,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2026-88092 | ASP.NET Core 8.0 <8.0.32, 9.0 <9.0.21, 10.0 <10.0.13 | none | Different request-smuggling variant from CVE-2025-55315; no safe wire differential yet. |
 | CVE-2010-3332 | ASP.NET 1.1 SP1, 2.0 SP1/SP2, 3.5, 3.5.1, 4.0 without MS10-070 | none (Windows/IIS .NET 2.0) | Padding oracle; version match on the the target 2.0.50727 stack, safe `ScriptResource.axd` differential implemented. |
 | CVE-2011-3416 | ASP.NET 1.1 SP1, 2.0 SP2, 3.5 SP1, 3.5.1, 4.0 without MS11-100 | none (Windows/IIS .NET 2.0 + login flow) | Forms Authentication null-byte bypass; passive version match. |
+| CVE-2024-2961 | PHP 5.6.0-8.3.6 with glibc <=2.39 | 8.3.4 (vuln, `vulhub/php:8.3.4-apache`, glibc 2.36) + 8.4.27 control (`php:8.4-apache`, glibc 2.41), `labs/cve-2024-2961` | Deliberate `file_get_contents` sink; safe base64 `/etc/passwd` read through `php://filter`. Full iconv RCE chain is the public `cnext-exploit.py`. |
 
 ## PHP runtime labs
 
