@@ -145,6 +145,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2010-3332 | ASP.NET 1.1 SP1, 2.0 SP1/SP2, 3.5, 3.5.1, 4.0 without MS10-070 | none (Windows/IIS .NET 2.0) | Padding oracle; version match on the the target 2.0.50727 stack, safe `ScriptResource.axd` differential implemented. |
 | CVE-2011-3416 | ASP.NET 1.1 SP1, 2.0 SP2, 3.5 SP1, 3.5.1, 4.0 without MS11-100 | none (Windows/IIS .NET 2.0 + login flow) | Forms Authentication null-byte bypass; passive version match. |
 | CVE-2024-2961 | PHP 5.6.0-8.3.6 with glibc <=2.39 | 8.3.4 (vuln, `vulhub/php:8.3.4-apache`, glibc 2.36) + 8.4.27 control (`php:8.4-apache`, glibc 2.41), `labs/cve-2024-2961` | Deliberate `file_get_contents` sink; safe base64 `/etc/passwd` read through `php://filter`. Full iconv RCE chain is the public `cnext-exploit.py`. |
+| CVE-2023-6553 | Backup Migration 1.0.8-1.3.7 | 1.3.7 (vuln) + 1.3.8 control, `labs/cve-2023-6553` | WordPress 6.4.3 + plugin, installed with WP-CLI; plugin archives fetched at build time. Safe `Content-Dir` filter-chain `sleep(0)`/`sleep(4)` differential. |
 
 ## PHP runtime labs
 

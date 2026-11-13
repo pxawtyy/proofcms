@@ -9,6 +9,7 @@ from ..core.models import CMSInfo
 
 KNOWN_PLUGIN_MARKERS = {
     "advanced-db-cleaner": r"advanced[-_ ]db[-_ ]cleaner",
+    "backup-backup": r"Backup\s+Migration|backup-backup|BackupBliss",
     "contact-form-7": r"Contact\s+Form\s+7",
     "forminator": r"Forminator",
     "cookieyes": r"cookieyes|\bcky[-_/]",
