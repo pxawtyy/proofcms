@@ -208,7 +208,7 @@ differential allows it:
 | `CVE-2026-90915` | Joomla cache purge | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3 | passive |
 | `CVE-2026-92222` | Joomla core extensions SSRF | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3; PR:H required | passive (not confirmed without high-privilege evidence) |
 | `CVE-2026-56292` | AcyMailing SQL injection | 1.0–10.11.0 | `safe` constant-only differential |
-| `CVE-2026-94132` | AcyMailing Enterprise mailbox attachment RCE | 1.0.0–11.0.5 | `safe` read-only companion probe |
+| `CVE-2026-94132` | AcyMailing Enterprise mailbox attachment RCE | 1.0.0-11.0.5 | lab-confirmed full email→cron→PHP execution; module probe is a read-only companion |
 | `CVE-2026-32475` | Elementor Pro | Through 4.2.1 | `safe` |
 | `CVE-2026-92229` | Forminator shortcode execution | Through 1.57.2 | `safe` harmless shortcode proof |
 | `CVE-2026-15748` | Forminator select/file upload injection | 1.18.1–1.56.1 | `safe` precondition probe |

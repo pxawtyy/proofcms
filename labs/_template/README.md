@@ -79,6 +79,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9211 | `labs/cve-2026-64638` | WordPress 7.0.2 login-screen XSS lab |
 | 9213 | `labs/cve-2026-78079` | Joomla 5.2.5 + Helix Ultimate 2.2.4 lab |
 | 9214 | `labs/cve-2026-56292` | Joomla 5.2.5 + AcyMailing 10.10.2 lab |
+| 9215 | `labs/cve-2026-94132` | Joomla 5.2.5 + AcyMailing 11.0.5 + GreenMail POP3 lab |
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |
 | 9217 | `labs/cve-2024-40744` | Joomla 5.2.3 + Convert Forms 4.4.5 lab |
 | 9219 | `labs/cve-2026-48907` | Joomla 5.2.3 + JCE 2.9.99.1 lab |
