@@ -204,7 +204,7 @@ differential allows it:
 | `CVE-2026-71573` | Joomla core CORS origin validation | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2; CORS enabled | `safe` preflight + credentialed reflection check |
 | `CVE-2026-72531` | Joomla core `com_fields` API ACL | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2 | `aggressive` field creation |
 | `CVE-2026-73373` | Joomla core SHTML upload | 1.0.0-5.4.7 and 6.0.0-6.1.2 | `safe` |
-| `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` |
+| `CVE-2026-78079` | Helix Ultimate open redirect | Through 2.2.9 | `safe` authenticated `helixreturn` check |
 | `CVE-2026-90915` | Joomla cache purge | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3 | passive |
 | `CVE-2026-92222` | Joomla core extensions SSRF | Joomla 4.0.0–5.4.8 and 6.0.0–6.1.3; PR:H required | passive (not confirmed without high-privilege evidence) |
 | `CVE-2026-56292` | AcyMailing SQL injection | 1.0–10.11.0 | `safe` constant-only differential |

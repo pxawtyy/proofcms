@@ -1,8 +1,41 @@
+import base64
 import json
 import unittest
+import urllib.parse
 from unittest.mock import patch
 
 from proofcms.modules.joomla import cve_2026_57830, cve_2026_78079
+
+
+class FakeHelixClient:
+    def __init__(self, state):
+        self.state = state
+
+    def get(self, url, **kwargs):
+        if "component/users/login" in url:
+            return {
+                "status": 200,
+                "body": '<input type="hidden" name="0123456789abcdef0123456789abcdef" value="1">',
+                "headers": {},
+                "final_url": url,
+            }
+        return {"status": 200, "body": "<html>home</html>", "headers": {}, "final_url": url}
+
+    def request(self, url, **kwargs):
+        if "task=user.login" in url:
+            return {
+                "status": 303,
+                "headers": {"Location": "https://target.test/index.php/component/users/profile"},
+                "body": "",
+                "final_url": url,
+            }
+        if "helixreturn" in url:
+            encoded = url.split("helixreturn=", 1)[1]
+            destination = base64.b64decode(urllib.parse.unquote(encoded)).decode()
+            if self.state.get("vulnerable"):
+                return {"status": 303, "headers": {"Location": destination}, "body": "", "final_url": url}
+            return {"status": 200, "headers": {}, "body": "<html>home</html>", "final_url": url}
+        return {"status": 200, "headers": {}, "body": "", "final_url": url}
 
 
 class TestCVE202678079(unittest.TestCase):
@@ -21,32 +54,52 @@ class TestCVE202678079(unittest.TestCase):
         self.assertEqual(result.component_version, "2.2.9")
 
     def test_safe_probe_confirms_exact_external_redirect_without_following(self):
-        test_case = self
-
-        def fake_request(client, url, **kwargs):
-            encoded = url.split("helixreturn=", 1)[1]
-            import base64
-            import urllib.parse
-
-            destination = base64.b64decode(urllib.parse.unquote(encoded)).decode()
-            test_case.assertFalse(kwargs["follow_redirects"])
-            return {"status": 302, "headers": {"Location": destination}, "body": ""}
-
-        with patch.object(cve_2026_78079.HttpClient, "request", new=fake_request):
-            result = cve_2026_78079.run_safe_probe("https://target.test")
+        with patch.object(cve_2026_78079, "HttpClient", side_effect=lambda *a, **k: FakeHelixClient({"vulnerable": True})):
+            result = cve_2026_78079.run_safe_probe(
+                "https://target.test", username="admin", password="pw"
+            )
         self.assertEqual(result.status, "VULNERABLE")
         self.assertEqual(result.confidence, "CONFIRMED")
+        self.assertEqual(result.evidence["location"], result.evidence["destination"])
 
-    def test_unrelated_redirect_is_not_confirmed(self):
-        response = {"status": 302, "headers": {"Location": "https://target.test/login"}, "body": ""}
-        with patch.object(cve_2026_78079.HttpClient, "request", return_value=response):
-            result = cve_2026_78079.run_safe_probe("https://target.test")
+    def test_patched_helix_does_not_confirm(self):
+        with patch.object(cve_2026_78079, "HttpClient", side_effect=lambda *a, **k: FakeHelixClient({"vulnerable": False})):
+            result = cve_2026_78079.run_safe_probe(
+                "https://target.test", username="admin", password="pw"
+            )
         self.assertEqual(result.status, "NOT_CONFIRMED")
 
-    def test_file_deletion_transport_failure_is_error(self):
-        response = {"status": 0, "headers": {}, "body": "", "error": {"type": "URLError", "message": "timed out"}}
-        with patch.object(cve_2026_78079.HttpClient, "request", return_value=response):
-            result = cve_2026_78079.run_safe_probe("https://target.test")
+    def test_missing_credentials_blocks(self):
+        result = cve_2026_78079.run_safe_probe("https://target.test")
+        self.assertEqual(result.status, "BLOCKED_EXTERNAL")
+
+    def test_unrelated_redirect_is_not_confirmed(self):
+        class UnrelatedClient(FakeHelixClient):
+            def request(self, url, **kwargs):
+                if "helixreturn" in url:
+                    return {
+                        "status": 302,
+                        "headers": {"Location": "https://target.test/login"},
+                        "body": "",
+                        "final_url": url,
+                    }
+                return super().request(url, **kwargs)
+
+        with patch.object(cve_2026_78079, "HttpClient", side_effect=lambda *a, **k: UnrelatedClient({})):
+            result = cve_2026_78079.run_safe_probe(
+                "https://target.test", username="admin", password="pw"
+            )
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+
+    def test_transport_failure_is_error(self):
+        class DeadClient(FakeHelixClient):
+            def get(self, url, **kwargs):
+                return {"status": 0, "body": "", "headers": {}, "error": {"type": "URLError", "message": "timed out"}}
+
+        with patch.object(cve_2026_78079, "HttpClient", side_effect=lambda *a, **k: DeadClient({})):
+            result = cve_2026_78079.run_safe_probe(
+                "https://target.test", username="admin", password="pw"
+            )
         self.assertEqual(result.status, "ERROR")
 
     def test_existing_file_deletion_module_has_correct_identity(self):
@@ -86,7 +139,7 @@ class TestCVE202678079(unittest.TestCase):
             result = cve_2026_57830.run_safe_probe("https://target.test")
         self.assertEqual(result.status, "BLOCKED_EXTERNAL")
 
-    def test_transport_failure_is_error(self):
+    def test_transport_failure_is_error_for_file_deletion(self):
         response = {"status": 0, "redirected": False, "body": "", "error": {"type": "URLError", "message": "timed out"}}
         with patch.object(cve_2026_57830.HttpClient, "request", return_value=response):
             result = cve_2026_57830.run_safe_probe("https://target.test")

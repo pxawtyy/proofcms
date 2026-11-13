@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 import base64
+import re
 import secrets
 import urllib.parse
 from typing import Any
 
-from ...core.http import HttpClient, is_transport_error, normalize_url, transport_error_detail
+from ...core.args import aggressive_value
+from ...core.http import HttpClient, form_encode, is_transport_error, normalize_url, transport_error_detail
 from ...core.models import Finding
 from ...core.versions import parse_version_safe
 
 CVE_ID = "CVE-2026-78079"
-NAME = "Helix Ultimate unauthenticated open redirect"
+NAME = "Helix Ultimate authenticated open redirect"
 COMPONENT = "Helix Ultimate Framework"
 AFFECTED_RULE = "Helix Ultimate 1.0 through 2.2.9; fixed in 2.2.10"
 PATCHED_VERSION = "2.2.10"
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe"]
+LOGIN_PATH = "/index.php/component/users/login"
 
 
 def classify_version(version: str | None) -> str:
@@ -69,21 +72,97 @@ def passive_result(plugins: dict[str, Any] | None) -> Finding:
     )
 
 
-def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
+def _login(client: HttpClient, base: str, username: str, password: str, timeout: int) -> bool:
+    page = client.get(f"{base}{LOGIN_PATH}", timeout=timeout)
+    token = re.search(r'name="([a-f0-9]{32})" value="1"', page.get("body", "") or "")
+    if not token:
+        return False
+    response = client.request(
+        f"{base}/index.php?option=com_users&task=user.login",
+        method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data=form_encode({
+            "username": username,
+            "password": password,
+            "remember": "0",
+            "return": "",
+            token.group(1): "1",
+        }),
+        timeout=timeout,
+        follow_redirects=False,
+    )
+    location = str((response.get("headers") or {}).get("Location") or "")
+    return response.get("status") in (301, 302, 303) and "login" not in location.lower()
+
+
+def run_safe_probe(
+    target_url: str,
+    username: str | None = None,
+    password: str | None = None,
+    timeout: int = 12,
+    proxy: str | None = None,
+) -> Finding:
     base = normalize_url(target_url)
+    if not username or not password:
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="BLOCKED_EXTERNAL",
+            confidence="MEDIUM",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=False,
+            proof_url=f"{base}{LOGIN_PATH}",
+            detail=(
+                "The helixreturn redirect requires a logged-in user; pass "
+                "--aggressive-arg username=... password=... from the lab fixture. "
+                "Nothing was sent."
+            ),
+            action="Re-run with lab credentials on an authorized target.",
+        )
+    client = HttpClient(timeout=timeout, proxy=proxy)
+    preflight = client.get(f"{base}/", timeout=timeout)
+    if is_transport_error(preflight):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="ERROR",
+            confidence="LOW",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=f"{base}/",
+            detail=f"The target could not be reached ({transport_error_detail(preflight)}).",
+            action="Retry when the target is reachable.",
+        )
+    if not _login(client, base, username, password, timeout):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_CONFIRMED",
+            confidence="MEDIUM",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=True,
+            proof_url=f"{base}{LOGIN_PATH}",
+            detail="The front-end login did not establish a session; the redirect was not tested.",
+            action="Verify the lab credentials and the front-end login route.",
+        )
     marker = secrets.token_hex(6)
     destination = f"https://example.invalid/proofcms-open-redirect-{marker}"
     encoded = base64.b64encode(destination.encode()).decode()
     proof_url = f"{base}/?helixreturn={urllib.parse.quote(encoded, safe='')}"
-    response = HttpClient(timeout=timeout, proxy=proxy).request(
-        proof_url,
-        timeout=timeout,
-        follow_redirects=False,
-    )
-    headers = response.get("headers", {})
-    location = headers.get("Location") or headers.get("location") or ""
-    if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True, proof_url=proof_url, detail=f"The open-redirect probe could not obtain an HTTP response ({transport_error_detail(response)}).", action="Retry when the target is reachable; do not interpret transport failure as a redirect result.")
+    response = client.request(proof_url, method="GET", timeout=timeout, follow_redirects=False)
+    location = str((response.get("headers") or {}).get("Location") or "")
+    evidence = {
+        "logged_in": True,
+        "destination": destination,
+        "status": response.get("status"),
+        "location": location or None,
+    }
     if response.get("status") in {301, 302, 303, 307, 308} and location == destination:
         return Finding(
             cve=CVE_ID,
@@ -95,7 +174,11 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
             proof_url=proof_url,
-            detail="Helix Ultimate accepted an external Base64 return URL and emitted a redirect to the unique proof destination.",
+            evidence=evidence,
+            detail=(
+                "An authenticated request carrying a Base64-encoded external helixreturn URL was "
+                "answered with a redirect to that external destination."
+            ),
             action="Upgrade Helix Ultimate to 2.2.10 or newer.",
         )
     return Finding(
@@ -108,7 +191,11 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         exploit_available=HAS_EXPLOIT,
         exploit_ran=True,
         proof_url=proof_url,
-        detail=f"The external return URL was not reflected as a redirect (HTTP {response.get('status', 0)}).",
+        evidence=evidence,
+        detail=(
+            "The external return URL was not reflected as a redirect "
+            f"(HTTP {response.get('status')}, Location={location or 'absent'})."
+        ),
         action="Upgrade versions through 2.2.9 even when active verification is inconclusive.",
     )
 
@@ -121,6 +208,8 @@ def check(
     proxy: str | None = None,
     exploit_mode: str = "safe",
     plugins: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
     passive = passive_result(plugins)
@@ -132,7 +221,13 @@ def check(
     if passive.status not in {"LIKELY_VULNERABLE", "INCONCLUSIVE"}:
         passive.detail += " Safe proof skipped because Helix Ultimate was not detected as potentially affected."
         return passive
-    result = run_safe_probe(target_url, timeout=timeout, proxy=proxy)
+    result = run_safe_probe(
+        target_url,
+        username=aggressive_value(aggressive_args, aggressive_command, "username"),
+        password=aggressive_value(aggressive_args, aggressive_command, "password"),
+        timeout=timeout,
+        proxy=proxy,
+    )
     result.component_version = passive.component_version
     return result
 
@@ -152,9 +247,10 @@ def metadata() -> dict[str, Any]:
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-09-29",
-        "updated": "2026-09-29",
+        "vulnerability_type": "Open Redirect",
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-12",
+        "updated": "2026-11-12",
         "required_detectors": ["helixultimate"],
         "references": [
             "https://www.cve.org/CVERecord?id=CVE-2026-78079",
