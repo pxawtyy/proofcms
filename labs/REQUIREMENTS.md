@@ -146,6 +146,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2011-3416 | ASP.NET 1.1 SP1, 2.0 SP2, 3.5 SP1, 3.5.1, 4.0 without MS11-100 | none (Windows/IIS .NET 2.0 + login flow) | Forms Authentication null-byte bypass; passive surface check requires `.ASPXAUTH`/FormsAuthentication. the target `/portal/` uses GeneXus SSO, so NOT_AFFECTED. |
 | CVE-2024-2961 | PHP 5.6.0-8.3.6 with glibc <=2.39 | 8.3.4 (vuln, `vulhub/php:8.3.4-apache`, glibc 2.36) + 8.4.27 control (`php:8.4-apache`, glibc 2.41), `labs/cve-2024-2961` | Deliberate `file_get_contents` sink; safe base64 `/etc/passwd` read through `php://filter`. Full iconv RCE chain is the public `cnext-exploit.py`. |
 | CVE-2023-6553 | Backup Migration 1.0.8-1.3.7 | 1.3.7 (vuln) + 1.3.8 control, `labs/cve-2023-6553` | WordPress 6.4.3 + plugin, installed with WP-CLI; plugin archives fetched at build time. Safe `Content-Dir` filter-chain `sleep(0)`/`sleep(4)` differential. |
+| CVE-2024-1071 | Ultimate Member 2.1.3-2.8.2 | 2.8.2 (vuln) + 2.8.3 control, `labs/cve-2024-1071` | WordPress 6.4.3 + plugin; own-table directory mode; seeded member so ORDER BY evaluates; safe constant-sleep differential. |
 | CVE-2024-27956 | WP Automatic through 3.92.0 | 3.92.0 (vuln), `labs/cve-2024-27956` | WordPress 6.4.3 + plugin; package fetched at build time from the public PoC mirror because WordPress.org removed it. Safe `auth=%00` constant-sleep SQL differential. |
 
 ## PHP runtime labs

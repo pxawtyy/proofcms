@@ -222,6 +222,7 @@ differential allows it:
 | `CVE-2026-92229` | Forminator shortcode execution | Through 1.57.2 | `safe` harmless shortcode proof |
 | `CVE-2026-15748` | Forminator select/file upload injection | 1.18.1–1.56.1 | `safe` precondition probe |
 | `CVE-2024-10402` | Forminator missing authorization | Through 1.35.1 | `safe` blocked without contributor session |
+| `CVE-2024-1071` | Ultimate Member unauthenticated SQL injection | 2.1.3-2.8.2 | `safe` constant-sleep differential |
 | `CVE-2026-6692` | Slider Revolution | 7.0.0–7.0.10 | passive |
 | `CVE-2026-18781` | Drag and Drop Multiple File Upload for CF7 | Before 1.3.9.9 | passive |
 | `CVE-2026-60137` | WordPress core | 6.8.0–6.8.5, 6.9.0–6.9.4, and 7.0.0–7.0.1 | `safe` |
