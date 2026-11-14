@@ -205,15 +205,18 @@ C:\Users\micha\AppData\Local\Docker\wsl\disk
 ```
 
 Keep acquired plugin archives in a separate development fixture tree on `D:`. Do not place them inside the Git
-repository or directly inside Docker's VHD. A suggested layout is:
+repository or directly inside Docker's VHD. Regenerate `archives/INDEX.md` and `checksums/SHA256SUMS.txt` with
+`python tools/archive_index.py` after adding or removing a package. A suggested layout is:
 
 ```text
 D:\ProofCMS-Labs\
-├── archives\joomla\
-├── archives\wordpress\
-├── archives\generic\
-├── checksums\
-├── compose\
-├── databases\
-└── notes\
+  archives\joomla\        extensions/templates (trees and vendor zips)
+  archives\joomla-core\   Joomla full packages
+  archives\wordpress\     plugins/themes and plugin zips
+  archives\php\           PHP source trees (reference only)
+  archives\generic\       standalone web libraries
+  archives\dotnet\        Windows/.NET installers
+  archives\_duplicates\   byte-identical copies
+  checksums\              SHA256SUMS.txt (generated)
+  notes\reports\          old lab reports
 ```
