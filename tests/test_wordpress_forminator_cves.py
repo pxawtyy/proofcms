@@ -27,6 +27,90 @@ class TestForminatorVersionPolicies(unittest.TestCase):
         self.assertEqual(result.status, "BLOCKED_EXTERNAL")
 
 
+class _WizardClient:
+    """Contributor-session stand-in for the Forminator wizard request."""
+
+    def __init__(self, wizard_status: int, wizard_location: str = "", login_status: int = 302):
+        self.wizard_status = wizard_status
+        self.wizard_location = wizard_location
+        self.login_status = login_status
+        self.calls: list[tuple[str, str]] = []
+
+    def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+        self.calls.append(("GET", url))
+        return {"status": 200, "body": "<html></html>"}
+
+    def request(self, url: str, method: str = "GET", headers=None, data=None, timeout=None, follow_redirects=True):
+        self.calls.append((method, url))
+        if url.endswith("/wp-login.php"):
+            return {"status": self.login_status, "headers": {"Location": "https://target.test/wp-admin/"}, "body": ""}
+        return {"status": self.wizard_status, "headers": {"Location": self.wizard_location}, "body": ""}
+
+
+class TestForminatorContributorAuthorizationProbe(unittest.TestCase):
+    def test_contributor_created_form_is_confirmed(self):
+        client = _WizardClient(
+            403,
+            "https://target.test/wp-admin/admin.php?page=forminator-cform-wizard&id=42",
+        )
+        with patch.object(cve_2024_10402, "HttpClient", return_value=client):
+            result = cve_2024_10402.run_aggressive_probe(
+                "https://target.test", username="contributor", password="proofcms-contributor"
+            )
+        self.assertEqual(result.status, "VULNERABLE")
+        self.assertEqual(result.confidence, "CONFIRMED")
+        self.assertEqual(result.evidence["created_form_id"], 42)
+        self.assertFalse(result.cleanup_attempted)
+
+    def test_patched_wizard_redirect_is_not_confirmed(self):
+        client = _WizardClient(403)
+        with patch.object(cve_2024_10402, "HttpClient", return_value=client):
+            result = cve_2024_10402.run_aggressive_probe(
+                "https://target.test", username="contributor", password="proofcms-contributor"
+            )
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+        self.assertIsNone(result.evidence["created_form_id"])
+        self.assertIn("create_nonce gate", result.detail)
+
+    def test_missing_credentials_blocks_before_login(self):
+        result = cve_2024_10402.run_aggressive_probe("https://target.test")
+        self.assertEqual(result.status, "BLOCKED_EXTERNAL")
+        self.assertFalse(result.exploit_ran)
+
+    def test_failed_login_is_not_confirmed(self):
+        client = _WizardClient(403, login_status=200)
+        with patch.object(cve_2024_10402, "HttpClient", return_value=client):
+            result = cve_2024_10402.run_aggressive_probe(
+                "https://target.test", username="contributor", password="wrong"
+            )
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+        self.assertIn("login did not establish", result.detail)
+
+    def test_cleanup_uses_bulk_delete_action(self):
+        class _AdminClient:
+            def __init__(self):
+                self.deleted = False
+                self.posted: dict[str, str] = {}
+
+            def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+                body = '<input name="forminatorNonce" value="nonce123">'
+                if not self.deleted:
+                    body += "proofcms-10402-marker"
+                return {"status": 200, "body": body}
+
+            def request(self, url: str, method: str = "GET", headers=None, data=None, timeout=None, follow_redirects=True):
+                if method == "POST":
+                    self.posted = {k: v for k, v in (item.split("=", 1) for item in (data or b"").decode().split("&"))}
+                    self.deleted = True
+                return {"status": 200, "body": ""}
+
+        admin = _AdminClient()
+        self.assertTrue(cve_2024_10402._delete_form(admin, "https://target.test", 42, "proofcms-10402-marker", 12))
+        self.assertEqual(admin.posted["forminator_action"], "delete-forms")
+        self.assertEqual(admin.posted["ids"], "42")
+        self.assertEqual(admin.posted["forminatorNonce"], "nonce123")
+
+
 class TestForminatorDiscovery(unittest.TestCase):
     def test_forminator_readme_marker(self):
         def fake_fetch(url, timeout, proxy=None):

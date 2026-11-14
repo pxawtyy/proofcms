@@ -24,6 +24,8 @@ BASE = "http://127.0.0.1:9212"
 ADMIN = "admin"
 PASSWORD = "proofcms-lab-password"
 EMAIL = "lab@example.test"
+DB_NAME = "wordpress"
+DB_ROOT_PASSWORD = "proofcms"
 
 
 def _run(cmd: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
@@ -98,10 +100,26 @@ def install(source: str, activate: bool = True) -> None:
     print(result.stdout.strip())
 
 
+def _drop_database() -> None:
+    """Drop and recreate the WordPress database.
+
+    ``wp db reset`` shells out to the MariaDB client, which negotiates TLS by
+    default in this image and fails against the plaintext lab server. Running
+    the client with ``--skip-ssl`` keeps the reset deterministic.
+    """
+    result = _run([
+        "docker", "compose", "-f", str(COMPOSE), "exec", "-T", "db",
+        "mariadb", "-uroot", f"-p{DB_ROOT_PASSWORD}", "--skip-ssl",
+        "-e", f"DROP DATABASE IF EXISTS {DB_NAME}; CREATE DATABASE {DB_NAME};",
+    ])
+    if result.returncode != 0:
+        raise SystemExit(_clean(result.stderr) or _clean(result.stdout))
+
+
 def reset() -> None:
     _wp("plugin", "deactivate", "--all")
     _wp("plugin", "delete", "--all")
-    _wp("db", "reset", "--yes")
+    _drop_database()
     _install_core()
     print("reset")
 

@@ -54,6 +54,7 @@ sample configuration as a baseline, then document every web-server override sepa
 | CVE-2026-15748 | Forminator (`forminator`) | 1.18.1-1.56.1 | 1.56.1 (keep 1.56.2 as patched control) | Free WordPress.org package; seed a public custom form with a genuine upload field plus a select carrier (see `labs/cve-2026-15748`) |
 | CVE-2026-18781 | Drag and Drop Multiple File Upload for Contact Form 7 | before 1.3.9.9 | 1.3.9.8 | Also install a compatible Contact Form 7 and create a form using the upload field |
 | CVE-2026-32475 | Elementor Pro | through 4.2.1 | 4.2.1 | Commercial; also retain the matching free Elementor package and a configured vulnerable form/route |
+| CVE-2024-10402 | Forminator <=1.35.1; fixed in 1.36.0 | WordPress 6.4.3 + Forminator 1.35.1 + Contributor user (labs/_wp-base, tools/wp_lab.py) | The Contributor account has no Forminator capability. The wizard page returns 403, but create_module() runs on wp_loaded before the capability check and creates a draft form (id 6 in the run). The admin bulk action deleted the draft and the marker was gone. 1.36.0 adds a create_nonce check; the same request returned 403 with no redirect and created no form. |
 
 For commercial plugins, obtain legitimate archives and do not commit them. A vulnerable archive plus its first
 fixed release is ideal for differential testing.
