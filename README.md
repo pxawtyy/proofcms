@@ -212,7 +212,7 @@ differential allows it:
 | `CVE-2026-57827` | RSFiles! | Before 1.17.12 | `aggressive` |
 | `CVE-2026-57830` | Helix Ultimate arbitrary file deletion | Through 2.2.6 | `safe` |
 | `CVE-2026-57829` | Helix Ultimate unauthenticated stored XSS | Helix Ultimate 1.0 through 2.2.6; fixed in 2.2.7 | `aggressive` |
-| `CVE-2026-102426` | SP Page Builder Dynamic Content Filter reflected XSS | 3.0.0–5.6.1p2 | `safe` marker probe |
+| `CVE-2026-102426` | SP Page Builder Dynamic Content Filter reflected XSS | SP Page Builder Pro 5.6.0-6.0.0 (6.1-6.9 unconfirmed; fixed 6.10.0) | `safe` |
 | `CVE-2026-61424` | DJ-Classifieds arbitrary file upload | Before 3.11.2 | passive |
 | `CVE-2026-71573` | Joomla core CORS origin validation | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2; CORS enabled | `safe` preflight + credentialed reflection check |
 | `CVE-2026-72531` | Joomla core `com_fields` API ACL | Joomla 4.0.0-5.4.7 and 6.0.0-6.1.2 | `aggressive` field creation |

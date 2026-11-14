@@ -1,3 +1,4 @@
+import re
 from unittest.mock import patch
 
 from proofcms.modules.joomla import cve_2026_57829, cve_2026_102426
@@ -110,26 +111,46 @@ def test_helix_57829_aggressive_without_menu_item_is_blocked():
 
 
 def test_sp_page_builder_102426_version_boundaries_and_inventory():
-    assert cve_2026_102426.classify_version("3.0.0") == "LIKELY_VULNERABLE"
+    assert cve_2026_102426.classify_version("3.0.0") == "NOT_AFFECTED"
+    assert cve_2026_102426.classify_version("5.5.0") == "NOT_AFFECTED"
+    assert cve_2026_102426.classify_version("5.6.0") == "LIKELY_VULNERABLE"
     assert cve_2026_102426.classify_version("5.6.1p2") == "LIKELY_VULNERABLE"
-    assert cve_2026_102426.classify_version("5.6.2") == "NOT_AFFECTED"
+    assert cve_2026_102426.classify_version("5.7.2") == "LIKELY_VULNERABLE"
+    assert cve_2026_102426.classify_version("6.0.0") == "INCONCLUSIVE"
+    assert cve_2026_102426.classify_version("6.9.1") == "INCONCLUSIVE"
+    assert cve_2026_102426.classify_version("6.10.0") == "NOT_AFFECTED"
     assert cve_2026_102426.check("https://target.test", plugins=_plugin("sppagebuilder", "6.10.0")).status == "NOT_AFFECTED"
 
 
 def test_sp_page_builder_102426_safe_marker_probe_classifies_reflection():
-    import re
-
     def reflected(url: str, **kwargs: object) -> dict[str, object]:
-        marker = re.search(r"PROOFCMS_DCF_[A-Fa-f0-9]+", url).group(0)
-        return {"status": 200, "body": f"l-r<{marker}>"}
+        if "dc_filter_7=" in url:
+            marker = re.search(r"PROOFCMS_DCF_[A-Fa-f0-9]+", url).group(0)
+            return {"status": 200, "body": f'<span class="slider-min-value" data-field-id="7"><b>{marker}</b></span>'}
+        return {"status": 200, "body": '<span class="slider-min-value" data-field-id="7">10</span>'}
 
     with patch.object(cve_2026_102426, "request", side_effect=reflected):
         result = cve_2026_102426.check("https://target.test", run_exploit_check=True, plugins=_plugin("sppagebuilder", "5.6.1"))
     assert result.status == "VULNERABLE"
     assert result.confidence == "CONFIRMED"
+    assert result.evidence["field_id"] == "7"
 
 
-def test_sp_page_builder_102426_escaped_marker_is_not_confirmed():
-    with patch.object(cve_2026_102426, "request", return_value={"status": 200, "body": "&lt;PROOFCMS_DCF_fake&gt;"}):
+def test_sp_page_builder_102426_escaped_slider_marker_is_not_confirmed():
+    def escaped(url: str, **kwargs: object) -> dict[str, object]:
+        if "dc_filter_7=" in url:
+            marker = re.search(r"PROOFCMS_DCF_[A-Fa-f0-9]+", url).group(0)
+            return {"status": 200, "body": f'<span class="slider-min-value" data-field-id="7">&lt;b&gt;{marker}&lt;/b&gt;</span>'}
+        return {"status": 200, "body": '<span class="slider-min-value" data-field-id="7">10</span>'}
+
+    with patch.object(cve_2026_102426, "request", side_effect=escaped):
         result = cve_2026_102426.run_safe_probe("https://target.test")
     assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["raw_slider_marker"] is False
+
+
+def test_sp_page_builder_102426_missing_slider_is_not_confirmed():
+    with patch.object(cve_2026_102426, "request", return_value={"status": 200, "body": "<html>no filter addon</html>"}):
+        result = cve_2026_102426.run_safe_probe("https://target.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert "does not render a Dynamic Content Filter slider" in result.detail
