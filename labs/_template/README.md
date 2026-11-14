@@ -71,7 +71,8 @@ control where a fixed release exists). Record both runs in the README.
 | 9176 | `labs/cve-2015-8562` | Joomla 3.4.4 on PHP 5.6 lab (was 9104; 9076-9175 is now a Windows excluded range) |
 | 9105 | `labs/cve-2012-1823` | PHP 5.3.12 CGI lab |
 | 9106 | `labs/cve-2019-19576` (also covers CVE-2019-19634) | Joomla 3.6.3 + K2 2.8.0 lab |
-| 9110 | `labs/cve-2019-11043` | PHP-FPM lab |
+| 9110 | `labs/cve-2019-11043` | PHP-FPM 7.3.10 vulnerable lab |
+| 9111 | `labs/cve-2019-11043` | PHP-FPM 7.3.11 patched control |
 | 9157-9158 | `labs/cve-2021-23394` | elFinder lab |
 | 9169-9170 | `labs/cve-2026-81891` | elFinder differential lab |
 | 9206 | `labs/cve-2018-9206` | Blueimp lab |
