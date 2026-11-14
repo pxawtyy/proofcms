@@ -160,7 +160,7 @@ differential allows it:
 | CVE | Component | Affected rule | Verification modes |
 |---|---|---|---|
 | `CVE-2012-1823` | PHP-CGI runtime | Before 5.3.13 and 5.4.0–5.4.2 | `safe` |
-| `CVE-2019-11043` | PHP-FPM with Nginx | Affected PHP 7.1–7.3 branches with vulnerable PATH_INFO configuration | passive |
+| `CVE-2019-11043` | PHP-FPM PATH_INFO underflow | PHP-FPM 7.3 <7.3.11 with vulnerable nginx config | passive |
 | `CVE-2024-4577` | PHP-CGI on Windows | Unsupported branches and affected PHP 8.1-8.3 releases | `safe` |
 | `CVE-2024-8929` | PHP mysqlnd heap over-read | 8.1 <8.1.31, 8.2 <8.2.26, 8.3 <8.3.14 (and EOL branches) | passive version check + lab PoC |
 | `CVE-2023-3824` | PHP phar directory entry buffer overflow | 8.0 <8.0.30, 8.1 <8.1.22, 8.2 <8.2.8 | passive version check + lab PoC |

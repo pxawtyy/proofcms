@@ -42,6 +42,29 @@ mypy proofcms
 python -m proofcms.redaction --all
 ```
 
+## Recording validation rows
+
+Use the row recorder instead of editing the three tables by hand:
+
+```bash
+python tools/record_validation.py \
+  --cve CVE-2019-11043 \
+  --name "PHP-FPM PATH_INFO underflow" \
+  --affected "PHP-FPM 7.3 <7.3.11 with vulnerable nginx config" \
+  --mode passive \
+  --section "PHP runtimes - active probes" \
+  --fixture "PHP 7.3.10 FPM + nginx (labs/cve-2019-11043)" \
+  --probe "phuip-fpizdam detection: QSL 1760 / PISOS 52" \
+  --disposition "BLOCKED_EXTERNAL" \
+  --patched "no patched control" \
+  --lab labs/cve-2019-11043 \
+  --notes "Nginx PATH_INFO configuration"
+```
+
+`--dry-run` prints the rows first; the script validates them with the
+redaction guard and replaces an existing CVE row or appends to the requested
+table.
+
 ## Fast WordPress lab
 
 For plugin CVEs, reuse the pinned stack instead of building a new compose:
