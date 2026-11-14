@@ -93,6 +93,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9231 | `labs/cve-2024-1071` | Ultimate Member 2.8.3 patched control |
 | 9232 | `labs/cve-2023-28121` | WordPress 6.4.3 + WooPayments 5.6.1 lab |
 | 9233 | `labs/cve-2023-28121` | WooPayments 5.6.2 patched control |
+| 9236 | `labs/cve-2026-57829` | Joomla 5.2.5 + Helix Ultimate 2.2.4 stored-XSS lab |
 | 9208 | `labs/cve-2025-55315` | ASP.NET Core 8.0.20 vulnerable Kestrel lab |
 | 9209 | `labs/cve-2025-55315` | ASP.NET Core 8.0.21 patched control |
 | 9216 | `labs/cve-2026-21627` | Joomla 5 lab |
@@ -100,7 +101,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9219 | `labs/cve-2026-48907` | Joomla 5.2.3 + JCE 2.9.99.1 lab |
 | 9221 | `labs/cve-2026-48939` | Joomla 6.1.0-rc1 + iCagenda 4.0.7 lab |
 | 9223 | `labs/cve-2026-49049` | Joomla 3.10 + Helix3 2.2 lab |
-| 9225 | `labs/cve-2026-57830` (also covers CVE-2026-57829) | Joomla 3.10 + Helix Ultimate 1.1.4 lab |
+| 9225 | `labs/cve-2026-57830` | Joomla 3.10 + Helix Ultimate 1.1.4 lab |
 | 9220 | `labs/cve-2010-4166` | Joomla 1.5.21 (PHP 5.6 + MySQL 5.5) weblinks lab |
 | 9220 | `labs/cve-2026-56290` | Joomla 5.2.3 + Page Builder CK 3.5.4 lab |
 | 9220 | `labs/cve-2026-56291` | Joomla 5.2.3 + Balbooa Forms 2.4.0 lab |
