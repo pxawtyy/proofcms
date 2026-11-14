@@ -77,6 +77,7 @@ control where a fixed release exists). Record both runs in the README.
 | 9206 | `labs/cve-2018-9206` | Blueimp lab |
 | 9210 | `labs/wordpress-plugin-fixtures` | Shared WordPress fixture lab |
 | 9211 | `labs/cve-2026-64638` | WordPress 7.0.2 login-screen XSS lab |
+| 9212 | `labs/_wp-base` | Fast WordPress 6.4.3 + MariaDB fixture for plugin CVEs |
 | 9213 | `labs/cve-2026-78079` | Joomla 5.2.5 + Helix Ultimate 2.2.4 lab |
 | 9214 | `labs/cve-2026-56292` | Joomla 5.2.5 + AcyMailing 10.10.2 lab |
 | 9215 | `labs/cve-2026-94132` | Joomla 5.2.5 + AcyMailing 11.0.5 + GreenMail POP3 lab |

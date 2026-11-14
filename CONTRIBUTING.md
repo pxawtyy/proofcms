@@ -41,3 +41,19 @@ ruff check proofcms tests
 mypy proofcms
 python -m proofcms.redaction --all
 ```
+
+## Fast WordPress lab
+
+For plugin CVEs, reuse the pinned stack instead of building a new compose:
+
+```bash
+python tools/wp_lab.py up
+python tools/wp_lab.py install https://downloads.wordpress.org/plugin/woocommerce.8.6.1.zip
+python tools/wp_lab.py install https://downloads.wordpress.org/plugin/woocommerce-payments.5.6.1.zip
+python -m proofcms -u http://127.0.0.1:9212 --cve CVE-2023-28121 --run-exploit CVE-2023-28121 --exploit-mode safe --i-understand-authorized --i-understand-lab-only
+python tools/wp_lab.py reset
+python tools/wp_lab.py down
+```
+
+`install` accepts a URL or a local zip; `reset` drops the database and
+reinstalls WordPress in place, so the base container is never rebuilt.
