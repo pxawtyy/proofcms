@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fast WordPress fixture runner for lab validation.
 
 Reuses one pinned WordPress + MariaDB stack and installs plugin versions with

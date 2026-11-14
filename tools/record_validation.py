@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Append or replace a CVE row in the three lab documentation files.
 
 The rows are validated by the redaction guard before writing. Use --dry-run to
