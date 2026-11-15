@@ -42,7 +42,8 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | Nickname / CVE | Component | Impact |
 |---|---|---|
 | Node2Shell / `CVE-2026-111497` | Node.js bundled Brotli decoder | Remote code execution |
-| PHP2Shell / `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
+| PHP2Shell / `CVE-2026-109618` + `CVE-2026-109619` | PHP Zend Engine / request-shutdown memory corruption | Remote code execution |
+| `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
 | WP2Shell / `CVE-2026-63030` + `CVE-2026-60137` | WordPress core chain | Remote code execution |
 | `CVE-2012-1823` | PHP-CGI query string | Remote code execution |
 | `CVE-2019-11043` | PHP-FPM PATH_INFO underflow | Remote code execution |
