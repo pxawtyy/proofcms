@@ -2,9 +2,10 @@
 and a disposition row in labs/VALIDATED.md.
 
 CONFIRMED rows must point at a lab directory that exists. Every registered
-check across all four registries must have a row — passive-only modules link
-to what blocks active proof. Add all three in the same commit as the module
-(see README Development).
+check across all four registries must have a row - passive-only modules link
+to what blocks active proof - and every registered check must also appear in
+docs/CVE-INDEX.md. Add all of them in the same commit as the module (see
+README Development).
 """
 
 from __future__ import annotations
@@ -153,6 +154,25 @@ class TestModuleContract(unittest.TestCase):
             "registered checks without a labs/VALIDATED.md row "
             "(passive-only modules must link to what blocks active proof):\n"
             + "\n".join(missing),
+        )
+
+    def test_all_registered_cves_have_index_row(self):
+        index_text = (REPO / "docs" / "CVE-INDEX.md").read_text(encoding="utf-8")
+        index_ids = set(re.findall(r"^\| `([^`]+)`", index_text, re.MULTILINE))
+        registered = {cve_id for cve_id, _ in self.all_cves}
+        missing = sorted(registered - index_ids)
+        extra = sorted(index_ids - registered)
+        self.assertEqual(
+            missing,
+            [],
+            "registered checks missing from docs/CVE-INDEX.md "
+            "(add a row in the same commit as the module):\n" + "\n".join(missing),
+        )
+        self.assertEqual(
+            extra,
+            [],
+            "docs/CVE-INDEX.md rows that are not registered checks "
+            "(remove or fix the identifier):\n" + "\n".join(extra),
         )
 
 
