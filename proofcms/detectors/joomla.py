@@ -780,6 +780,11 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_jdownloads"],
         "markers": r"com_jdownloads|jDownloads",
     },
+    "yootheme": {
+        "manifests": ["/templates/yootheme/templateDetails.xml"],
+        "routes": ["/index.php?option=com_ajax&p=cache/proofcms-probe"],
+        "markers": r"templates/yootheme|YOOtheme|Invalid image hash",
+    },
     "acymailing": {
         "manifests": [
             "/administrator/components/com_acymailing/acymailing.xml",
