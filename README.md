@@ -61,6 +61,10 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-48908` | SP Page Builder | Remote code execution |
 | `CVE-2026-57829` | Helix Ultimate | Stored XSS |
 | `CVE-2026-102425` | Balbooa Forms unauthenticated PHP-after-submission shortcode RCE | Balbooa Forms 1.0.0 through 2.4.3.3; fixed in 2.4.3.4 | `aggressive` |
+| `CVE-2026-67364` | Balbooa Forms pre-auth PHP code injection via URL parameter shortcode | Balbooa Forms 1.0.0 through 2.4.3.1; fixed in 2.4.3.2 | `aggressive` |
+| `CVE-2026-67365` | iCagenda calendar module unauthenticated SQL injection | iCagenda 4.0.0 through 4.0.11; fixed in 4.0.12 | `aggressive` |
+| `CVE-2026-74254` | Page Builder CK styles model SQL injection | Page Builder CK 1.0.0 through 3.6.4; fixed in 3.6.5 | `aggressive` |
+| `CVE-2026-77994` | Page Builder CK frontend loadStyles second-order SQL injection | Page Builder CK 1.0.0 through 3.6.4; fixed in 3.6.5 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:
