@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from unittest.mock import patch
 
-from proofcms.modules.joomla import cve_2026_102789, cve_2026_105604, cve_2026_117551
+from proofcms.modules.joomla import cve_2026_102789, cve_2026_105603, cve_2026_105604, cve_2026_117551
 
 
 class _FakeJDClient:
@@ -144,3 +144,64 @@ def test_gridbox_102789_transport_error_is_reported():
     with patch.object(cve_2026_102789, "HttpClient", return_value=_DownClient()):
         result = cve_2026_102789.run_aggressive_probe("https://target.test")
     assert result.status == "ERROR"
+
+
+class _FakeDJCUploadClient:
+    def __init__(self, file_status: int = 200):
+        self.file_status = file_status
+        self.marker = ""
+
+    def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+        if "images/profile/" in url:
+            return {"status": self.file_status, "body": self.marker if self.file_status == 200 else ""}
+        if "view=profileedit" in url:
+            return {
+                "status": 200,
+                "body": (
+                    '<form id="djForm"><input type="file" name="new_avatar">'
+                    '<input type="hidden" name="user_id" value="957">'
+                    '<input type="hidden" name="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" value="1"></form>'
+                ),
+            }
+        return {"status": 200, "body": '<input type="hidden" name="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" value="1">'}
+
+    def request(self, url: str, method: str = "POST", headers=None, data=None, timeout=None, follow_redirects=False):
+        text = data.decode("utf-8", "ignore") if isinstance(data, bytes) else str(data or "")
+        if "task=user.login" in url:
+            return {"status": 303, "headers": {"Location": "/index.php/component/users/profile"}, "body": ""}
+        match = re.search(r"PROOFCMS_DJC_UPLOAD_[a-f0-9]+", text)
+        if match:
+            self.marker = match.group(0)
+        return {"status": 303, "headers": {"Location": "/index.php/component/djclassifieds/profile"}, "body": ""}
+
+
+def test_djc_105603_version_boundaries():
+    assert cve_2026_105603.classify_version("3.11.2") == "LIKELY_VULNERABLE"
+    assert cve_2026_105603.classify_version("3.11.3") == "NOT_AFFECTED"
+    assert cve_2026_105603.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
+
+
+def test_djc_105603_authenticated_shtml_upload_confirms():
+    client = _FakeDJCUploadClient(file_status=200)
+    with patch.object(cve_2026_105603, "HttpClient", return_value=client):
+        result = cve_2026_105603.run_aggressive_probe(
+            "https://target.test", username="labuser", password="proofcms-user-password"
+        )
+    assert result.status == "VULNERABLE_UPLOAD_ONLY"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["file_readable"] is True
+
+
+def test_djc_105603_patched_upload_is_not_confirmed():
+    client = _FakeDJCUploadClient(file_status=404)
+    with patch.object(cve_2026_105603, "HttpClient", return_value=client):
+        result = cve_2026_105603.run_aggressive_probe(
+            "https://target.test", username="labuser", password="proofcms-user-password"
+        )
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["file_readable"] is False
+
+
+def test_djc_105603_missing_credentials_is_blocked():
+    result = cve_2026_105603.run_aggressive_probe("https://target.test")
+    assert result.status == "BLOCKED_EXTERNAL"

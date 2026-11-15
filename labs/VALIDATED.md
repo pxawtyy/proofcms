@@ -117,6 +117,7 @@ Dispositions:
 | CVE-2026-117551 | Joomla 5.4.9 + jDownloads 4.1.7 (vuln) / 4.1.8 (control), public upload category (labs/cve-2026-117551) | frontend thumbnail GIF/PHP polyglot plus public execution | CONFIRMED | 4.1.8 PATCHED (extension whitelist; polyglot not written, 404) | `labs/cve-2026-117551` | 2026-11-15 |
 | CVE-2026-105604 | Joomla 5.2.3 + DJ-Classifieds 3.11.2 (vuln) / 3.11.3 (control), distance column + one item (labs/cve-2026-105604) | djcf_latlon cookie SLEEP time differential vs SLEEP(0) | CONFIRMED | 3.11.3 PATCHED (float cast; no delay, NOT_CONFIRMED) | `labs/cve-2026-105604` | 2026-11-15 |
 | CVE-2026-102789 | Gridbox 2.20.0.2 (vuln) / 2.20.5.0 (control), shared Gridbox lab (labs/cve-2026-61425) | unauthenticated editor.getBlogPosts with a controlled order column triggers a SQL error | CONFIRMED | 2.20.5.0 PATCHED (checkUserEditLevel; 200 empty, no SQL error) | `labs/cve-2026-61425` | 2026-11-15 |
+| CVE-2026-105603 | Joomla 5.2.3 + DJ-Classifieds 3.11.2 (vuln) / 3.11.3 (control), ordinary registered user (labs/cve-2026-105604) | authenticated profile new_avatar non-image .shtml upload plus public read-back | CONFIRMED (VULNERABLE_UPLOAD_ONLY; .shtml readable, SSI execution server-dependent) | 3.11.3 PATCHED (real image type check; .shtml not written, 404) | `labs/cve-2026-105604` | 2026-11-15 |
 
 ## Joomla — passive-only (out of contract scope; tracked for sourcing)
 
