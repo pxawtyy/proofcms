@@ -772,6 +772,14 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_djclassifieds"],
         "markers": r"com_djclassifieds|DJ-?Classifieds",
     },
+    "jdownloads": {
+        "manifests": [
+            "/administrator/components/com_jdownloads/jdownloads.xml",
+            "/components/com_jdownloads/jdownloads.xml",
+        ],
+        "routes": ["/?option=com_jdownloads"],
+        "markers": r"com_jdownloads|jDownloads",
+    },
     "acymailing": {
         "manifests": [
             "/administrator/components/com_acymailing/acymailing.xml",
@@ -987,10 +995,10 @@ def detect_common_component(
         is_manifest = bool(
             "text/html" not in content_type
             and re.search(r"<(?:extension|install)\b", body, re.IGNORECASE)
-            and re.search(r"<version>\s*[^<\s]+\s*</version>", body, re.IGNORECASE)
+            and re.search(r"<version>\s*[0-9]+(?:\.[0-9]+)*", body, re.IGNORECASE)
         )
         if is_manifest and re.search(marker, body, re.IGNORECASE):
-            match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
+            match = re.search(r"<version>\s*([0-9]+(?:\.[0-9]+)*)", body, re.IGNORECASE)
             edition = (
                 "enterprise" if component == "acymailing" and re.search(r"enterprise", body, re.IGNORECASE) else None
             )

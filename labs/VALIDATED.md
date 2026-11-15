@@ -114,6 +114,8 @@ Dispositions:
 | CVE-2026-72531 | Joomla 5.4.7/PHP 8.3 + Author API token (`core.login.api`, no `core.manage`) | aggressive field creation via `/api/index.php/v1/fields/content/articles` (flat JSON body) | CONFIRMED (VULNERABLE; Author token created field id > 0) | 5.4.8 PATCHED (version gate) + behavioral NOT_CONFIRMED (POST 403) | `labs/cve-2026-72531` | 2026-11-12 |
 | CVE-2017-14596 | Joomla < 3.8.0 (LDAP authentication plugin) | passive-only code-path check (unescaped username/password in the LDAP filter) | LIKELY_VULNERABLE (passive-only; needs an LDAP fixture) | 3.8.0 PATCHED (version gate) | — | 2026-11-12 |
 | CVE-2026-94132 | AcyMailing Enterprise 11.0.5 on Joomla 5.2.5/PHP 8.3 + GreenMail POP3 | full lab chain: forward mailbox action (`connection_method=pear`), malicious `image/png` part named `proofcms_94132.php`, cron trigger, then HTTP execution | CONFIRMED (VULNERABLE; PHP file written to `media/com_acym/upload/` and executed, returned `proofcms-94132-ok`) | 11.1.1 NOT_CONFIRMED (attachment extension rejected; no file) | `labs/cve-2026-94132` | 2026-11-13 |
+| CVE-2026-117551 | Joomla 5.4.9 + jDownloads 4.1.7 (vuln) / 4.1.8 (control), public upload category (labs/cve-2026-117551) | frontend thumbnail GIF/PHP polyglot plus public execution | CONFIRMED | 4.1.8 PATCHED (extension whitelist; polyglot not written, 404) | `labs/cve-2026-117551` | 2026-11-15 |
+| CVE-2026-105604 | Joomla 5.2.3 + DJ-Classifieds 3.11.2 (vuln) / 3.11.3 (control), distance column + one item (labs/cve-2026-105604) | djcf_latlon cookie SLEEP time differential vs SLEEP(0) | CONFIRMED | 3.11.3 PATCHED (float cast; no delay, NOT_CONFIRMED) | `labs/cve-2026-105604` | 2026-11-15 |
 
 ## Joomla — passive-only (out of contract scope; tracked for sourcing)
 
