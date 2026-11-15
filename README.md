@@ -243,6 +243,7 @@ differential allows it:
 | `WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225` | WordPress core insecure deserialization | branch-specific WPScan ranges | passive advisory |
 | `CVE-2026-117551` | jDownloads frontend thumbnail upload RCE | jDownloads 1.0.0 through 4.1.7; fixed in 4.1.8 | `aggressive` |
 | `CVE-2026-105604` | DJ-Classifieds unauthenticated frontend search SQL injection | DJ-Classifieds 1.0 through 3.11.2; fixed in 3.11.3 | `aggressive` |
+| `CVE-2026-102789` | Gridbox editor getBlogPosts missing authorization | Gridbox 1.0.0 through 2.20.4.2; fixed in 2.20.5.0 | `aggressive` |
 
 The three `WPVDB-*` identifiers are WPScan database IDs because the source
 advisories do not publish assigned CVE numbers. They are intentionally kept

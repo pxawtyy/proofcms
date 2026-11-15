@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from unittest.mock import patch
 
-from proofcms.modules.joomla import cve_2026_105604, cve_2026_117551
+from proofcms.modules.joomla import cve_2026_102789, cve_2026_105604, cve_2026_117551
 
 
 class _FakeJDClient:
@@ -99,4 +99,48 @@ def test_djclassifieds_transport_error_is_reported():
     error = {"status": 0, "error": {"type": "URLError", "message": "down"}}
     with patch.object(cve_2026_105604, "_timed_request", side_effect=[(error, 0.0)]):
         result = cve_2026_105604.run_aggressive_probe("https://target.test")
+    assert result.status == "ERROR"
+
+
+class _FakeGridboxClient:
+    def __init__(self, status: int = 500, sql_error: bool = True):
+        self.status = status
+        self.sql_error = sql_error
+
+    def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+        if self.status == 500 and self.sql_error:
+            match = re.search(r"order=(proofcms_[a-f0-9]+)", url)
+            column = match.group(1) if match else "proofcms_unknown"
+            return {"status": 500, "body": f"Error: 1054 Unknown column 'p.{column}' in 'ORDER BY'"}
+        return {"status": self.status, "body": ""}
+
+
+def test_gridbox_102789_version_boundaries():
+    assert cve_2026_102789.classify_version("2.20.0.2") == "LIKELY_VULNERABLE"
+    assert cve_2026_102789.classify_version("2.20.5.0") == "NOT_AFFECTED"
+    assert cve_2026_102789.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
+
+
+def test_gridbox_102789_error_signature_confirms():
+    with patch.object(cve_2026_102789, "HttpClient", return_value=_FakeGridboxClient(500, True)):
+        result = cve_2026_102789.run_aggressive_probe("https://target.test")
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["sql_error"] is True
+
+
+def test_gridbox_102789_patched_is_not_confirmed():
+    with patch.object(cve_2026_102789, "HttpClient", return_value=_FakeGridboxClient(200, False)):
+        result = cve_2026_102789.run_aggressive_probe("https://target.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["sql_error"] is False
+
+
+def test_gridbox_102789_transport_error_is_reported():
+    class _DownClient:
+        def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+            return {"status": 0, "error": {"type": "URLError", "message": "down"}}
+
+    with patch.object(cve_2026_102789, "HttpClient", return_value=_DownClient()):
+        result = cve_2026_102789.run_aggressive_probe("https://target.test")
     assert result.status == "ERROR"
