@@ -60,6 +60,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-94132` | AcyMailing Enterprise | Remote code execution |
 | `CVE-2026-48908` | SP Page Builder | Remote code execution |
 | `CVE-2026-57829` | Helix Ultimate | Stored XSS |
+| `CVE-2026-102425` | Balbooa Forms unauthenticated PHP-after-submission shortcode RCE | Balbooa Forms 1.0.0 through 2.4.3.3; fixed in 2.4.3.4 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:
