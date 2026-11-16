@@ -70,6 +70,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-65876` | SP Page Builder loadMoreArticles catid SQL injection | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
 | `CVE-2026-65879` | SP Page Builder hardcoded mail-relay secret | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | passive |
 | `CVE-2026-67285` | SP Page Builder addon-name local PHP file inclusion | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
+| `CVE-2025-30085` | RSForm! Pro authenticated submission-export remote code execution | RSForm! Pro 3.0.0 through 3.3.14; fixed in 3.3.15 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:

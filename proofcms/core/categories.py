@@ -62,6 +62,7 @@ _CVE_TYPES = {
     "CVE-2024-4439": VulnerabilityType.XSS,
     "CVE-2024-28000": VulnerabilityType.PRIVILEGE_ESCALATION,
     "CVE-2025-25227": VulnerabilityType.AUTHENTICATION_BYPASS,
+    "CVE-2025-30085": VulnerabilityType.CODE_EXECUTION,
     "CVE-2017-14596": VulnerabilityType.INFORMATION_DISCLOSURE,
     "CVE-2026-72531": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-90907": VulnerabilityType.AUTHENTICATION_BYPASS,
