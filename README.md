@@ -65,6 +65,11 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-67365` | iCagenda calendar module unauthenticated SQL injection | iCagenda 4.0.0 through 4.0.11; fixed in 4.0.12 | `aggressive` |
 | `CVE-2026-74254` | Page Builder CK styles model SQL injection | Page Builder CK 1.0.0 through 3.6.4; fixed in 3.6.5 | `aggressive` |
 | `CVE-2026-77994` | Page Builder CK frontend loadStyles second-order SQL injection | Page Builder CK 1.0.0 through 3.6.4; fixed in 3.6.5 | `aggressive` |
+| `CVE-2026-65880` | Balbooa Forms unauthenticated signature-field code execution | Balbooa Forms 1.0.0 through 2.4.3.1; fixed in 2.4.3.2 | `aggressive` |
+| `CVE-2026-65766` | SP Page Builder Dynamic Content order SQL injection | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | `aggressive` |
+| `CVE-2026-65876` | SP Page Builder loadMoreArticles catid SQL injection | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
+| `CVE-2026-65879` | SP Page Builder hardcoded mail-relay secret | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | passive |
+| `CVE-2026-67285` | SP Page Builder addon-name local PHP file inclusion | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:
