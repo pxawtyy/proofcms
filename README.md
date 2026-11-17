@@ -72,6 +72,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-67285` | SP Page Builder addon-name local PHP file inclusion | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
 | `CVE-2025-30085` | RSForm! Pro authenticated submission-export remote code execution | RSForm! Pro 3.0.0 through 3.3.14; fixed in 3.3.15 | `aggressive` |
 | `CVE-2026-66494` | SP Page Builder unauthenticated stored XSS in the Shapes API | SP Page Builder 1.0.0 through 6.6.1; fixed in 6.7.0 | `aggressive` |
+| `CVE-2026-117543` | jDownloads external download URL redirect SSRF | jDownloads 1.0.0 through 4.1.7; fixed in 4.1.8 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:
