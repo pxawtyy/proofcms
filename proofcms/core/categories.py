@@ -48,6 +48,7 @@ _CVE_TYPES = {
     "CVE-2026-90439": VulnerabilityType.MEMORY_CORRUPTION,
     "CVE-2026-49049": VulnerabilityType.ACCESS_CONTROL,
     "CVE-2026-48906": VulnerabilityType.FILE_DELETION,
+    "CVE-2026-94131": VulnerabilityType.FILE_DELETION,
     "CVE-2026-48908": VulnerabilityType.FILE_UPLOAD,
     "CVE-2026-57830": VulnerabilityType.FILE_DELETION,
     "CVE-2026-57829": VulnerabilityType.XSS,

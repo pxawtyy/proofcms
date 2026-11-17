@@ -75,6 +75,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-117543` | jDownloads external download URL redirect SSRF | jDownloads 1.0.0 through 4.1.7; fixed in 4.1.8 | `aggressive` |
 | `CVE-2026-94130` | YouTube Gallery unauthenticated video-search SQL injection | YouTube Gallery 1.0.0 through 5.7.2; fixed in 5.7.3 | `aggressive` |
 | `CVE-2026-48906` | Tassos Framework unauthenticated arbitrary file deletion | Tassos Framework 1.0.0 through 6.0.x; fixed in 6.1.0 | `aggressive` |
+| `CVE-2026-94131` | AcyMailing custom file field arbitrary file deletion | AcyMailing 1.0.0 through 11.0.x; fixed in 11.1.0 | `aggressive` |
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:
