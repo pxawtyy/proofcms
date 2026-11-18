@@ -39,13 +39,19 @@ Wiz has not released its proof-of-concept exploits.
 
 ### Reproduction labs (2026-11-18)
 
-- `labs/cve-2026-123007` - ASAN 1.31.8/1.31.9 builds, TLS HTTP/2 static-file
-  trigger and source analysis. The 1.31.8 trigger reaches the flow-control
-  boundary (`send_window` at `NGX_HTTP_V2_MAX_WINDOW`); the cleanup refund did
-  not yet overshoot in this sequence. Wiz has not published its PoC.
-- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, partial
-  HEADERS/CONTINUATION trigger and source analysis. Not yet run to a confirmed
-  use-after-free.
+- `labs/cve-2026-123007` - ASAN 1.31.8/1.31.9 builds plus an instrumented
+  1.31.8 variant. The verified fix adds `h2c->send_queued`: 1.31.8 lets the
+  client claim credit for queued DATA frames and then refunds the same bytes on
+  stream cleanup. The default trigger accepts the 8 MB claim, refunds
+  7,208,960 bytes, drives `send_window` to 2,150,498,303 (max + 3,014,656) and
+  aborts the instrumented worker; 1.31.9 rejects the claim with a flow-control
+  violation. Wiz has not published its PoC.
+- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, a
+  truncated WINDOW_UPDATE trigger and source analysis. The verified fix adds
+  `ngx_reusable_connection(h2c->connection, 0)` in `create_stream()`. On
+  1.31.8 the drain logs `*1 reusing connection` and sends GOAWAY (frame type
+  `0x7`) on the active connection; 1.31.9 keeps it off the reusable queue. No
+  heap-use-after-free report without the Wiz payload.
 
 Both labs are reproduction harnesses, not confirmed RCE proofs.
 
