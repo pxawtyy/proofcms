@@ -848,6 +848,32 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_docman"],
         "markers": r"com_docman|Joomlatools\s+Docman|DOCman",
     },
+    "customtables": {
+        "manifests": ["/administrator/components/com_customtables/customtables.xml"],
+        "routes": ["/?option=com_customtables"],
+        "markers": r"com_customtables|Custom\s*Tables",
+    },
+    "easyfileuploader": {
+        "manifests": ["/modules/mod_easyfileuploader/mod_easyfileuploader.xml"],
+        "routes": ["/"],
+        "markers": r"mod_easyfileuploader|Easy\s*File\s*Uploader",
+    },
+    "dpcalendar": {
+        "manifests": [
+            "/administrator/components/com_dpcalendar/dpcalendar.xml",
+            "/components/com_dpcalendar/dpcalendar.xml",
+        ],
+        "routes": ["/?option=com_dpcalendar"],
+        "markers": r"com_dpcalendar|DP\s*Calendar",
+    },
+    "edocman": {
+        "manifests": [
+            "/administrator/components/com_edocman/edocman.xml",
+            "/components/com_edocman/edocman.xml",
+        ],
+        "routes": ["/?option=com_edocman"],
+        "markers": r"com_edocman|EDocman",
+    },
     "slideshowck": {
         "manifests": [
             "/administrator/components/com_slideshowck/slideshowck.xml",
@@ -855,6 +881,14 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         ],
         "routes": ["/"],
         "markers": r"com_slideshowck|mod_slideshowck|Slideshow\s*CK|media/com_slideshowck/",
+    },
+    "phocadownload": {
+        "manifests": [
+            "/administrator/components/com_phocadownload/phocadownload.xml",
+            "/components/com_phocadownload/phocadownload.xml",
+        ],
+        "routes": ["/?option=com_phocadownload"],
+        "markers": r"com_phocadownload|Phoca\s*Download",
     },
     "phocagallery": {
         "manifests": [
