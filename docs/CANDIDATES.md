@@ -37,6 +37,18 @@ Wiz has not released its proof-of-concept exploits.
   on 1.25.1+, and remove the `http2` parameter from `listen` directives),
   reload, and confirm old workers exited.
 
+### Reproduction labs (2026-11-18)
+
+- `labs/cve-2026-123007` - ASAN 1.31.8/1.31.9 builds, TLS HTTP/2 static-file
+  trigger and source analysis. The 1.31.8 trigger reaches the flow-control
+  boundary (`send_window` at `NGX_HTTP_V2_MAX_WINDOW`); the cleanup refund did
+  not yet overshoot in this sequence. Wiz has not published its PoC.
+- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, partial
+  HEADERS/CONTINUATION trigger and source analysis. Not yet run to a confirmed
+  use-after-free.
+
+Both labs are reproduction harnesses, not confirmed RCE proofs.
+
 ## Pending Joomla candidates from the previous batch
 
 | CVE | Component | Type | Fixture still needed |
