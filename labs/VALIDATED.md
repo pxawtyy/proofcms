@@ -147,6 +147,9 @@ Dispositions:
 | CVE-2026-105602 | Joomla 5.2.5 + Helix Ultimate 2.2.10, shared lab labs/cve-2026-57829 | aggressive Mega Menu saveMegaMenuSettings settings[badge] marker | NOT_CONFIRMED (2.2.10 rejects the write with an invalid security token; no distinct frontend badge sink) | - | `labs/cve-2026-57829` | 2026-11-18 |
 | CVE-2026-105606 | Custom Tables 3.7.7 source; no public form fixture | passive version check only | BLOCKED_EXTERNAL (needs a seeded public submission form with a file field; no fixture) | - | - | 2026-11-18 |
 | CVE-2026-107904 | Easy File Uploader 2.9.2.1 source (repository); no <2.9.7 release archive | passive version check only | BLOCKED_EXTERNAL (old vulnerable archive unavailable; 2.9.2.1 source already blocks .php extensions and PHP tags) | - | - | 2026-11-18 |
+| CVE-2026-81565 | Joomla 5.4.9 + SP Page Builder 6.0.0 (vuln) / 6.10.0 (control), shared lab labs/cve-2026-48908 | aggressive admin editor.media `_method=POST`, `folder=tmp`, inert .json marker | CONFIRMED (VULNERABLE; marker written to tmp/ and served from the web root) | 6.10.0 NOT_CONFIRMED (HTTP 400 Upload Failed; isGetablePath rejects the folder) | `labs/cve-2026-48908` | 2026-11-18 |
+| CVE-2026-100752 | Real Estate Manager 6.7.x fixture not retained | aggressive showCategory `order_field` error-based marker | BLOCKED_EXTERNAL (7.x package not available; module and PoC endpoint ready) | - | - | 2026-11-18 |
+| CVE-2026-102782 | Simple Membership 7.3.x fixture not retained | aggressive checkLoginPass `login` extractvalue marker | BLOCKED_EXTERNAL (7.3.x package not available; module and PoC endpoint ready) | - | - | 2026-11-18 |
 
 ## Joomla — passive-only (out of contract scope; tracked for sourcing)
 

@@ -848,6 +848,22 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/?option=com_docman"],
         "markers": r"com_docman|Joomlatools\s+Docman|DOCman",
     },
+    "simplemembership": {
+        "manifests": [
+            "/administrator/components/com_simplemembership/simplemembership.xml",
+            "/administrator/components/com_simplemembership/com_simplemembership.xml",
+        ],
+        "routes": ["/?option=com_simplemembership"],
+        "markers": r"com_simplemembership|Simple\s*Membership",
+    },
+    "realestatemanager": {
+        "manifests": [
+            "/administrator/components/com_realestatemanager/realestatemanager.xml",
+            "/administrator/components/com_realestatemanager/com_realestatemanager.xml",
+        ],
+        "routes": ["/?option=com_realestatemanager"],
+        "markers": r"com_realestatemanager|Real\s*Estate\s*Manager",
+    },
     "customtables": {
         "manifests": ["/administrator/components/com_customtables/customtables.xml"],
         "routes": ["/?option=com_customtables"],
