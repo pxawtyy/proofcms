@@ -46,12 +46,13 @@ Wiz has not released its proof-of-concept exploits.
   7,208,960 bytes, drives `send_window` to 2,150,498,303 (max + 3,014,656) and
   aborts the instrumented worker; 1.31.9 rejects the claim with a flow-control
   violation. Wiz has not published its PoC.
-- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, a
-  truncated WINDOW_UPDATE trigger and source analysis. The verified fix adds
+- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, the Wiz
+  1-byte-SETTINGS arming and source analysis. The verified fix adds
   `ngx_reusable_connection(h2c->connection, 0)` in `create_stream()`. On
   1.31.8 the drain logs `*1 reusing connection` and sends GOAWAY (frame type
-  `0x7`) on the active connection; 1.31.9 keeps it off the reusable queue. No
-  heap-use-after-free report without the Wiz payload.
+  `0x7`) on the active connection; 1.31.9 keeps it off the reusable queue. The
+  Wiz log's freed-pool leak (`0x1010 r->pool`) and `u->peer.free` JOP chain
+  are not reproduced.
 
 Both labs are reproduction harnesses, not confirmed RCE proofs.
 
