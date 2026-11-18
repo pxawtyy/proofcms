@@ -208,3 +208,13 @@ Dispositions:
 | CVE-2026-109619 | lab `labs/cve-2026-109619` (PHP 8.2.34 mod_php, single worker, 8M + 1MB cookie_path) | aggressive OOM-gate differential (follow-up dies vs clean + fresh cookie) + safe stale-PSID leak differential on cli-server lab (4096-byte Set-Cookie vs fresh 32B) | CONFIRMED | 8.2.35 NOT_CONFIRMED (follow-up 200 + fresh cookie; version gate reports PATCHED); 8.3.36 cli-server NOT_CONFIRMED (fresh 32B) | `labs/cve-2026-109619` + `labs/cve-2026-109619-cli` | 2026-11-09 |
 | CVE-2023-6553 | WordPress 6.4.3 + Backup Migration 1.3.7 (`labs/cve-2023-6553`) | safe `php://filter` chain in `Content-Dir`: `sleep(0)` control vs `sleep(4)` proof | CONFIRMED (control 0.33s vs proof 4.02s) | 1.3.8 PATCHED (version gate; `filterChainFix` rejects the chain with "Incorrect parameters") | `labs/cve-2023-6553` | 2026-11-13 |
 | CVE-2024-27956 | WordPress 6.4.3 + WP Automatic 3.92.0 (`labs/cve-2024-27956`) | safe `auth=%00` + `SELECT IF(1=1,sleep(4),sleep(0))` timing differential | CONFIRMED (control 0.06s vs proof 4.02s) | no patched package available (WordPress.org removed 3.92.0); 3.92.1 version gate reports PATCHED | `labs/cve-2024-27956` | 2026-11-13 |
+
+## NGINX - active probes
+
+These rows cover the standalone HTTP/2 labs, not module-registry checks. The
+Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
+
+| CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
+|---|---|---|---|---|---|---|
+| CVE-2026-123007 | ASAN NGINX 1.31.8, SETTINGS `INITIAL_WINDOW_SIZE` 12 MB, 16 MB static file, 8 MB queued credit | cleanup refunds 7,208,960 queued bytes, `send_window` reaches 2,150,498,303 (max + 3,014,656); instrumented worker aborts with SIGABRT | CONFIRMED (invariant break; no RCE) | 1.31.9 NOT_CONFIRMED (credit rejected: `window increment 8388608 not allowed`; worker stays up) | `labs/cve-2026-123007` | 2026-11-18 |
+| CVE-2026-123633 | ASAN NGINX 1.31.8 proxy, `worker_connections 16`, truncated WINDOW_UPDATE + HEADERS, sleeping backend | drain selects the armed connection with an active proxied stream (`*1 reusing connection`) and sends GOAWAY (frame `0x7`) | NOT_CONFIRMED (reusable-list invariant break reproduced; no ASAN UAF) | 1.31.9 NOT_CONFIRMED (no GOAWAY; armed connection stays open) | `labs/cve-2026-123633` | 2026-11-18 |
