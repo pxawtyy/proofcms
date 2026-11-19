@@ -90,5 +90,4 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
 | CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
 | CVE-2026-92223 | Joomla core | workflow stage ACL bypass | core 5.4.8/5.4.9 or 6.1.3/6.1.4 (lab setup) |
-| CVE-2026-81566 | SP Page Builder | missing `com_menus` permission on menu item save | archives already available (6.0.0/6.10.0) |
 | CVE-2026-65878 | SP Page Builder | authenticated arbitrary file delete | archives already available (6.0.0/6.10.0) |
