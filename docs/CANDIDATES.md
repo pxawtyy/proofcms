@@ -72,6 +72,8 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 - Lab: `labs/cve-2026-114938` (safe 4096-byte trigger; the current i7-3770 has
   no AVX-512 and reports `BLOCKED_HARDWARE`). Control:
   `-XX:-UseBASE64Intrinsics`.
+- Inventory: `tools/java4shell_check.py` (parses `java -version` and CPU flags;
+  no malformed input). See `docs/JAVA4SHELL.md`.
 - No HTTP module: the trigger is a local Base64 decode, not an application
   endpoint. The public chain (heap grooming/writer/reader) is not included.
 
