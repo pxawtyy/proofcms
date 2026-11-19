@@ -218,3 +218,9 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 |---|---|---|---|---|---|---|
 | CVE-2026-123007 | ASAN NGINX 1.31.8, SETTINGS `INITIAL_WINDOW_SIZE` 12 MB, 16 MB static file, 8 MB queued credit; wrap build with a lab-only `?force_wrap=1` request | cleanup refunds 7,208,960 queued bytes, `send_window` reaches 2,150,498,303 (max + 3,014,656); instrumented worker aborts. Forced `2^63` state: `limit`/shadow size `-9223372036586340352`, ASAN `memcpy-param-overlap` in `ngx_ssl_send_chain()` (SIGABRT) | CONFIRMED (invariant break; second stage forced; no full 55.8 GB flood/RCE) | 1.31.9 NOT_CONFIRMED (credit rejected: `window increment 8388608 not allowed`; worker stays up) | `labs/cve-2026-123007` | 2026-11-18 |
 | CVE-2026-123633 | ASAN NGINX 1.31.8 proxy, `worker_connections 16`, 1-byte SETTINGS arming + HEADERS, sleeping backend | drain selects the armed connection with an active proxied stream (`*1 reusing connection`) and sends GOAWAY (frame `0x7`) | NOT_CONFIRMED (reusable-list invariant break reproduced; no ASAN UAF) | 1.31.9 NOT_CONFIRMED (no GOAWAY; armed connection stays open) | `labs/cve-2026-123633` | 2026-11-18 |
+
+## Java runtimes - active probes
+
+| CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
+|---|---|---|---|---|---|---|
+| CVE-2026-114938 | OpenJDK 17.0.13 Temurin, x86-64 AVX-512 VBMI | safe `Base64Trigger`: `64 x "A" + "="` into a 4096-byte array; expects 62 changed bytes at 50..111 | BLOCKED_EXTERNAL (host i7-3770 lacks AVX-512 VBMI; lab ready) | same image with `-XX:-UseBASE64Intrinsics` (or fixed 17.0.21.1) | `labs/cve-2026-114938` | - |

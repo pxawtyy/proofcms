@@ -245,3 +245,9 @@ D:\ProofCMS-Labs\
   checksums\              SHA256SUMS.txt (generated)
   notes\reports\          old lab reports
 ```
+
+## Java runtimes
+
+| CVE | Runtime | Vulnerable range | Recommended fixture | Extra requirements |
+|---|---|---:|---:|---|
+| CVE-2026-114938 | OpenJDK / Temurin | 17.0.6+ (21/25/27 branches) | `eclipse-temurin:17.0.13_11-jdk` | x86-64 with `avx512f`, `avx512bw`, `avx512vbmi`, `bmi2`; fixed 17.0.21.1 |

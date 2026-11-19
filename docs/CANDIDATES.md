@@ -60,6 +60,21 @@ Wiz has not released its proof-of-concept exploits.
 
 Both labs are reproduction harnesses, not confirmed RCE proofs.
 
+## Java4Shell (CVE-2026-114938)
+
+- OpenJDK x86-64 Base64 intrinsic out-of-bounds write (`evmovdqub` tail mask
+  underflow); `64 x "A" + "="` writes 62 bytes past a 50-byte output buffer.
+- Affected: OpenJDK 17.0.6+; fixed 17.0.21.1 (also 21.0.13.1, 25.0.5.1,
+  27.0.1.1). Distributions: Temurin, Corretto, Zulu, Liberica, SapMachine,
+  Red Hat, Oracle, GraalVM.
+- Hardware: x86-64 with `avx512f`, `avx512bw`, `avx512vbmi`, `bmi2`
+  (Ice Lake+ / Zen 4+); ARM is not affected.
+- Lab: `labs/cve-2026-114938` (safe 4096-byte trigger; the current i7-3770 has
+  no AVX-512 and reports `BLOCKED_HARDWARE`). Control:
+  `-XX:-UseBASE64Intrinsics`.
+- No HTTP module: the trigger is a local Base64 decode, not an application
+  endpoint. The public chain (heap grooming/writer/reader) is not included.
+
 ## Pending Joomla candidates from the previous batch
 
 | CVE | Component | Type | Fixture still needed |
