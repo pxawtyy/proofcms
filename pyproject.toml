@@ -34,6 +34,9 @@ Repository = "https://github.com/pxawtyy/proofcms.git"
 Issues = "https://github.com/pxawtyy/proofcms/issues"
 
 [project.optional-dependencies]
+http2 = [
+    "h2>=4.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
