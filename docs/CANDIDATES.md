@@ -45,7 +45,11 @@ Wiz has not released its proof-of-concept exploits.
   stream cleanup. The default trigger accepts the 8 MB claim, refunds
   7,208,960 bytes, drives `send_window` to 2,150,498,303 (max + 3,014,656) and
   aborts the instrumented worker; 1.31.9 rejects the claim with a flow-control
-  violation. Wiz has not published its PoC.
+  violation. A forced `?force_wrap=1` lab request sets `send_window` to
+  `2^63 + 0x10000000`, producing a negative `off_t`/shadow size and an ASAN
+  `memcpy-param-overlap` in `ngx_ssl_send_chain()`. The real ~55.8 GB
+  WINDOW_UPDATE flood is not reproduced end-to-end. Wiz has not published its
+  PoC.
 - `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, the Wiz
   1-byte-SETTINGS arming and source analysis. The verified fix adds
   `ngx_reusable_connection(h2c->connection, 0)` in `create_stream()`. On
