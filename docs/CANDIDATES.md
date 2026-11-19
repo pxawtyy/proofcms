@@ -77,6 +77,17 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 - No HTTP module: the trigger is a local Base64 decode, not an application
   endpoint. The public chain (heap grooming/writer/reader) is not included.
 
+## ASP.NET and .NET candidates
+
+| CVE | Component | Type | Status / fixture needed |
+|---|---|---|---|
+| CVE-2025-55315 | ASP.NET Core Kestrel | request smuggling | CONFIRMED (`labs/cve-2025-55315`) |
+| CVE-2026-88092 | ASP.NET Core Kestrel | 2026 smuggling variant | passive; BLOCKED (wire shape not reduced) |
+| CVE-2020-0688 | Exchange ViewState | deserialization RCE | passive build/surface module; active BLOCKED (Exchange/Windows fixture) |
+| CVE-2026-40372 | ASP.NET (?) | unknown | BLOCKED_EXTERNAL (no advisory/affected product found; need description) |
+| CVE-2026-114146 | ASP.NET (?) | unknown | BLOCKED_EXTERNAL (no advisory/affected product found; need description) |
+| CVE-2026-70188 | ASP.NET (?) | unknown | BLOCKED_EXTERNAL (no advisory/affected product found; need description) |
+
 ## Pending Joomla candidates from the previous batch
 
 | CVE | Component | Type | Fixture still needed |
@@ -90,4 +101,4 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
 | CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
 | CVE-2026-92223 | Joomla core | workflow stage ACL bypass | core 5.4.8/5.4.9 or 6.1.3/6.1.4 (lab setup) |
-| CVE-2026-65878 | SP Page Builder | authenticated arbitrary file delete | archives already available (6.0.0/6.10.0) |
+| CVE-2026-65878 | SP Page Builder | authenticated arbitrary file delete via rename/delete; 6.10.0 adds `isWritableMediaFolder()` to `renameMedia()`/`removeMediaItem()` | archives available; reset lab to 6.0.0; upload to `folder=.`, rename over canary, delete by ID; control 6.10.0 |
