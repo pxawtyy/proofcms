@@ -54,6 +54,22 @@ Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
   the current Linux-container daemon cannot host it. Keep the active proof
   `BLOCKED_EXTERNAL` until such a fixture exists.
 
+## Optional Windows VM: dockur/windows
+
+The host has `/dev/kvm` exposed to Docker, so `dockur/windows` can run a real
+Windows Server VM inside a Linux container (no Windows-container mode switch).
+
+- `labs/cve-2025-53772` provides the optional profiles `windows` (vulnerable
+  Web Deploy 10.0.2000) and `windows-control` (patched 10.0.2001).
+- Web viewer: `http://127.0.0.1:8006` (vuln) / `8007` (control); RDP: `3389` /
+  `3390`; Web Deploy: `8180`/`8172` (vuln) and `8181`/`8173` (control).
+- The VM uses 2 GB RAM and a 40 GB sparse disk in
+  `D:/ProofCMS-Labs/windows-53772-*`; run one VM at a time on this host.
+- **The vulnerable MSI is the blocker:** Microsoft currently serves Web Deploy
+  **10.0.2001** (fixed). Put an archived `WebDeploy_10.0.2000.msi` in
+  `D:/ProofCMS-Labs/archives/windows/` before running the active proof.
+  Until then, CVE-2025-53772 stays `BLOCKED_EXTERNAL`; the module is passive.
+
 ## Options
 
 1. Provide a Windows VM with an old .NET 2.0/3.5 snapshot (best for CONFIRMED).

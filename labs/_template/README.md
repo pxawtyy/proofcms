@@ -88,6 +88,8 @@ control where a fixed release exists). Record both runs in the README.
 | 9205 | `labs/cve-2024-2961` | PHP 8.4.27/glibc 2.41 patched control |
 | 9227 | `labs/cve-2023-6553` | WordPress 6.4.3 + Backup Migration 1.3.7 lab |
 | 9228 | `labs/cve-2023-6553` | Backup Migration 1.3.8 patched control |
+| 8006/8180/8172 | `labs/cve-2025-53772` | Optional Windows Server 2019 + Web Deploy 10.0.2000 VM (`dockur/windows`; RDP 3389) |
+| 8007/8181/8173/3390 | `labs/cve-2025-53772` | Optional Web Deploy 10.0.2001 patched control VM |
 | 9229 | `labs/cve-2024-27956` | WordPress 6.4.3 + WP Automatic 3.92.0 lab |
 | 9230 | `labs/cve-2024-1071` | WordPress 6.4.3 + Ultimate Member 2.8.2 lab |
 | 9231 | `labs/cve-2024-1071` | Ultimate Member 2.8.3 patched control |
