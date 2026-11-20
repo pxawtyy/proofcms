@@ -138,3 +138,4 @@ technical write-up or a reproducible appliance fixture exists.
 | CVE-2026-65766 | SP Page Builder | Dynamic Content `direction` ORDER BY SQLi; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
 | CVE-2026-67285 | SP Page Builder | addon-name local PHP file inclusion via the editor preview; 1.0.0–6.7.0, fixed 6.8.0 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
 | CVE-2026-105606 | Custom Tables | unauthenticated file upload via `view=fileuploader`; 1.0–3.7.7, fixed 3.7.8 | CONFIRMED (`labs/cve-2026-105606`, 3.7.7 vs 3.7.8) |
+| CVE-2026-65879 | SP Page Builder | unauthenticated mail relay via product-wide form salt; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65879`, 6.0.0 vs 6.10.0 + GreenMail) |

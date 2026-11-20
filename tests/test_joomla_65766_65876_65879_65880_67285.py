@@ -108,12 +108,41 @@ def test_sppb_65879_version_boundaries():
 def test_sppb_65879_passive_reports_vulnerable_version():
     result = cve_2026_65879.passive_result({"sppagebuilder": {"found": True, "version": "6.7.0"}})
     assert result.status == "LIKELY_VULNERABLE"
-    assert result.exploit_available is False
+    assert result.exploit_available is True
 
 
 def test_sppb_65879_passive_ignores_absent_component():
     result = cve_2026_65879.passive_result({"sppagebuilder": {"found": False}})
     assert result.status == "NOT_DETECTED"
+
+
+class _FakeMailClient:
+    def __init__(self, accepted: bool) -> None:
+        self.accepted = accepted
+
+    def get(self, url: str, headers=None, timeout: int | None = None) -> dict[str, object]:
+        return {"status": 200, "body": f'<input name="{TOKEN}" value="1">'}
+
+    def request(self, url: str, method: str = "POST", headers=None, data=None, timeout=None, follow_redirects=True):
+        payload = '{"status":true,"content":"Email sent successfully!"}' if self.accepted else '{"status":false,"content":"Restricted Access"}'
+        return {"status": 200, "body": '{"success":true,"data":' + __import__("json").dumps(payload) + '}'}
+
+
+def test_sppb_65879_forged_mail_is_confirmed():
+    result = cve_2026_65879.forge_form_id("attacker@example.test", "spoofed@example.test")
+    assert result.count(":") == 1
+    assert len(result.split(":")[1]) == 32
+    with patch.object(cve_2026_65879, "HttpClient", return_value=_FakeMailClient(True)):
+        finding = cve_2026_65879.run_aggressive_probe("https://target.test")
+    assert finding.status == "VULNERABLE"
+    assert finding.confidence == "CONFIRMED"
+    assert finding.evidence["recipient"] == "attacker@example.test"
+
+
+def test_sppb_65879_rejected_forgery_is_not_affected():
+    with patch.object(cve_2026_65879, "HttpClient", return_value=_FakeMailClient(False)):
+        finding = cve_2026_65879.run_aggressive_probe("https://target.test")
+    assert finding.status == "NOT_AFFECTED"
 
 
 # --- CVE-2026-67285 -------------------------------------------------------
