@@ -65,6 +65,9 @@ Windows Server VM inside a Linux container (no Windows-container mode switch).
   `3390`; Web Deploy: `8180`/`8172` (vuln) and `8181`/`8173` (control).
 - The VM uses 2 GB RAM and a 40 GB sparse disk in
   `D:/ProofCMS-Labs/windows-53772-*`; run one VM at a time on this host.
+  Docker Desktop's WSL2 limit must be at least 4 GB (6 GB recommended):
+  `%UserProfile%\.wslconfig` → `memory=6GB`, then `wsl --shutdown` and restart
+  Docker Desktop. The default 3 GB limit is not enough for Server 2019.
 - **The vulnerable MSI is now archived:** `windows/WebDeploy_10.0.2000.msi`
   (Microsoft Web Deploy 4.0, ProductVersion 10.0.2000, SHA-256
   `2befd8da31817d96875815ef1d0c30e11bd26838f7b65da6fd7ea80b041b3489`). The
