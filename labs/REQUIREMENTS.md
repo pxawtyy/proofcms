@@ -168,6 +168,12 @@ for CVE-2026-61424 (see the active-probes table).
 |---|---|---:|---:|---|
 | CVE-2026-111497 | Node.js bundled Brotli decoder | 22.x <22.23.4, 24.x <24.22.1, 26.x <26.12.1; EOL lines | 24.22.0 (vuln, `node:24.22.0`) + 24.22.1 control (`node:24.22.1`), `labs/cve-2026-111497` | Safe malformed block-switch vector; vulnerable reports `BLOCK_LENGTH_1`, patched reports `BLOCK_SWITCH`. No OOB/RCE stream is sent. |
 
+## React Server Components labs
+
+| CVE | Component | Affected range | Recommended fixture | Notes |
+|---|---|---|---|---|
+| CVE-2025-55182 | React Server Components Flight (React2Shell) | React 19.0.0, 19.1.0-19.1.1, 19.2.0; Next.js 15.0.x <15.0.8, 15.1.x <15.1.12, 15.2.x <15.2.9, 15.3.x <15.3.9, 15.4.x <15.4.11, 15.5.x <15.5.10, 16.0.x <16.0.11, 16.1.x <16.1.5 | `next@15.0.4` (vuln) + `next@15.0.8` (control) on Node 22, `labs/cve-2025-55182` | Safe `Next-Action: detect` digest differential; aggressive `printf` marker reflected in `X-Action-Redirect`. |
+
 ## ASP.NET Core runtime labs
 
 | CVE | Runtime required | Recommended fixture | Host/configuration requirements |

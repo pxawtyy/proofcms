@@ -6,7 +6,7 @@ Use the **system** `python` for checks — the repo `.venv` has broken
 `uv`-trampoline exes (`pytest`, `ruff` binaries fail there):
 
 ```powershell
-python -m pytest -q -p no:cacheprovider   # full suite (~870 tests, ~150 s)
+python -m pytest -q -p no:cacheprovider   # full suite (~890 tests, ~150 s)
 python -m pytest tests/test_x.py -q -p no:cacheprovider
 python -m ruff check .
 python -m mypy proofcms tools             # 125+ files, must be clean

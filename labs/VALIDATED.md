@@ -239,3 +239,9 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
 |---|---|---|---|---|---|---|
 | CVE-2026-132825 | Ruby 3.4.12 official image + valgrind | safe 21 x `0xDF` ISO-8859-1 `upcase`; Valgrind reports `Invalid write of size 1` at `case_map (iso_8859_1.c:293)` | CONFIRMED (one-byte OOB write; RCE not reproduced) | 3.4.13 NOT_CONFIRMED (no `case_map` invalid write) | `labs/cve-2026-132825` | 2026-11-20 |
+
+## React Server Components - active probes
+
+| CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
+|---|---|---|---|---|---|---|
+| CVE-2025-55182 | Next.js 15.0.4 + React 19.0.0, App Router (`labs/cve-2025-55182`, port 8109) | safe `Next-Action: detect` Flight payload returns HTTP 500 + `E{"digest"`; aggressive payload runs `printf PROOFCMS_55182_*` and reflects the marker in `X-Action-Redirect` | CONFIRMED | 15.0.8 NOT_CONFIRMED (safe returns the normal page; aggressive returns no marker) | `labs/cve-2025-55182` | 2026-11-20 |
