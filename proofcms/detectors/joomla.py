@@ -333,6 +333,59 @@ def detect_gridbox(
     return PluginInfo(False, None, "not-detected")
 
 
+def detect_jbusinessdirectory(
+    target: str,
+    timeout: int,
+    proxy: str | None = None,
+    baseline: dict | None = None,
+) -> PluginInfo:
+    manifest_paths = [
+        "/administrator/components/com_jbusinessdirectory/jbusinessdirectory.xml",
+        "/components/com_jbusinessdirectory/jbusinessdirectory.xml",
+        "/administrator/components/com_jbusinessdirectory/com_jbusinessdirectory.xml",
+    ]
+    for path in manifest_paths:
+        url = f"{target.rstrip('/')}{path}"
+        response = fetch_url(url, timeout=timeout, proxy=proxy)
+        if is_baseline_match(response, baseline):
+            continue
+        body = response.get("body", "")
+        if _valid_extension_manifest(response, r"jbusinessdirectory|j-business-directory|com_jbusinessdirectory"):
+            match = re.search(r"<version>\s*([^<\s]+)\s*</version>", body, re.IGNORECASE)
+            return PluginInfo(True, match.group(1).strip() if match else None, path)
+
+    paths = [
+        "/components/com_jbusinessdirectory/assets/",
+        "/index.php?option=com_jbusinessdirectory&view=companies",
+    ]
+    homepage = fetch_url(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
+    version_patterns = [
+        r"jbusinessdirectory[^0-9]{0,80}([0-9]+(?:\.[0-9]+)+)",
+        r"com_jbusinessdirectory[^0-9]{0,80}([0-9]+(?:\.[0-9]+)+)",
+        r"[?&]ver=([0-9]+(?:\.[0-9]+)+)",
+    ]
+    for path in paths:
+        url = f"{target.rstrip('/')}{path}"
+        response = fetch_url(url, timeout=timeout, proxy=proxy)
+        if is_baseline_match(response, baseline):
+            continue
+        body = _without_request_reflections(response.get("body", ""), target, path)
+        if response.get("body_hash") and response.get("body_hash") == homepage.get("body_hash"):
+            continue
+        if response["status"] == 200 and re.search(
+            r"jbusinessdirectory|j-business-directory|com_jbusinessdirectory", body, re.IGNORECASE
+        ):
+            version = None
+            for pattern in version_patterns:
+                match = re.search(pattern, body, re.IGNORECASE)
+                if match:
+                    version = match.group(1)
+                    break
+            return PluginInfo(True, version, path)
+
+    return PluginInfo(False, None, "not-detected")
+
+
 def detect_sppagebuilder(
     target: str,
     timeout: int,
@@ -1122,6 +1175,7 @@ def detect_plugins(
         "baforms": lambda: detect_baforms(target, timeout, proxy=proxy, baseline=baseline),
         "gridbox": lambda: detect_gridbox(target, timeout, proxy=proxy, baseline=baseline),
         "sppagebuilder": lambda: detect_sppagebuilder(target, timeout, proxy=proxy, baseline=baseline),
+        "jbusinessdirectory": lambda: detect_jbusinessdirectory(target, timeout, proxy=proxy, baseline=baseline),
         "pagebuilderck": lambda: detect_pagebuilderck(target, timeout, proxy=proxy, baseline=baseline),
         "rsfiles": lambda: detect_rsfiles(target, timeout, proxy=proxy, baseline=baseline),
         "helix3": lambda: detect_helix3(target, timeout, proxy=proxy, baseline=baseline),

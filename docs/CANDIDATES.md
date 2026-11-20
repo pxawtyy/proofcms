@@ -97,7 +97,7 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-102782 | OrdaSoft Simple Membership | unauthenticated `checkLoginPass` SQLi | 7.3.x + 7.4.0 (module ready) |
 | CVE-2026-77995 | miniOrange OAuth Client | arbitrary account takeover via cookie | OAuth Client <3.2.0 + 3.2.0 |
 | CVE-2026-100750 | Regular Labs Modules Anywhere | LFI / SSRF via module attribute overrides | Pro 9.0.5 + fixed |
-| CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete | vulnerable + fixed (paid) |
+| CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete; 1.0.0–6.2.2, fixed 6.2.3 | CONFIRMED (`labs/cve-2026-75949`) |
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
 | CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
 | CVE-2026-92223 | Joomla core | workflow stage batch ACL bypass; 5.0.0–5.4.8 and 6.0.0–6.1.3, fixed 5.4.9/6.1.4 | CONFIRMED (`labs/cve-2026-92223`) |
