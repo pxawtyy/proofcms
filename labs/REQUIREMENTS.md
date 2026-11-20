@@ -173,6 +173,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE | Component | Affected range | Recommended fixture | Notes |
 |---|---|---|---|---|
 | CVE-2025-55182 | React Server Components Flight (React2Shell) | React 19.0.0, 19.1.0-19.1.1, 19.2.0; Next.js 15.0.x <15.0.8, 15.1.x <15.1.12, 15.2.x <15.2.9, 15.3.x <15.3.9, 15.4.x <15.4.11, 15.5.x <15.5.10, 16.0.x <16.0.11, 16.1.x <16.1.5 | `next@15.0.4` (vuln) + `next@15.0.8` (control) on Node 22, `labs/cve-2025-55182` | Safe `Next-Action: detect` digest differential; aggressive `printf` marker reflected in `X-Action-Redirect`. |
+| CVE-2026-126187 | React Server Components Flight typed-array desync | RSC 19.0.0-19.0.8, 19.1.0-19.1.9, 19.2.0-19.2.8, 19.3.0; Next.js 16.0.0-16.4.0 with Cache Components | `next@16.4.0` (vuln) + `next@16.4.1` (control), React 19.3.0, `labs/cve-2026-126187` | Requires a `use cache` function returning multiple typed arrays over one ArrayBuffer; safe data-row desync and aggressive action marker. |
 
 ## ASP.NET Core runtime labs
 
