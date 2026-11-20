@@ -100,5 +100,5 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete | vulnerable + fixed (paid) |
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
 | CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
-| CVE-2026-92223 | Joomla core | workflow stage ACL bypass | core 5.4.8/5.4.9 or 6.1.3/6.1.4 (lab setup) |
+| CVE-2026-92223 | Joomla core | workflow stage batch ACL bypass; 5.0.0–5.4.8 and 6.0.0–6.1.3, fixed 5.4.9/6.1.4 | CONFIRMED (`labs/cve-2026-92223`) |
 | CVE-2026-65878 | SP Page Builder | authenticated arbitrary file rename/delete via the media `thumb`; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-48908`, 6.0.0 vs 6.10.0) |
