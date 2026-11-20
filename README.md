@@ -31,6 +31,7 @@ surfaces, and ships both passive checks and isolated-lab proof modules.
 - [CVE index](docs/CVE-INDEX.md) — every registered check, grouped by family
 - [Module contract](docs/MODULE_CONTRACT.md) — evidence rules, shared framework, proof design
 - [Validation matrix](labs/VALIDATED.md) — fixtures, probes, controls, and dispositions
+- [Ruby2Shell inventory](docs/RUBY2SHELL.md) — local Ruby version check and primitive lab
 - [Windows lab notes](docs/WINDOWS-LAB.md) — Windows-only checks and their prerequisites
 - [Contributing](CONTRIBUTING.md) — target-data rules, tests, and the validation-row recorder
 
@@ -42,6 +43,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | Nickname / CVE | Component | Impact |
 |---|---|---|
 | Node2Shell / `CVE-2026-111497` | Node.js bundled Brotli decoder | Remote code execution |
+| Ruby2Shell / `CVE-2026-132825` | Ruby string case conversion (ISO-8859/Windows-125x) | Heap overflow; local primitive reproduced, RCE chain not public |
 | PHP2Shell / `CVE-2026-109618` + `CVE-2026-109619` | PHP Zend Engine / request-shutdown memory corruption | Remote code execution |
 | `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
 | WP2Shell / `CVE-2026-63030` + `CVE-2026-60137` | WordPress core chain | Remote code execution |
@@ -79,6 +81,10 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-78077` | Helix Ultimate stored XSS in Mega Menu layout values | Helix Ultimate 1.0.0 through 2.2.9; fixed in 2.2.10 | `aggressive` |
 | `CVE-2026-78078` | Helix Ultimate privileged image-upload content-spoofing bypass | Helix Ultimate 1.0.0 through 2.2.9; fixed in 2.2.10 | `aggressive` |
 | `CVE-2026-48941` | K2 unauthenticated gallery folder deletion | K2 1.0 through 2.26; fixed in 2.27 | `aggressive` |
+
+Ruby2Shell is a local runtime inventory + lab (`tools/ruby2shell_check.py`,
+`labs/cve-2026-132825`), not an HTTP CVE module. The lab confirms the one-byte
+out-of-bounds write; the public RCE chain is not available yet.
 
 Named chains keep their own report section. The `wp2shell` chain combines
 `CVE-2026-63030` with `CVE-2026-60137`:

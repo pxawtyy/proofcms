@@ -60,6 +60,39 @@ Wiz has not released its proof-of-concept exploits.
 
 Both labs are reproduction harnesses, not confirmed RCE proofs.
 
+## VMware vCenter authentication bypass (CVE-2026-123890)
+
+Source: [VMSA-2026-0009.1](https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/39495),
+CVSS 9.8 (`AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`), CWE-288.
+
+Affected: vCenter 9.1.x before 9.1.1.0200, 9.0.x before 9.0.2.0200, 8.0
+before 8.0 U3m, 5.x before 5.2.5; 7.0 under extended support. Telco Cloud
+Platform 3.0/4.x/5.0.x/5.1.x/5.2 and Telco Cloud Infrastructure 3.0 are also
+listed (KB463116). No workaround.
+
+**Disposition: `BLOCKED_EXTERNAL`.** The advisory only says the bypass is in
+the VMware Directory Service; there is no public PoC, endpoint, parameter, or
+request/response detail (CISA SSVC: exploitation `none`, automatable `yes`).
+vCenter is a proprietary multi-GB appliance, not in the lab archive, and it is
+not a CMS surface. A version-only detector would require a new vCenter product
+detector and would not prove the bypass; do not add a check until a public
+technical write-up or a reproducible appliance fixture exists.
+
+## Ruby2Shell (CVE-2026-132825)
+
+- One-byte heap overflow in Ruby's single-byte `case_map()` during
+  `upcase`/`swapcase`/`downcase(:fold)`/`casecmp?` on ISO-8859-x and
+  Windows-125x strings.
+- Affected: 3.3.0-3.3.13, 3.4.0-3.4.12, 4.0.0-4.0.9; Ruby 3.2 and older are
+  EOL and affected. Fixed: 3.3.14, 3.4.13, 4.0.10 (commit `d582f8f13d70`).
+- GHSA-34m4-m9fh-gqp5 rates it **Critical**; NVD scores 7.4 (`AV:L/AC:H`).
+  Veria Labs claims RCE on stock Rails and plans a public PoC for 2026-11-25;
+  independent research reproduces the ASAN crash and a glibc chunk-header
+  corruption, but not an end-to-end RCE.
+- Inventory: `tools/ruby2shell_check.py`. Lab: `labs/cve-2026-132825`
+  (Valgrind, 21 x `0xDF` ISO-8859-1, Ruby 3.4.12 vs 3.4.13). **CONFIRMED**
+  for the one-byte out-of-bounds write; RCE not reproduced.
+
 ## Java4Shell (CVE-2026-114938)
 
 - OpenJDK x86-64 Base64 intrinsic out-of-bounds write (`evmovdqub` tail mask

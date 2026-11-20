@@ -260,3 +260,9 @@ D:\ProofCMS-Labs\
 | CVE | Runtime | Vulnerable range | Recommended fixture | Extra requirements |
 |---|---|---:|---:|---|
 | CVE-2026-114938 | OpenJDK / Temurin | 17.0.6+ (21/25/27 branches) | `eclipse-temurin:17.0.13_11-jdk` | x86-64 with `avx512f`, `avx512bw`, `avx512vbmi`, `bmi2`; fixed 17.0.21.1 |
+
+## Ruby runtimes
+
+| CVE | Runtime | Vulnerable range | Recommended fixture | Extra requirements |
+|---|---|---|---|---|
+| CVE-2026-132825 | Ruby | 3.3.0-3.3.13, 3.4.0-3.4.12, 4.0.0-4.0.9; 3.2 and older EOL | `ruby:3.4.12` + `ruby:3.4.13` | valgrind; ISO-8859-x/Windows-125x `upcase`; local primitive only |

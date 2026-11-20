@@ -118,3 +118,4 @@ Exit codes from `validate`: `0` = vulnerable + patched control
 | `tools/record_validation.py` | Append/replace a `labs/VALIDATED.md` row |
 | `tools/archive_index.py` | Inventory local package archives |
 | `tools/java4shell_check.py` | Host AVX-512 VBMI capability check |
+| `tools/ruby2shell_check.py` | Local Ruby2Shell version/legacy-encoding check (CVE-2026-132825) |

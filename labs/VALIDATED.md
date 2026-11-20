@@ -233,3 +233,9 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
 |---|---|---|---|---|---|---|
 | CVE-2026-114938 | OpenJDK 17.0.13 Temurin, x86-64 AVX-512 VBMI | safe `Base64Trigger`: `64 x "A" + "="` into a 4096-byte array; expects 62 changed bytes at 50..111 | BLOCKED_EXTERNAL (host i7-3770 lacks AVX-512 VBMI; lab ready) | same image with `-XX:-UseBASE64Intrinsics` (or fixed 17.0.21.1) | `labs/cve-2026-114938` | - |
+
+## Ruby runtimes - active probes
+
+| CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
+|---|---|---|---|---|---|---|
+| CVE-2026-132825 | Ruby 3.4.12 official image + valgrind | safe 21 x `0xDF` ISO-8859-1 `upcase`; Valgrind reports `Invalid write of size 1` at `case_map (iso_8859_1.c:293)` | CONFIRMED (one-byte OOB write; RCE not reproduced) | 3.4.13 NOT_CONFIRMED (no `case_map` invalid write) | `labs/cve-2026-132825` | 2026-11-20 |
