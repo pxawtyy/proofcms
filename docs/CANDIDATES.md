@@ -85,7 +85,7 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-88092 | ASP.NET Core Kestrel | aborted-connection request smuggling (CWE-444) | 8.0.0–8.0.31, 9.0.0–9.0.20, 10.0.0–10.0.12, 11 preview1–rc1; fixed 8.0.32/9.0.21/10.0.13/11 rc2; CONFIRMED (`labs/cve-2026-88092`) |
 | CVE-2020-0688 | Exchange ViewState | deserialization RCE | passive build/surface module; active BLOCKED (Exchange/Windows fixture) |
 | CVE-2026-40372 | ASP.NET Core DataProtection | signature verification bypass / forged cookies (CWE-347) | 10.0.0–10.0.6; fixed 10.0.7; passive version/surface; active BLOCKED (crypto oracle) |
-| CVE-2026-114146 | ASP.NET Core Http.Connections (SignalR) | identity binding / EoP (CWE-863) | 1.2.0–1.2.13; fixed 1.2.14; passive surface/version; active BLOCKED (identity injection) |
+| CVE-2026-114146 | ASP.NET Core SignalR | identity binding / EoP (CWE-863) | 1.2.0–1.2.13 and runtimes 8.0 ≤8.0.33 / 9.0 ≤9.0.22 / 10.0 ≤10.0.14 / 11.0 ≤rc.3; fixed 1.2.14 / 8.0.34 / 9.0.23 / 10.0.15 / 11.0.0; CONFIRMED (`labs/cve-2026-114146`) |
 | CVE-2026-70188 | ASP.NET Core Kestrel | HTTP/2 trailer/HPACK newline smuggling (CWE-444) | 8.0.0–8.0.31, 9.0.0–9.0.20, 10.0.0–10.0.12, 11 preview1–rc1; fixed 8.0.32/9.0.21/10.0.13/11 rc2; CONFIRMED (`labs/cve-2026-70188`) |
 
 ## Pending Joomla candidates from the previous batch
