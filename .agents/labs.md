@@ -13,10 +13,15 @@ teardown).
   `internal: true` — the host must reach the published port, and stale
   attachments break DNS; after changing networks, `down` (not just `up`)
   before recreating.
+- Put MariaDB data on `tmpfs: /var/lib/mysql` (no named volume). Docker
+  Desktop's `D:` volume makes a 70-table Joomla snapshot restore take
+  minutes; tmpfs restores in seconds. Persistence is the host snapshot, so
+  `down` purges it.
 - Pin every image with its **amd64 platform digest** (containerd snapshotter
   cannot resolve manifest-list digests):
   `docker buildx imagetools inspect <image> --format "{{json .Manifest}}"`
-  and take the `amd64/linux` entry. `wordpress:cli` → `wordpress:cli-php8.1`.
+  and take the `amd64/linux` entry. Use a versioned `wordpress:cli-php8.x`
+  pinned by amd64 digest.
 - Seed scripts live in the lab dir (`seed.ps1`, `seed-admin.php`,
   `make-zip.php`). Idempotent where cheap. Commercial packages are mounted
   read-only from `D:/ProofCMS-Labs/archives` and zipped **inside** the
@@ -27,6 +32,33 @@ teardown).
   artifacts the probe cannot (uploaded files, canary dirs) and document it.
 - Update `labs/VALIDATED.md` (Lab + Validated + Commit columns) in the same
   commit; some CONFIRMED rows share one lab (8869+8870).
+
+## Lab runners (`lab.json`)
+
+`tools/wp_lab.py` and `tools/joomla_lab.py` take a declarative `lab.json`
+in the lab directory. Shared keys:
+
+| Key | Meaning |
+|---|---|
+| `cms` | `wordpress` or `joomla` (selects the runner) |
+| `compose` | Compose file relative to the lab dir (default `compose.yml`) |
+| `url` / `control` | Vulnerable and patched base URLs |
+| `web` / `control_web` | Container services used for PHP error tails |
+| `seed` | `[{"script": "seed.ps1"}]`, `[{"service": "...", "command": [...]}]`, or WordPress shell strings |
+| `databases` | `[{"service": "db", "name": "joomla", "root_password": "root"}]` for snapshot/reset |
+| `cleanup` | Commands run by `reset` after the DB restore |
+| `proofs` | Per-CVE `{mode, args, vuln, patched, url, control, timeout}` |
+
+WordPress proofs also carry `vuln`/`patched` plugin zip URLs (or local
+paths). `tools/wp_lab.py run <lab>` snapshots the seeded state, runs the
+vulnerable plugin, restores, installs the patched zip, and runs the control.
+
+Snapshots are host-side DB dumps + plugin tarballs under
+`labs/<cve>/.snapshots/` (gitignored); never commit them. `down` removes
+them by default because `down -v` invalidates the volumes; pass
+`--keep-snapshot` only when the stack itself is kept. The base WordPress
+`cli` container is long-running (`tail -f /dev/null`): use
+`docker compose ... exec -T cli wp ...`, not `--profile tools run --rm`.
 
 ## Joomla 3.x bootstrap (no CLI installer)
 

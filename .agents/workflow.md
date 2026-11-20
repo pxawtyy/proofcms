@@ -6,13 +6,22 @@ Use the **system** `python` for checks — the repo `.venv` has broken
 `uv`-trampoline exes (`pytest`, `ruff` binaries fail there):
 
 ```powershell
-python -m pytest -q -p no:cacheprovider   # full suite (~50 s, 423 tests)
+python -m pytest -q -p no:cacheprovider   # full suite (~870 tests, ~150 s)
 python -m pytest tests/test_x.py -q -p no:cacheprovider
 python -m ruff check .
-python -m mypy proofcms                   # 125 files, must be clean
+python -m mypy proofcms tools             # 125+ files, must be clean
 ```
 
-Only `ruff check` (not format) is enforced; `mypy` runs on `proofcms/`.
+For a change set, prefer the fail-fast wrapper (stops at the first red
+step; targeted pytest for module changes, full suite for core changes):
+
+```powershell
+python tools/verify.py
+python tools/verify.py --full
+```
+
+Only `ruff check` (not format) is enforced; `mypy` runs on `proofcms/` and
+`tools/`.
 Pre-commit runs `ruff check` + trailing-whitespace + end-of-file-fixer +
 `check-added-large-files --maxkb=500` (this is what blocks fixtures).
 
@@ -48,3 +57,17 @@ python -m proofcms --list-cves
 
 `--aggressive-command` is legacy; prefer `--aggressive-arg`. Secrets in
 args are redacted from reports automatically.
+
+## Lab runners
+
+```powershell
+# WordPress: vulnerable + patched control in one compact JSON
+python tools/wp_lab.py run labs/cve-2024-10402 --pretty
+
+# Joomla: lab.json declares compose, seed, databases and proofs
+python tools/joomla_lab.py validate labs/cve-2026-75949 --pretty
+python tools/joomla_lab.py reset labs/cve-2026-75949
+```
+
+`validate` exits `0` only for `CONFIRMED_WITH_CONTROL`; `2` means inspect
+the JSON. Snapshots live in `labs/**/.snapshots/` (gitignored).

@@ -16,3 +16,7 @@ proofcms.egg-info
 
 logs/
 *.bundle
+
+# Lab runner caches: DB dumps, plugin trees, downloaded fixtures.
+labs/**/.snapshots/
+.cache/

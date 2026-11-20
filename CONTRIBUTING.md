@@ -78,5 +78,10 @@ python tools/wp_lab.py reset
 python tools/wp_lab.py down
 ```
 
-`install` accepts a URL or a local zip; `reset` drops the database and
-reinstalls WordPress in place, so the base container is never rebuilt.
+`install` accepts a URL or a local zip; `up` writes a database + plugin
+snapshot and `reset` restores it in place, so the base container is never
+rebuilt. For a one-shot vulnerable/patched run, use a `lab.json`:
+
+```bash
+python tools/wp_lab.py run labs/cve-2024-10402 --pretty
+```

@@ -3,6 +3,9 @@ name: proofcms-wp-base
 services:
   db:
     image: mariadb:10.11@sha256:7d829180b5b2a9ba74f6242876ab401a0d7dd338a807e522ef92bc9698760f20
+    # Lab data lives in RAM: snapshot restores on the Docker Desktop volume
+    # take minutes, tmpfs takes ~1 s. Persistence is the host snapshot.
+    tmpfs: /var/lib/mysql
     environment:
       MARIADB_DATABASE: wordpress
       MARIADB_USER: wordpress
@@ -13,8 +16,6 @@ services:
       interval: 3s
       timeout: 3s
       retries: 40
-    volumes:
-      - db:/var/lib/mysql
     networks: [lab]
 
   wordpress:
@@ -40,11 +41,16 @@ services:
 
   cli:
     image: wordpress:cli-php8.2@sha256:be56991798a70b0491f406f0a088ec3f12b5cb915ab6949dced0d9052861265b
-    profiles: [tools]
-    entrypoint: ["wp"]
+    # Long-running so every WP-CLI call is an ``exec`` (~200 ms) instead of a
+    # fresh ``run --rm`` container (2-5 s). ``wp`` is still on PATH; prefix it
+    # explicitly: docker compose ... exec -T cli wp ...
+    entrypoint: ["tail", "-f", "/dev/null"]
     user: "0:0"
     depends_on:
-      - wordpress
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
@@ -55,7 +61,6 @@ services:
     networks: [lab, edge]
 
 volumes:
-  db:
   wordpress:
 
 networks:
