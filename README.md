@@ -44,7 +44,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 |---|---|---|
 | Node2Shell / `CVE-2026-111497` | Node.js bundled Brotli decoder | Remote code execution |
 | React2Shell / `CVE-2025-55182` | React Server Components / Next.js App Router | Remote code execution |
-| React2Shell Flight desync / `CVE-2026-126187` | React Server Components / Next.js Cache Components | Remote code execution |
+| RSC Flight typed-array desync / `CVE-2026-126187` | React Server Components / Next.js Cache Components | Remote code execution |
 | Ruby2Shell / `CVE-2026-132825` | Ruby string case conversion (ISO-8859/Windows-125x) | Heap overflow; local primitive reproduced, RCE chain not public |
 | PHP2Shell / `CVE-2026-109618` + `CVE-2026-109619` | PHP Zend Engine / request-shutdown memory corruption | Remote code execution |
 | `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
