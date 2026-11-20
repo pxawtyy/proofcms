@@ -46,6 +46,7 @@ Dispositions:
 | CVE-2026-64638 | WordPress 7.0.2/PHP 8.3 (`wordpress:7.0.2-php8.3-apache`) | safe reflected parser-differential on `/wp-login.php` (inert `< area>` marker) | CONFIRMED (VULNERABLE; response normalized the marker to a raw `<area>` element) | 7.0.3 NOT_CONFIRMED (marker reflected but escaped) | `labs/cve-2026-64638` | 2026-11-12 |
 | CVE-2026-87902 | lab `labs/cve-2026-87902` (WP 7.0.2) | safe differential path traversal (wp-links-opml.php page_id=2 depth=4 vs randomized control, read-only) | CONFIRMED | 7.1.2 PATCHED (version gate skips probe) | `labs/cve-2026-87902` | 2026-11-09 | `37e72a8` |
 | CVE-2026-92229 | Forminator 1.57.2 | safe registered-shortcode evaluation differential via preview quiz renderer | CONFIRMED | 1.57.3 NOT_CONFIRMED (input sanitizer strips the embedded shortcode) | `labs/cve-2026-92229` | 2026-11-09 |
+| CVE-2026-119077 | ELEX HelpDesk 3.3.9 (vuln) / 3.4.0 control (`labs/cve-2026-119077`, `tools/wp_lab.py`) | aggressive forged Guzzle `FileCookieJar` object through the `eh_crm_new_ticket_post` `form` field; one-request build oracle plus inert PHP marker read-back from `/wp-content/uploads/` | CONFIRMED (VULNERABLE; object accepted, marker written and executed) | 3.4.0 NOT_AFFECTED (object guard rejects the throwaway serialized value with `Invalid form data.`) | `labs/cve-2026-119077` | 2026-11-20 |
 
 ## WordPress — passive-only (out of contract scope; tracked for sourcing)
 
@@ -197,7 +198,7 @@ Dispositions:
 | CVE-2023-21722 (.NET DoS) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36560 (ASP.NET bypass) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36899 (ASP.NET EoP) | Passive version detection only: needs IIS/.NET app-pool and OS prerequisites; no lab harness. |
-| CVE-2025-53772 (IIS Web Deploy) | Passive surface only: msdeploy.axd/IIS detected and safe header probe; optional `dockur/windows` VM harness in `labs/cve-2025-53772`; active proof blocked until an archived Web Deploy 10.0.2000 MSI + credentials are available. |
+| CVE-2025-53772 (IIS Web Deploy) | Passive surface only: msdeploy.axd/IIS detected and safe header probe; optional `dockur/windows` VM harness in `labs/cve-2025-53772`; the 10.0.2000 MSI is archived (`windows/WebDeploy_10.0.2000.msi`, SHA-256 `2befd8da…b3489`), but the active BinaryFormatter proof has not been run yet. |
 | CVE-2026-42945 (NGINX rewrite) | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
 | CVE-2026-9256 (NGINX rewrite captures) | Passive version/config detection only: needs vulnerable rewrite captures; no safe lab harness. |
 | CVE-2026-42530 (NGINX HTTP/3 UAF) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |

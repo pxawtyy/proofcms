@@ -19,7 +19,7 @@ from pathlib import Path
 
 DEFAULT_ROOT = Path("D:/ProofCMS-Labs/archives")
 DEFAULT_REPO = Path(__file__).resolve().parent.parent
-ARCHIVE_SUFFIXES = {".zip", ".exe", ".7z", ".tar", ".gz", ".tgz"}
+ARCHIVE_SUFFIXES = {".zip", ".exe", ".msi", ".7z", ".tar", ".gz", ".tgz"}
 REPO_SUFFIXES = {".md", ".ps1", ".py", ".yml", ".yaml", ".json", ".php"}
 
 

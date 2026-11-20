@@ -65,10 +65,11 @@ Windows Server VM inside a Linux container (no Windows-container mode switch).
   `3390`; Web Deploy: `8180`/`8172` (vuln) and `8181`/`8173` (control).
 - The VM uses 2 GB RAM and a 40 GB sparse disk in
   `D:/ProofCMS-Labs/windows-53772-*`; run one VM at a time on this host.
-- **The vulnerable MSI is the blocker:** Microsoft currently serves Web Deploy
-  **10.0.2001** (fixed). Put an archived `WebDeploy_10.0.2000.msi` in
-  `D:/ProofCMS-Labs/archives/windows/` before running the active proof.
-  Until then, CVE-2025-53772 stays `BLOCKED_EXTERNAL`; the module is passive.
+- **The vulnerable MSI is now archived:** `windows/WebDeploy_10.0.2000.msi`
+  (Microsoft Web Deploy 4.0, ProductVersion 10.0.2000, SHA-256
+  `2befd8da31817d96875815ef1d0c30e11bd26838f7b65da6fd7ea80b041b3489`). The
+  current Microsoft download is 10.0.2001 (the patched control). The active
+  proof still needs a live VM run; the module stays passive until then.
 
 ## Options
 

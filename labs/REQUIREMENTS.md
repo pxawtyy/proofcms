@@ -51,6 +51,7 @@ sample configuration as a baseline, then document every web-server override sepa
 | CVE-2025-0357 | WPBookit Pro | through 1.6.9 | 1.6.9 | Commercial fixture needed; fixed in 1.6.10; source is required to determine the real request contract |
 | CVE-2026-6692 | Slider Revolution (`revslider`) | 7.0.0-7.0.10 | 7.0.10 | Commercial; fixed in 7.0.11 |
 | CVE-2026-92229 | Forminator (`forminator`) | through 1.57.2 | 1.57.2 (keep 1.57.3 as patched control) | Free WordPress.org package; seed a public knowledge quiz with a share-enabled network plus a page rendering it (see `labs/cve-2026-92229`) |
+| CVE-2026-119077 | ELEX HelpDesk (`elex-helpdesk-customer-support-ticket-system`) | through 3.3.9 | 3.3.9 (vuln) + 3.4.0 (control), `labs/cve-2026-119077` | Free WordPress.org packages. Seed a `[wsdesk_support]` page (publishes the anonymous `wsdesk_nonce`) and one custom-field slug in `wp_wsdesk_settings` — a clean install with only the three default fields is not exploitable. The uploads directory must be writable by the **wordpress** container's www-data (UID 33), not the cli container's (UID 82). 3.4.0 adds an object guard over every parsed form value, giving a one-request build oracle. |
 | CVE-2026-15748 | Forminator (`forminator`) | 1.18.1-1.56.1 | 1.56.1 (keep 1.56.2 as patched control) | Free WordPress.org package; seed a public custom form with a genuine upload field plus a select carrier (see `labs/cve-2026-15748`) |
 | CVE-2026-18781 | Drag and Drop Multiple File Upload for Contact Form 7 | before 1.3.9.9 | 1.3.9.8 | Also install a compatible Contact Form 7 and create a form using the upload field |
 | CVE-2026-32475 | Elementor Pro | through 4.2.1 | 4.2.1 | Commercial; also retain the matching free Elementor package and a configured vulnerable form/route |
@@ -213,7 +214,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE | Component | What blocks active proof |
 |---|---|---|
 | CVE-2018-8284 / CVE-2023-21722 / CVE-2023-36560 / CVE-2023-36899 | .NET Framework / ASP.NET | Passive version detection only: exact servicing build + Windows/IIS prerequisites required; no lab harness. |
-| CVE-2025-53772 | IIS Web Deploy (msdeploy.axd) | Passive surface detection only: optional `dockur/windows` VM in `labs/cve-2025-53772`; active BinaryFormatter proof needs an archived Web Deploy 10.0.2000 MSI + valid credentials. Microsoft currently serves 10.0.2001. |
+| CVE-2025-53772 | IIS Web Deploy (msdeploy.axd) | Passive surface detection only: optional `dockur/windows` VM in `labs/cve-2025-53772`; the vulnerable 10.0.2000 MSI is archived at `windows/WebDeploy_10.0.2000.msi`; active BinaryFormatter proof still needs a live VM run + valid credentials. |
 | CVE-2026-42945 / CVE-2026-9256 | NGINX rewrite module | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
 | CVE-2026-42530 / CVE-2026-90439 | NGINX HTTP/3 module | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-42055 | NGINX proxy-v2 / gRPC modules | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |
