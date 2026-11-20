@@ -9,8 +9,8 @@ from ...core.versions import parse_version_required, parse_version_safe
 CVE_ID = "CVE-2026-40372"
 NAME = "ASP.NET Core DataProtection signature verification bypass"
 RULE = (
-    "Microsoft.AspNetCore.DataProtection 10.0.0 through 10.0.6 on non-Windows "
-    "when the NuGet asset is loaded"
+    "Microsoft.AspNetCore.DataProtection 10.0.0 through 10.0.6 when the "
+    "netstandard2.0/net462 managed asset is loaded (non-Windows managed path)"
 )
 FIXED_RULE = (
     "Upgrade Microsoft.AspNetCore.DataProtection to 10.0.7 or later and rotate "
@@ -100,8 +100,10 @@ def check(
                 if has_surface
                 else "No protected cookie was observed on the landing page; the package may still be loaded. "
             )
-            + "The public issue is a signature-verification bypass (CWE-347); an active proof needs a "
-            "padding-oracle style query loop and a forged payload, so none is sent."
+            + "The public issue is a signature-verification bypass (CWE-347): the managed "
+            "netstandard2.0 path compares a zeroed stack buffer with the payload MAC, so a "
+            "payload with an all-zero HMAC is accepted. An active proof needs a local "
+            "DataProtection self-test, so none is sent."
         )
         confidence = Confidence.HIGH if has_surface else Confidence.MEDIUM
         action = FIXED_RULE
@@ -160,9 +162,9 @@ def metadata() -> dict[str, Any]:
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
         "vulnerability_type": "Improper Verification of Cryptographic Signature",
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-11-19",
-        "updated": "2026-11-19",
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-20",
+        "updated": "2026-11-20",
         "required_detectors": ["aspnet"],
         "references": [
             "https://github.com/advisories/GHSA-9mv3-2cwr-p262",
