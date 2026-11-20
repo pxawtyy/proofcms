@@ -102,3 +102,5 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
 | CVE-2026-92223 | Joomla core | workflow stage batch ACL bypass; 5.0.0–5.4.8 and 6.0.0–6.1.3, fixed 5.4.9/6.1.4 | CONFIRMED (`labs/cve-2026-92223`) |
 | CVE-2026-65878 | SP Page Builder | authenticated arbitrary file rename/delete via the media `thumb`; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-48908`, 6.0.0 vs 6.10.0) |
+| CVE-2026-65766 | SP Page Builder | Dynamic Content `direction` ORDER BY SQLi; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
+| CVE-2026-67285 | SP Page Builder | addon-name local PHP file inclusion via the editor preview; 1.0.0–6.7.0, fixed 6.8.0 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |

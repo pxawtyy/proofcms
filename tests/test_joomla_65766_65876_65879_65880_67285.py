@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import re
+from typing import Any
 from unittest.mock import patch
 from urllib.parse import parse_qs, unquote
 
@@ -118,17 +119,36 @@ def test_sppb_65879_passive_ignores_absent_component():
 # --- CVE-2026-67285 -------------------------------------------------------
 
 
-class _FakeLfiClient:
-    def __init__(self, include_marker: bool) -> None:
+class _FakeSppbEditorClient:
+    """Simulates the site login and the addon-preview JSON view."""
+
+    def __init__(self, include_marker: bool = True, benign_ok: bool = True) -> None:
         self.include_marker = include_marker
+        self.benign_ok = benign_ok
 
     def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
-        if self.include_marker:
-            return {"status": 200, "body": "PROOFCMS_LFI_MARKER"}
-        return {"status": 500, "body": '{"error":true,"message":"Failed opening required site.php"}'}
+        if "view=login" in url:
+            return {"status": 200, "body": f'<input name="{TOKEN}" value="1">'}
+        if url.endswith("/index.php"):
+            return {"status": 200, "body": f'<input name="{TOKEN}" value="1"> Logout'}
+        if "task=ajax" in url:
+            return {"status": 200, "body": "PROOFCMS_LFI_MARKER" if self.include_marker else "no marker"}
+        return {"status": 200, "body": ""}
 
     def request(self, url: str, method: str = "POST", headers=None, data=None, timeout=None, follow_redirects=False):
-        return {"status": 500, "body": '{"error":true,"message":"View class not found"}'}
+        fields = parse_qs((data or b"").decode())
+        if "user.login" in url:
+            return {
+                "status": 303,
+                "headers": {"Location": "/index.php/component/users/profile"},
+                "body": "",
+            }
+        name = fields.get("addon[name]", [""])[0]
+        if name == cve_2026_67285.BENIGN_ADDON:
+            body = '<div class="sppb-addon-wrapper">ok</div>' if self.benign_ok else '{"error":true}'
+            return {"status": 200, "body": body}
+        body = "PROOFCMS_LFI_MARKER" if self.include_marker else '<div class="sppb-addon-wrapper">no marker</div>'
+        return {"status": 200, "body": body}
 
 
 def test_sppb_67285_version_boundaries():
@@ -140,16 +160,41 @@ def test_sppb_67285_version_boundaries():
 
 
 def test_sppb_67285_marker_include_confirms():
-    with patch.object(cve_2026_67285, "HttpClient", return_value=_FakeLfiClient(True)):
-        result = cve_2026_67285.run_aggressive_probe("https://target.test")
+    client = _FakeSppbEditorClient(include_marker=True)
+    with patch.object(cve_2026_67285, "HttpClient", return_value=client):
+        result = cve_2026_67285.run_aggressive_probe(
+            "https://target.test", username="admin", password="proofcms-lab-password"
+        )
     assert result.status == "VULNERABLE"
     assert result.confidence == "CONFIRMED"
+    assert result.evidence["benign_preview_ok"] is True
+    assert result.evidence["marker_found"] is True
 
 
-def test_sppb_67285_filtered_addon_is_blocked():
-    with patch.object(cve_2026_67285, "HttpClient", return_value=_FakeLfiClient(False)):
-        result = cve_2026_67285.run_aggressive_probe("https://target.test")
+def test_sppb_67285_patched_addon_name_is_not_confirmed():
+    client = _FakeSppbEditorClient(include_marker=False)
+    with patch.object(cve_2026_67285, "HttpClient", return_value=client):
+        result = cve_2026_67285.run_aggressive_probe(
+            "https://target.test", username="admin", password="proofcms-lab-password"
+        )
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["marker_found"] is False
+    assert result.evidence["benign_preview_ok"] is True
+
+
+def test_sppb_67285_bad_benign_control_is_blocked():
+    client = _FakeSppbEditorClient(include_marker=False, benign_ok=False)
+    with patch.object(cve_2026_67285, "HttpClient", return_value=client):
+        result = cve_2026_67285.run_aggressive_probe(
+            "https://target.test", username="admin", password="proofcms-lab-password"
+        )
     assert result.status == "BLOCKED_EXTERNAL"
+
+
+def test_sppb_67285_without_credentials_sends_nothing():
+    result = cve_2026_67285.run_aggressive_probe("https://target.test")
+    assert result.status == "BLOCKED_EXTERNAL"
+    assert result.exploit_ran is False
 
 
 # --- CVE-2026-65876 -------------------------------------------------------
@@ -211,6 +256,36 @@ def test_sppb_65766_patched_is_not_confirmed():
     ):
         result = cve_2026_65766.run_aggressive_probe("https://target.test")
     assert result.status == "NOT_CONFIRMED"
+
+
+def test_sppb_65766_authenticated_control_is_not_affected():
+    responses = [
+        ({"status": 200, "body": ""}, 0.20),
+        ({"status": 200, "body": '{"status":false,"message":"You don\'t have permission to access this."}'}, 0.25),
+    ]
+    with patch.object(cve_2026_65766, "HttpClient", return_value=_DummyClient()), patch.object(
+        cve_2026_65766, "_timed_post", side_effect=responses
+    ):
+        result = cve_2026_65766.run_aggressive_probe("https://target.test")
+    assert result.status == "NOT_AFFECTED"
+
+
+def test_sppb_65766_guest_token_is_sent_in_header():
+    class _TokenClient(_DummyClient):
+        def get(self, url: str, timeout: int | None = None) -> dict[str, object]:
+            return {"status": 200, "body": f'<input name="{TOKEN}" value="1">'}
+
+    captured: dict[str, Any] = {}
+
+    def fake_timed(client, url, payload, timeout, headers=None):
+        captured.update(headers or {})
+        return {"status": 200, "body": ""}, 0.2
+
+    with patch.object(cve_2026_65766, "HttpClient", return_value=_TokenClient()), patch.object(
+        cve_2026_65766, "_timed_post", side_effect=fake_timed
+    ):
+        cve_2026_65766.run_aggressive_probe("https://target.test")
+    assert captured.get("X-CSRF-Token") == TOKEN
 
 
 def test_sppb_65766_undispatchable_controller_is_blocked():

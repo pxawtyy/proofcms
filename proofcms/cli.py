@@ -367,8 +367,9 @@ def main():
         metavar="KEY=VALUE",
         help=(
             "Named lab-only argument for aggressive probes (repeatable). "
-            "Keys: admin_user/admin_password (15882, 90915), canary_url/cache_group (90915), "
-            "page_url/username (32243), hash/full (28000). Example: --aggressive-arg admin_user=admin"
+            "Keys: admin_user/admin_password (15882, 90915), username/password (67285, 81566), "
+            "canary_url/cache_group (90915), page_url/username (32243), hash/full (28000). "
+            "Example: --aggressive-arg admin_user=admin"
         ),
     )
     parser.add_argument("--timeout", type=int, default=12, help="HTTP timeout in seconds")
