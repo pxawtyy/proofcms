@@ -8,6 +8,8 @@ def test_88092_version_boundaries():
     assert cve_2026_88092.classify_version("9.0.21") == "PATCHED"
     assert cve_2026_88092.classify_version("10.0.12") == "LIKELY_VULNERABLE"
     assert cve_2026_88092.classify_version("10.0.13") == "PATCHED"
+    assert cve_2026_88092.classify_version("11.0.0-rc.1") == "LIKELY_VULNERABLE"
+    assert cve_2026_88092.classify_version("11.0.0-rc.2") == "PATCHED"
     assert cve_2026_88092.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
 
 

@@ -6,7 +6,7 @@ from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
 
 CVE_ID = "CVE-2026-88092"
-NAME = "ASP.NET Core Kestrel request smuggling (2026-88092)"
+NAME = "ASP.NET Core Kestrel aborted-connection request smuggling"
 RULE = "ASP.NET Core 8.0 before 8.0.32, 9.0 before 9.0.21, 10.0 before 10.0.13, and 11.0 before 11.0.0-rc2"
 FIXED_RULE = "Upgrade ASP.NET Core to 8.0.32, 9.0.21, 10.0.13, 11.0.0-rc2, or newer"
 HAS_EXPLOIT = False
@@ -24,7 +24,8 @@ def classify_version(version: str | None) -> str:
         return Status.LIKELY_VULNERABLE
     if parse_version_required("10.0.0") <= parsed < parse_version_required("10.0.13"):
         return Status.LIKELY_VULNERABLE
-    if version and version.lower().startswith("11.0.0-rc1"):
+    lowered = (version or "").lower()
+    if lowered.startswith("11.0.0-preview") or lowered in {"11.0.0-rc.1", "11.0.0-rc1"}:
         return Status.LIKELY_VULNERABLE
     return Status.PATCHED
 
@@ -41,9 +42,11 @@ def check(
     status = classify_version(cms_version)
     if status == Status.LIKELY_VULNERABLE:
         detail = (
-            f"ASP.NET Core {cms_version} is in the affected range. This is a different "
-            "request-smuggling variant from CVE-2025-55315; its exact wire shape is not "
-            "reduced to a safe differential, so only version evidence is reported."
+            f"ASP.NET Core {cms_version} is in the affected range. An aborted HTTP/1 connection "
+            "can reparse unread request-body bytes as another request: the drain is skipped when "
+            "the abort is recorded and the pre-fix loop keeps keep-alive on. The wire shape is "
+            "reduced and confirmed in `labs/cve-2026-88092`; remote confirmation needs a "
+            "side-effect endpoint, so this module reports version evidence only."
         )
         confidence = Confidence.HIGH
     elif status == Status.PATCHED:
@@ -53,7 +56,7 @@ def check(
         detail = "ASP.NET Core was detected, but its exact runtime version is unknown."
         confidence = Confidence.MEDIUM
     if run_exploit_check:
-        detail += " This module is passive-only; no smuggling request is sent."
+        detail += " This module is passive-only; no aborted-connection request is sent."
     return Finding(
         cve=CVE_ID,
         name=NAME,
@@ -81,17 +84,24 @@ def metadata() -> dict[str, Any]:
         "name": NAME,
         "component": "ASP.NET Core / Kestrel",
         "affected_rule": RULE,
-        "affected_versions": [">=8.0.0,<8.0.32", ">=9.0.0,<9.0.21", ">=10.0.0,<10.0.13", "11.0.0-rc1"],
+        "affected_versions": [
+            ">=8.0.0,<8.0.32",
+            ">=9.0.0,<9.0.21",
+            ">=10.0.0,<10.0.13",
+            "11.0.0-preview.1..11.0.0-rc.1",
+        ],
         "exploit_available": HAS_EXPLOIT,
         "exploit_modes": EXPLOIT_MODES,
         "intrusive": INTRUSIVE,
         "vulnerability_type": "HTTP Request Smuggling",
-        "module_version": "1.0.0",
-        "last_reviewed": "2026-11-13",
-        "updated": "2026-11-13",
+        "module_version": "1.1.0",
+        "last_reviewed": "2026-11-19",
+        "updated": "2026-11-19",
         "required_detectors": ["aspnet"],
         "references": [
+            "https://github.com/dotnet/aspnetcore/security/advisories/GHSA-rv87-ccxw-8ggf",
+            "https://github.com/dotnet/announcements/issues/472",
+            "https://www.herodevs.com/blog-posts/kestrel-vulnerabilities-net-6-cve-2026-88092-cve-2026-70188",
             "https://www.cve.org/CVERecord?id=CVE-2026-88092",
-            "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-88092",
         ],
     }
