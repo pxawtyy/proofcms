@@ -83,9 +83,11 @@ Exit codes from `validate`: `0` = vulnerable + patched control
   no archive → blocked; do not keep searching.
 - **No blind floods.** No NGINX/PHP stress loops, no credential spraying,
   no wordlist runs. Use the source and a single differential.
-- **Do not retry known blockers** (J3 miniOrange, unseeded SPPB collections,
-  Exchange ViewState, Java4Shell AVX-512, Windows-only PHP-CGI) without a
-  new artifact.
+- **Do not retry known blockers** (Exchange ViewState, Java4Shell AVX-512,
+  Windows-only PHP-CGI, NGINX build/pcap, paid or unsourcable packages) without
+  a new artifact. J3 miniOrange (77995) and the SPPB dynamic-content/addon
+  routes (65766/67285) were once listed here and are now CONFIRMED in
+  `labs/VALIDATED.md` — quote those rows instead of reopening them.
 - **Never** promote a version match, a scanner banner, or a `200` to
   `CONFIRMED`. `CONFIRMED` requires a live PoC and a patched control where
   a fixed release exists.
