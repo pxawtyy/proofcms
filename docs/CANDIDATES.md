@@ -95,7 +95,7 @@ Both labs are reproduction harnesses, not confirmed RCE proofs.
 | CVE-2026-76602 | Fabrik | unauthenticated ORDER BY SQLi | Fabrik 4.7.0/4.7.1 + 4.7.2 |
 | CVE-2026-100752 | OrdaSoft Real Estate Manager | unauthenticated `order_field` SQLi | 6.7.8 + 6.7.9 (module ready) |
 | CVE-2026-102782 | OrdaSoft Simple Membership | unauthenticated `checkLoginPass` SQLi | 7.3.x + 7.4.0 (module ready) |
-| CVE-2026-77995 | miniOrange OAuth Client | arbitrary account takeover via cookie | OAuth Client <3.2.0 + 3.2.0 |
+| CVE-2026-77995 | miniOrange OAuth Client | arbitrary account takeover via SSO bridge cookies | 1.0.0–3.1.9, fixed 3.2.0; BLOCKED_EXTERNAL (Joomla 3 fixture; 3.1.4's J4+ `getIdentity($id)` branch returns guest) |
 | CVE-2026-100750 | Regular Labs Modules Anywhere | LFI / SSRF via module attribute overrides | Pro 9.0.5 + fixed |
 | CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete; 1.0.0–6.2.2, fixed 6.2.3 | CONFIRMED (`labs/cve-2026-75949`) |
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
