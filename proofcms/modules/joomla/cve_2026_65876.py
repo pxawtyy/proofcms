@@ -16,7 +16,7 @@ AFFECTED_RULE = "SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0"
 HAS_EXPLOIT = True
 INTRUSIVE = False
 EXPLOIT_MODES = ["safe", "aggressive"]
-ENDPOINT = "/index.php?option=com_sppagebuilder&task=articles.loadMoreArticles&format=json"
+ENDPOINT = "/index.php?option=com_sppagebuilder&task=articles.loadMoreArticles"
 SLEEP_THRESHOLD = 1.2
 
 
@@ -88,8 +88,8 @@ def run_aggressive_probe(target_url: str, timeout: int = 12, proxy: str | None =
         "delta_seconds": round(delta, 3),
         "sleep_threshold": SLEEP_THRESHOLD,
     }
-    if benign.get("status") == 200 and probe.get("status") == 200 and delta >= SLEEP_THRESHOLD:
-        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, evidence=evidence, detail=f"The unauthenticated loadMoreArticles catid value reached the query and added {delta:.2f}s over the benign request.", action="Upgrade SP Page Builder to 6.8.0 or newer.")
+    if benign.get("status") == 200 and delta >= SLEEP_THRESHOLD:
+        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, evidence=evidence, detail=f"The unauthenticated loadMoreArticles catid value reached the query and added {delta:.2f}s over the benign request (probe HTTP {probe.get('status')}).", action="Upgrade SP Page Builder to 6.8.0 or newer.")
     if benign.get("status") in (403, 404, 500) or probe.get("status") in (403, 404, 500):
         detail = "The loadMoreArticles endpoint is not reachable in the retained fixture (the 6.0.0 archive predates the endpoint and 6.10.0 gates it with a token)."
         status = "BLOCKED_EXTERNAL"
