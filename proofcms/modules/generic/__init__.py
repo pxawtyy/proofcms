@@ -10,6 +10,7 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2023-36899": "proofcms.modules.generic.cve_2023_36899",
     "CVE-2024-58288": "proofcms.modules.generic.cve_2024_58288",
     "CVE-2025-55315": "proofcms.modules.generic.cve_2025_55315",
+    "CVE-2025-53772": "proofcms.modules.generic.cve_2025_53772",
     "CVE-2025-55182": "proofcms.modules.generic.cve_2025_55182",
     "CVE-2026-126187": "proofcms.modules.generic.cve_2026_126187",
     "CVE-2026-102870": "proofcms.modules.generic.cve_2026_102870",

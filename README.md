@@ -48,6 +48,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | Ruby2Shell / `CVE-2026-132825` | Ruby string case conversion (ISO-8859/Windows-125x) | Heap overflow; local primitive reproduced, RCE chain not public |
 | PHP2Shell / `CVE-2026-109618` + `CVE-2026-109619` | PHP Zend Engine / request-shutdown memory corruption | Remote code execution |
 | `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
+| `CVE-2025-53772` | IIS Web Deploy (msdeploy.axd) | Authenticated deserialization RCE |
 | WP2Shell / `CVE-2026-63030` + `CVE-2026-60137` | WordPress core chain | Remote code execution |
 | `CVE-2012-1823` | PHP-CGI query string | Remote code execution |
 | `CVE-2019-11043` | PHP-FPM PATH_INFO underflow | Remote code execution |

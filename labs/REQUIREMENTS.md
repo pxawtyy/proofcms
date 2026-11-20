@@ -213,6 +213,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE | Component | What blocks active proof |
 |---|---|---|
 | CVE-2018-8284 / CVE-2023-21722 / CVE-2023-36560 / CVE-2023-36899 | .NET Framework / ASP.NET | Passive version detection only: exact servicing build + Windows/IIS prerequisites required; no lab harness. |
+| CVE-2025-53772 | IIS Web Deploy (msdeploy.axd) | Passive surface detection only: active BinaryFormatter proof needs Windows Server + IIS + Web Deploy 10.0.2000 and valid credentials; no Linux fixture. |
 | CVE-2026-42945 / CVE-2026-9256 | NGINX rewrite module | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
 | CVE-2026-42530 / CVE-2026-90439 | NGINX HTTP/3 module | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-42055 | NGINX proxy-v2 / gRPC modules | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |

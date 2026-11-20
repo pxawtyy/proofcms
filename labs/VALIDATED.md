@@ -197,6 +197,7 @@ Dispositions:
 | CVE-2023-21722 (.NET DoS) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36560 (ASP.NET bypass) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36899 (ASP.NET EoP) | Passive version detection only: needs IIS/.NET app-pool and OS prerequisites; no lab harness. |
+| CVE-2025-53772 (IIS Web Deploy) | Passive surface only: msdeploy.axd/IIS detected and safe header probe; active BinaryFormatter proof needs Windows/IIS Web Deploy 10.0.2000 + credentials; no Linux lab. |
 | CVE-2026-42945 (NGINX rewrite) | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
 | CVE-2026-9256 (NGINX rewrite captures) | Passive version/config detection only: needs vulnerable rewrite captures; no safe lab harness. |
 | CVE-2026-42530 (NGINX HTTP/3 UAF) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |

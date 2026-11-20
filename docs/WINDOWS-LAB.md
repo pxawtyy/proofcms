@@ -41,6 +41,19 @@ Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
 - PHP-on-Windows CVEs (CVE-2024-4577, CVE-2024-5585) need a Windows container
   plus a vulnerable PHP build; the same Windows-mode prerequisite applies.
 
+## Web Deploy (CVE-2025-53772)
+
+- Requires Windows Server + IIS + Web Deploy 4.0 **10.0.2000** (fixed in
+  **10.0.2001**) and valid credentials. The flaw is a BinaryFormatter
+  deserialization of the GZip+Base64 `MSDeploy.SyncOptions` header on
+  `msdeploy.axd` / `msdeployagentservice`.
+- The module is passive: it checks `/msdeploy.axd` and sends a header-only
+  probe **without** `MSDeploy.SyncOptions`. It never sends a serialized
+  object.
+- A real active lab needs a Windows VM/container with Web Deploy 10.0.2000;
+  the current Linux-container daemon cannot host it. Keep the active proof
+  `BLOCKED_EXTERNAL` until such a fixture exists.
+
 ## Options
 
 1. Provide a Windows VM with an old .NET 2.0/3.5 snapshot (best for CONFIRMED).
