@@ -14,6 +14,7 @@ from proofcms.modules.generic import (
     cve_2026_56434,
     cve_2026_60005,
     cve_2026_90439,
+    cve_2026_123007,
     cve_2026_123633,
 )
 
@@ -88,6 +89,7 @@ def test_nginx_detector_rejects_fake_phpinfo_content():
         (cve_2026_60005, "1.31.2", "1.31.3"),
         (cve_2026_90439, "1.31.5", "1.31.6"),
         (cve_2026_123633, "1.31.8", "1.31.9"),
+        (cve_2026_123007, "1.31.8", "1.31.9"),
     ],
 )
 def test_nginx_advisory_version_boundaries(module, vulnerable, fixed):
@@ -114,6 +116,50 @@ def test_new_nginx_lower_boundaries_are_not_affected():
     assert cve_2026_60005.classify_version("1.15.7") == "NOT_AFFECTED"
     assert cve_2026_90439.classify_version("1.29.1") == "NOT_AFFECTED"
     assert cve_2026_123633.classify_version("1.19.6") == "NOT_AFFECTED"
+    assert cve_2026_123007.classify_version("1.9.4") == "NOT_AFFECTED"
+
+
+def test_window_underflow_cve_stable_and_mainline_boundaries():
+    assert cve_2026_123007.classify_version("1.9.5") == "LIKELY_VULNERABLE"
+    assert cve_2026_123007.classify_version("1.30.6") == "LIKELY_VULNERABLE"
+    assert cve_2026_123007.classify_version("1.30.7") == "PATCHED"
+    assert cve_2026_123007.classify_version("1.31.8") == "LIKELY_VULNERABLE"
+    assert cve_2026_123007.classify_version("1.31.9") == "PATCHED"
+
+
+def test_window_underflow_cve_requires_observable_h2_path():
+    runtime = {
+        "detected": True,
+        "version": "1.31.8",
+        "source": "/:Server",
+        "server": "nginx/1.31.8",
+        "http2_enabled": False,
+    }
+    result = cve_2026_123007.check("https://fixture.test", nginx_runtime=runtime)
+    assert result.status == "NOT_CONFIRMED"
+    assert result.vulnerability_type == "Memory Corruption"
+    assert result.evidence["http2_enabled"] is False
+
+    runtime["http2_enabled"] = True
+    result = cve_2026_123007.check("https://fixture.test", nginx_runtime=runtime)
+    assert result.status == "LIKELY_VULNERABLE"
+    assert result.confidence == "HIGH"
+    assert result.evidence["http2_enabled"] is True
+
+
+def test_window_underflow_cve_has_no_active_probe():
+    runtime = {
+        "detected": True,
+        "version": "1.31.8",
+        "source": "/:Server",
+        "server": "nginx/1.31.8",
+        "http2_enabled": True,
+    }
+    result = cve_2026_123007.check(
+        "https://fixture.test", run_exploit_check=True, nginx_runtime=runtime
+    )
+    assert result.exploit_ran is False
+    assert "could crash" in result.detail
 
 
 def test_http2_cve_stable_and_mainline_boundaries():
@@ -246,6 +292,7 @@ def test_private_nginx_configuration_is_required_for_likely_status():
         cve_2026_56434,
         cve_2026_60005,
         cve_2026_123633,
+        cve_2026_123007,
     )
     results = [module.check("https://fixture.test", nginx_runtime=runtime) for module in modules]
     assert all(result.status == "NOT_CONFIRMED" for result in results)

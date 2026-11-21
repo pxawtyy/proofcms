@@ -5,53 +5,6 @@ enough context to build a module, lab and validation row later. When a check is
 implemented, move it to the registry and `docs/CVE-INDEX.md`, and add its
 validation row to `labs/VALIDATED.md`; do not leave it duplicated here.
 
-## NGINX HTTP/2 RCE (disclosed 2026-11-18)
-
-Source: <https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities>
-
-This is an unauthenticated remote code execution flaw in NGINX itself, rated
-CVSS 4.0 **9.2 (Critical)**. It requires **HTTP/2 enabled** on the target.
-Wiz has not released its proof-of-concept exploit.
-
-| CVE | Bug | First affected | Fixed (OSS) | Fixed (NGINX Plus) | Extra conditions |
-|---|---|---|---|---|---|
-| **CVE-2026-123007** | HTTP/2 `send_window` integer underflow | OSS 1.9.5; Plus R33 / 37.0.0 | **1.30.7 stable**, **1.31.9 mainline** | 37.0.8.1, 37.3.0.1 | 64-bit system; demonstrated over HTTPS/TLS serving static files |
-
-### Notes for the future check
-
-- Detection should require both an affected NGINX version **and** HTTP/2
-  enabled. A version-only row is not enough for this defect.
-- `http2` on a `listen` directive (older syntax) or `http2 on;` in a server
-  block (1.25.1+) are the configuration markers. A safe probe can use
-  `curl --http2` / `nghttp` and inspect the negotiated protocol (`h2`) without
-  sending malformed frames.
-- Without a public memory-corruption PoC, the likely dispositions are
-  `BLOCKED_EXTERNAL` or `NOT_YET_VALIDATED` for active exploitation, plus a
-  passive/configuration finding. Do not attempt blind heap grooming against
-  anything but an isolated, authorized lab.
-- Lab idea: NGINX 1.30.6 vs 1.30.7 (or 1.31.8 vs 1.31.9) with a TLS
-  server block and HTTP/2 enabled, plus a control with `http2 off;`. A
-  crash/worker-respawn differential may be possible for 123633; 123007 needs
-  a reliable frame sequence, so treat it as passive until a PoC exists.
-- Immediate mitigation: upgrade, or temporarily disable HTTP/2 (`http2 off;`
-  on 1.25.1+, and remove the `http2` parameter from `listen` directives),
-  reload, and confirm old workers exited.
-
-### Reproduction labs (2026-11-18)
-
-- `labs/cve-2026-123007` - ASAN 1.31.8/1.31.9 builds plus an instrumented
-  1.31.8 variant. The verified fix adds `h2c->send_queued`: 1.31.8 lets the
-  client claim credit for queued DATA frames and then refunds the same bytes on
-  stream cleanup. The default trigger accepts the 8 MB claim, refunds
-  7,208,960 bytes, drives `send_window` to 2,150,498,303 (max + 3,014,656) and
-  aborts the instrumented worker; 1.31.9 rejects the claim with a flow-control
-  violation. A forced `?force_wrap=1` lab request sets `send_window` to
-  `2^63 + 0x10000000`, producing a negative `off_t`/shadow size and an ASAN
-  `memcpy-param-overlap` in `ngx_ssl_send_chain()`. The real ~55.8 GB
-  WINDOW_UPDATE flood is not reproduced end-to-end. Wiz has not published its
-  PoC.
-The lab is a reproduction harness, not a confirmed RCE proof.
-
 ## VMware vCenter authentication bypass (CVE-2026-123890)
 
 Source: [VMSA-2026-0009.1](https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/39495),

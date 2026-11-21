@@ -226,6 +226,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE | Component | Fixture / control | Notes |
 |---|---|---|---|
 | CVE-2026-123633 | NGINX HTTP/2 connection reuse | ASAN NGINX 1.31.8 vs 1.31.9 (`labs/cve-2026-123633`) | Lab disposition NOT_CONFIRMED (reusable-list invariant break and GOAWAY differential only; no ASAN UAF). Module is passive: affected upstream version plus origin HTTP/2 observed via TLS ALPN; no active probe. |
+| CVE-2026-123007 | NGINX HTTP/2 send_window underflow | ASAN NGINX 1.31.8 vs 1.31.9 (`labs/cve-2026-123007`) | Lab disposition CONFIRMED for the window-accounting invariant break (plus a forced downstream state); the real flood and full impact path are not reproduced. Module is passive: affected upstream version plus origin HTTP/2 observed via TLS ALPN; no active probe. |
 
 ## Passive platform advisories (version/config detection only — no fixture)
 
