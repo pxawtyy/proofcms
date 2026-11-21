@@ -9,19 +9,18 @@ validation row to `labs/VALIDATED.md`; do not leave it duplicated here.
 
 Source: <https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities>
 
-Both are unauthenticated remote code execution flaws in NGINX itself, rated
-CVSS 4.0 **9.2 (Critical)**. Both require **HTTP/2 enabled** on the target.
-Wiz has not released its proof-of-concept exploits.
+This is an unauthenticated remote code execution flaw in NGINX itself, rated
+CVSS 4.0 **9.2 (Critical)**. It requires **HTTP/2 enabled** on the target.
+Wiz has not released its proof-of-concept exploit.
 
 | CVE | Bug | First affected | Fixed (OSS) | Fixed (NGINX Plus) | Extra conditions |
 |---|---|---|---|---|---|
-| **CVE-2026-123633** | HTTP/2 connection use-after-free | OSS 1.19.7; Plus R33 / 37.0.0 | **1.30.7 stable**, **1.31.9 mainline** | 37.0.7.1, 37.2.0.1 | Reverse-proxy processing when connection slots run low |
 | **CVE-2026-123007** | HTTP/2 `send_window` integer underflow | OSS 1.9.5; Plus R33 / 37.0.0 | **1.30.7 stable**, **1.31.9 mainline** | 37.0.8.1, 37.3.0.1 | 64-bit system; demonstrated over HTTPS/TLS serving static files |
 
 ### Notes for the future check
 
 - Detection should require both an affected NGINX version **and** HTTP/2
-  enabled. A version-only row is not enough for this pair.
+  enabled. A version-only row is not enough for this defect.
 - `http2` on a `listen` directive (older syntax) or `http2 on;` in a server
   block (1.25.1+) are the configuration markers. A safe probe can use
   `curl --http2` / `nghttp` and inspect the negotiated protocol (`h2`) without
@@ -51,15 +50,7 @@ Wiz has not released its proof-of-concept exploits.
   `memcpy-param-overlap` in `ngx_ssl_send_chain()`. The real ~55.8 GB
   WINDOW_UPDATE flood is not reproduced end-to-end. Wiz has not published its
   PoC.
-- `labs/cve-2026-123633` - proxy stack with `worker_connections 16`, the Wiz
-  1-byte-SETTINGS arming and source analysis. The verified fix adds
-  `ngx_reusable_connection(h2c->connection, 0)` in `create_stream()`. On
-  1.31.8 the drain logs `*1 reusing connection` and sends GOAWAY (frame type
-  `0x7`) on the active connection; 1.31.9 keeps it off the reusable queue. The
-  Wiz log's freed-pool leak (`0x1010 r->pool`) and `u->peer.free` JOP chain
-  are not reproduced.
-
-Both labs are reproduction harnesses, not confirmed RCE proofs.
+The lab is a reproduction harness, not a confirmed RCE proof.
 
 ## VMware vCenter authentication bypass (CVE-2026-123890)
 

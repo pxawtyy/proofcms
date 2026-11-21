@@ -228,8 +228,9 @@ Dispositions:
 
 ## NGINX - active probes
 
-These rows cover the standalone HTTP/2 labs, not module-registry checks. The
-Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
+These rows cover the standalone HTTP/2 labs and the passive module-registry
+checks derived from them. The upstream technical write-up is not public; neither
+lab claims a weaponized RCE.
 
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
 |---|---|---|---|---|---|---|

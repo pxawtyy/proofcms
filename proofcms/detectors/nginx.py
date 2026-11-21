@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import html
 import re
+import socket
+import ssl
+import urllib.parse
 
-from ..core.http import HttpClient
+from ..core.http import HttpClient, tls_verification_enabled
 from ..core.models import NginxRuntimeInfo
 
 _NGINX_VERSION = re.compile(r"\bnginx(?:/|\s+)(\d+\.\d+(?:\.\d+)?)", re.IGNORECASE)
@@ -17,6 +20,28 @@ _SERVER_SOFTWARE = re.compile(
 
 def _headers(response: dict) -> dict[str, str]:
     return {str(key).lower(): str(value) for key, value in (response.get("headers") or {}).items()}
+
+
+def _origin_http2_enabled(target_url: str, timeout: int, proxy: str | None) -> bool:
+    """Observe negotiated HTTP/2 via TLS ALPN; sends no HTTP request."""
+    if proxy:
+        return False
+    parsed = urllib.parse.urlparse(target_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    context = ssl.create_default_context()
+    if not tls_verification_enabled():
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+    context.set_alpn_protocols(["h2", "http/1.1"])
+    try:
+        with (
+            socket.create_connection((parsed.hostname, parsed.port or 443), timeout=timeout) as raw,
+            context.wrap_socket(raw, server_hostname=parsed.hostname) as tls,
+        ):
+            return tls.selected_alpn_protocol() == "h2"
+    except (OSError, ssl.SSLError, ValueError):
+        return False
 
 
 def _phpinfo_nginx_version(response: dict) -> str | None:
@@ -55,6 +80,7 @@ def detect_nginx_runtime(
     http3 = alt_svc_http3 if direct_nginx else False
     edge_http3 = alt_svc_http3 if edge_server else False
     server = response_server if direct_nginx else None
+    http2 = _origin_http2_enabled(target_url, timeout, proxy) if detected and edge_server is None else False
 
     # A CDN can hide the origin Server header on the homepage while nginx
     # still discloses itself on a static/forbidden directory. Keep this list
@@ -93,4 +119,5 @@ def detect_nginx_runtime(
         http3,
         edge_server,
         edge_http3,
+        http2,
     )

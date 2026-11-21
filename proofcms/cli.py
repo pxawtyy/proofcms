@@ -658,6 +658,7 @@ def main():
             "http3_advertised": nginx_runtime_info.http3_advertised,
             "edge_server": nginx_runtime_info.edge_server,
             "edge_http3_advertised": nginx_runtime_info.edge_http3_advertised,
+            "http2_enabled": nginx_runtime_info.http2_enabled,
         }
         node_runtime = {
             "detected": node_runtime_info.detected,

@@ -221,6 +221,12 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2025-53772 | IIS Web Deploy (`msdeploy.axd` / Agent Service) | Web Deploy 4.0 10.0.2000; fixed in 10.0.2001 | Windows Server 2019 `dockur/windows` VM, `labs/cve-2025-53772`; MSIs archived as `windows/WebDeploy_10.0.2000.msi` and `windows/WebDeploy_10.0.2001.msi` | Authenticated NTLM POST with a TypeConfuseDelegate `MSDeploy.SyncOptions` header writes `C:\Windows\Temp\pwned.txt`; same VM upgraded to 10.0.2001 does not. The passive module never sends the gadget. |
 | CVE-2010-3332 / CVE-2011-3416 | ASP.NET / .NET Framework | .NET 1.1 SP1, 2.0 SP2, 3.5 SP1, 3.5.1, 4.0 without MS10-070/MS11-100 | Windows Server 2008 R2 SP1 + .NET 4.0 RTM (`labs/aspnet-legacy`); control .NET 4.5 | Safe `ScriptResource.axd` token/tamper oracle (3332) and null-byte `FormsAuthentication.SetAuthCookie` login (3416). .NET 4.5 removes both differentials. |
 
+## NGINX HTTP/2 (lab-backed passive checks)
+
+| CVE | Component | Fixture / control | Notes |
+|---|---|---|---|
+| CVE-2026-123633 | NGINX HTTP/2 connection reuse | ASAN NGINX 1.31.8 vs 1.31.9 (`labs/cve-2026-123633`) | Lab disposition NOT_CONFIRMED (reusable-list invariant break and GOAWAY differential only; no ASAN UAF). Module is passive: affected upstream version plus origin HTTP/2 observed via TLS ALPN; no active probe. |
+
 ## Passive platform advisories (version/config detection only — no fixture)
 
 | CVE | Component | What blocks active proof |

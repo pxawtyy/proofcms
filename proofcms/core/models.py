@@ -141,6 +141,7 @@ class NginxRuntimeInfo:
     http3_advertised: bool = False
     edge_server: str | None = None
     edge_http3_advertised: bool = False
+    http2_enabled: bool = False
 
 
 @dataclass

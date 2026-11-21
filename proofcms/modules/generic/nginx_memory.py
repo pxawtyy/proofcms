@@ -16,6 +16,7 @@ def runtime_finding(
     required_feature: str,
     remediation: str,
     require_http3: bool = False,
+    require_http2: bool = False,
     vulnerability_type: str = "Memory Corruption",
 ) -> Finding:
     runtime = nginx_runtime or {}
@@ -52,6 +53,13 @@ def runtime_finding(
                 confidence = Confidence.HIGH
             else:
                 detail += " Origin HTTP/3 was not advertised, so the vulnerable request path was not established."
+        elif require_http2:
+            if runtime.get("http2_enabled"):
+                status = Status.LIKELY_VULNERABLE
+                detail += " The origin endpoint negotiated HTTP/2 through TLS ALPN."
+                confidence = Confidence.HIGH
+            else:
+                detail += " Origin HTTP/2 was not observed through TLS ALPN, so the vulnerable request path was not established."
     elif status == Status.PATCHED:
         detail = f"Detected NGINX {version}, which is in an upstream fixed release range."
         confidence = Confidence.HIGH
@@ -76,6 +84,7 @@ def runtime_finding(
             "http3_advertised": bool(runtime.get("http3_advertised")),
             "edge_server": runtime.get("edge_server"),
             "edge_http3_advertised": bool(runtime.get("edge_http3_advertised")),
+            "http2_enabled": bool(runtime.get("http2_enabled")),
             "required_feature": required_feature,
         },
         vulnerability_type=vulnerability_type,
