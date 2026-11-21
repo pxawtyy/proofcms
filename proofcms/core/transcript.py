@@ -83,6 +83,30 @@ def record_stateless(method: str, requested_url: str, response: dict[str, Any] |
     del entries[: max(0, len(entries) - MAX_ENTRIES)]
 
 
+def begin_capture() -> None:
+    """Start capturing every HttpClient exchange on this thread.
+
+    The CLI wraps each module check so modules that build evidence manually
+    still get a comparable transcript without editing every module.
+    """
+    _thread_state.capture = []
+
+
+def record_capture(method: str, requested_url: str, response: dict[str, Any] | None) -> None:
+    entries = getattr(_thread_state, "capture", None)
+    if entries is None:
+        return
+    entries.append(make_entry(method, requested_url, response))
+    del entries[: max(0, len(entries) - MAX_ENTRIES)]
+
+
+def end_capture() -> list[dict[str, Any]]:
+    """Stop capturing and return the exchanges recorded on this thread."""
+    entries = getattr(_thread_state, "capture", None)
+    _thread_state.capture = None
+    return list(entries or [])
+
+
 def take_transcript() -> list[dict[str, Any]]:
     """Return and clear the thread-local stateless transcript."""
     entries = _ring()

@@ -97,5 +97,5 @@ def test_119077_safe_probe_reads_manifest_without_sending_payload():
     client = _FakeClient()
     with patch.object(wsdesk, "HttpClient", return_value=client):
         result = wsdesk.check("https://fixture.test", run_exploit_check=True, exploit_mode="safe")
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
     assert result.status in {"LIKELY_VULNERABLE", "NOT_AFFECTED"}

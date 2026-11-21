@@ -6,6 +6,7 @@ import time
 import urllib.parse
 from typing import Any
 
+from ...core.http import tls_verification_enabled
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
 
@@ -64,8 +65,9 @@ def _probe(host: str, port: int, value: str, use_tls: bool, timeout: float) -> d
     sock: socket.socket = raw
     if use_tls:
         context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        if not tls_verification_enabled():
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
         context.set_alpn_protocols(["h2"])
         sock = context.wrap_socket(raw, server_hostname=host)
     else:
@@ -91,7 +93,7 @@ def _probe(host: str, port: int, value: str, use_tls: bool, timeout: float) -> d
             (":method", "GET"),
             (":path", "/"),
             (":scheme", scheme),
-            (":authority", "localhost"),
+            (":authority", host),
             ("te", "trailers"),
         ],
         end_stream=False,
@@ -174,6 +176,11 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             "inconclusive": True,
             "reason": "the optional 'h2' package is not installed (pip install 'proofcms[http2]')",
         }
+    except (OSError, ssl.SSLError) as exc:
+        return {
+            "inconclusive": True,
+            "reason": f"the HTTP/2 probe could not connect ({type(exc).__name__}: {exc})",
+        }
     evidence = {
         "host": host,
         "port": port,
@@ -196,10 +203,25 @@ def check(
     timeout: int = 12,
     proxy: str | None = None,
     exploit_mode: str = "safe",
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del kwargs
-    status = classify_version(cms_version)
+    del cms_version, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_DETECTED,
+            confidence=Confidence.MEDIUM,
+            component="ASP.NET Core / Kestrel",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail="ASP.NET Core / Kestrel was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+        )
+    version = runtime.get("version")
+    status = classify_version(version)
 
     if status == Status.PATCHED:
         return Finding(
@@ -208,16 +230,16 @@ def check(
             status=status,
             confidence=Confidence.HIGH,
             component="ASP.NET Core / Kestrel",
-            component_version=cms_version,
+            component_version=version,
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
-            detail=f"ASP.NET Core {cms_version} is at or beyond the fixed release for this branch.",
+            detail=f"ASP.NET Core {version} is at or beyond the fixed release for this branch.",
             action="No action is required for this CVE if the runtime version is accurate.",
         )
 
     if not run_exploit_check:
         detail = (
-            f"ASP.NET Core {cms_version} is in the affected range. The public issue is a Kestrel "
+            f"ASP.NET Core {version} is in the affected range. The public issue is a Kestrel "
             "HTTP/2 trailer/HPACK newline acceptance; the safe differential is available with "
             "--run-exploit and --exploit-mode safe."
         )
@@ -225,9 +247,9 @@ def check(
             cve=CVE_ID,
             name=NAME,
             status=status,
-            confidence=Confidence.HIGH if cms_version else Confidence.MEDIUM,
+            confidence=Confidence.HIGH if version else Confidence.MEDIUM,
             component="ASP.NET Core / Kestrel",
-            component_version=cms_version,
+            component_version=version,
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
             detail=detail,
@@ -241,7 +263,7 @@ def check(
             status=Status.BLOCKED_EXTERNAL,
             confidence=Confidence.MEDIUM,
             component="ASP.NET Core / Kestrel",
-            component_version=cms_version,
+            component_version=version,
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
             detail="Only the safe trailer differential is implemented; no smuggled request is sent.",
@@ -256,7 +278,7 @@ def check(
             status=Status.LIKELY_VULNERABLE if status == Status.LIKELY_VULNERABLE else Status.INCONCLUSIVE,
             confidence=Confidence.MEDIUM,
             component="ASP.NET Core / Kestrel",
-            component_version=cms_version,
+            component_version=version,
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
@@ -272,7 +294,7 @@ def check(
             status=Status.VULNERABLE,
             confidence=Confidence.CONFIRMED,
             component="ASP.NET Core / Kestrel",
-            component_version=cms_version,
+            component_version=version,
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
             exploit_ran=True,
@@ -291,7 +313,7 @@ def check(
         status=Status.PATCHED,
         confidence=Confidence.CONFIRMED,
         component="ASP.NET Core / Kestrel",
-        component_version=cms_version,
+        component_version=version,
         affected_rule=RULE,
         exploit_available=HAS_EXPLOIT,
         exploit_ran=True,

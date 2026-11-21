@@ -7,7 +7,7 @@ import zipfile
 from typing import Any
 from urllib.parse import urlencode, urlsplit
 
-from ...core.http import HttpClient
+from ...core.http import HttpClient, tls_verification_enabled
 
 CONNECTORS = (
     "/elfinder/php/connector.minimal.php",
@@ -16,7 +16,12 @@ CONNECTORS = (
     "/assets/elfinder/php/connector.php",
     "/vendor/studio-42/elfinder/php/connector.minimal.php",
 )
-_DISCOVERY_CACHE: dict[tuple[str, int, str | None], dict[str, Any] | None] = {}
+_DISCOVERY_CACHE: dict[tuple[str, int, str | None, bool], dict[str, Any] | None] = {}
+
+
+def clear_discovery_cache() -> None:
+    """Drop cached connectors so a new target/TLS policy starts clean."""
+    _DISCOVERY_CACHE.clear()
 
 
 def _json(response: dict[str, Any]) -> dict[str, Any]:
@@ -28,7 +33,7 @@ def _json(response: dict[str, Any]) -> dict[str, Any]:
 
 
 def discover(target: str, timeout: int, proxy: str | None) -> dict[str, Any] | None:
-    cache_key = (target.rstrip("/"), timeout, proxy)
+    cache_key = (target.rstrip("/"), timeout, proxy, tls_verification_enabled())
     if cache_key in _DISCOVERY_CACHE:
         return _DISCOVERY_CACHE[cache_key]
     client = HttpClient(base_url=target, timeout=timeout, proxy=proxy)

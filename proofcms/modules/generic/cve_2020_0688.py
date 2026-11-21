@@ -92,11 +92,12 @@ def check(
     proxy: str | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del kwargs
+    del cms_version, kwargs
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
     surface = _owa_surface(client, base, timeout)
-    version = cms_version or (surface or {}).get("version")
+    # Never treat the CMS core version as an Exchange build number.
+    version = (surface or {}).get("version")
 
     if surface is None and not version:
         return Finding(

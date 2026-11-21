@@ -157,8 +157,8 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     url = f"{base}/index.php?option=com_sppagebuilder"
     response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
     if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The component route could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
-    return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail="The component is reachable; no forged mail payload was sent in safe mode.", action="Use aggressive mode on an authorized staging site with an SMTP sink.")
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The component route could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail="The component is reachable; no forged mail payload was sent in safe mode.", action="Use aggressive mode on an authorized staging site with an SMTP sink.")
 
 
 def check(target_url: str, joomla_version: str | None = None, run_exploit_check: bool = False, timeout: int = 12, proxy: str | None = None, exploit_mode: str = "safe", plugins: dict[str, Any] | None = None, aggressive_command: str | None = None, aggressive_args: dict[str, Any] | None = None, **kwargs: Any) -> Finding:

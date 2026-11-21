@@ -60,11 +60,13 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None,
     url = f"{base}{README_PATH}"
     response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
     if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The core readme could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The core readme could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    if response.get("status") != 200:
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The core readme returned HTTP {response.get('status')}; no WordPress version was disclosed.", action="No action is required unless the readme is hidden by a different path.")
     detected = _version_from_body(str(response.get("body") or ""))
     effective = version if version is not None else detected
     status = _classify(effective)
-    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=effective, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"Read WordPress core version {effective or '(unknown)'} from the public readme.html; no installer or staging request was sent in safe mode.", action="Upgrade to WordPress 7.1.4 or newer if the detected version is affected.")
+    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=effective, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"Read WordPress core version {effective or '(unknown)'} from the public readme.html; no installer or staging request was sent in safe mode.", action="Upgrade to WordPress 7.1.4 or newer if the detected version is affected.")
 
 
 def check(target_url: str, cms_version: str | None = None, run_exploit_check: bool = False, timeout: int = 12, proxy: str | None = None, exploit_mode: str = "safe", plugins: dict[str, Any] | None = None, aggressive_command: str | None = None, aggressive_args: dict[str, Any] | None = None, **kwargs: Any) -> Finding:

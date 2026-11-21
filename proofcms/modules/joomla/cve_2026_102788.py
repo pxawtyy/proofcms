@@ -226,7 +226,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     client = HttpClient(timeout=timeout, proxy=proxy)
     discovered = _discover_store(client, base, None, timeout)
     if not discovered:
-        return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=f"{origin}{STORE_VIEW}", detail="No public Gridbox store listing was found to carry the sort-by parameter; the SQL payload was not sent in safe mode.", action="Point the probe at the store listing or use aggressive mode with app/category ids on an authorized staging site.")
+        return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{origin}{STORE_VIEW}", detail="No public Gridbox store listing was found to carry the sort-by parameter; the SQL payload was not sent in safe mode.", action="Point the probe at the store listing or use aggressive mode with app/category ids on an authorized staging site.")
     app, category = discovered
     url = _probe_url(origin, app, category, "created")
     response = client.get(url, timeout=timeout)

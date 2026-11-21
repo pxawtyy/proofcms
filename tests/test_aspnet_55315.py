@@ -59,6 +59,7 @@ def test_55315_check_promotes_confirmed_probe():
             run_exploit_check=True,
             exploit_mode="safe",
             timeout=1,
+            aspnet_runtime={"detected": True, "version": "8.0.20"},
         )
     assert result.status == "VULNERABLE"
     assert result.confidence == "CONFIRMED"

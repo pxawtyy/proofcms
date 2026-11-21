@@ -83,12 +83,20 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
         url = f"{base}{MANIFEST_PATH}"
         response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
         if is_transport_error(response):
-            return Finding(cve=CVE_ID, name=NAME, status="DETECTED_VERSION_UNKNOWN", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The EasyStore manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable; transport failure is not evidence of patch status.")
-        version = _version_from_manifest(str(response.get("body") or ""))
+            return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The EasyStore manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable; transport failure is not evidence of patch status.")
+        status_code = response.get("status")
+        body = str(response.get("body") or "")
+        if status_code == 404:
+            return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail="The EasyStore manifest returned HTTP 404; the component is not publicly installed.", action="No action is required unless EasyStore Free is installed but hidden from public detection.")
+        if status_code in (401, 403):
+            return Finding(cve=CVE_ID, name=NAME, status="DETECTED_VERSION_UNKNOWN", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The EasyStore manifest returned HTTP {status_code}; access is denied but the path exists.", action="Determine the installed EasyStore Free version through an authorized channel.")
+        version = _version_from_manifest(body)
+        if status_code != 200 or (version is None and "<extension" not in body.lower() and "<name" not in body.lower()):
+            return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The manifest path returned HTTP {status_code} without an EasyStore manifest body.", action="No action is required unless EasyStore Free is installed but hidden from public detection.")
         if version is None:
             return Finding(cve=CVE_ID, name=NAME, status="DETECTED_VERSION_UNKNOWN", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail="The EasyStore manifest was reachable but no version could be read.", action="Determine the installed EasyStore Free version and upgrade to 3.0.1 or newer.")
     return _version_finding(version, proof_url=url)
 
 
 def metadata() -> dict[str, Any]:
-    return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": [AFFECTED_VERSIONS], "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "SQL Injection", "module_version": "1.0.0", "last_reviewed": "2026-11-21", "updated": "2026-11-21", "required_detectors": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-90901", "https://www.cve.org/CVERecord?id=CVE-2026-90901", "https://www.joomshaper.com/"]}
+    return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": [AFFECTED_VERSIONS], "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "SQL Injection", "module_version": "1.0.0", "last_reviewed": "2026-11-21", "updated": "2026-11-21", "required_detectors": ["easystore"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-90901", "https://www.cve.org/CVERecord?id=CVE-2026-90901", "https://www.joomshaper.com/"]}

@@ -47,7 +47,7 @@ def test_73343_check_is_passive_and_uses_readme_version():
     assert isinstance(result, Finding)
     assert result.status == "LIKELY_VULNERABLE"
     assert result.component_version == "7.10.09"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
     assert fake.get_urls and "readme.txt" in fake.get_urls[0]
 
 
@@ -87,7 +87,7 @@ def test_119977_check_is_passive_and_uses_core_readme():
     assert isinstance(result, Finding)
     assert result.status == "LIKELY_VULNERABLE"
     assert result.component_version == "7.1.3"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
     assert fake.get_urls and "readme.html" in fake.get_urls[0]
 
 
@@ -127,7 +127,7 @@ def test_125771_check_is_passive_and_uses_manifest_version():
     assert isinstance(result, Finding)
     assert result.status == "LIKELY_VULNERABLE"
     assert result.component_version == "2.0.3"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
     assert fake.get_urls and "readme.txt" in fake.get_urls[0]
 
 
@@ -167,7 +167,7 @@ def test_129048_check_is_passive_and_uses_readme_version():
     assert isinstance(result, Finding)
     assert result.status == "LIKELY_VULNERABLE"
     assert result.component_version == "9.3.06.003"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
     assert fake.get_urls and "readme.txt" in fake.get_urls[0]
 
 
@@ -187,3 +187,25 @@ def test_129048_metadata_is_safe_only():
     assert meta["cms"] == "wordpress"
     assert cve_2026_129048.EXPLOIT_MODES == ["safe"]
     assert cve_2026_129048.INTRUSIVE is False
+
+
+def test_plugin_checks_ignore_core_cms_version():
+    for module in (cve_2026_73343, cve_2026_125771, cve_2026_129048):
+        with patch.object(module, "HttpClient") as client:
+            result = module.check("https://fixture.test", cms_version="6.7.0", plugins={})
+        client.assert_not_called()
+        assert result.status == "NOT_DETECTED", module.__name__
+        assert result.component_version is None, module.__name__
+
+
+class _NotFoundClient:
+    def get(self, url: str, **kwargs) -> dict[str, object]:
+        return {"status": 404, "body": "Not Found", "headers": {}, "final_url": url}
+
+
+def test_plugin_safe_probe_404_is_not_detected():
+    for module in (cve_2026_73343, cve_2026_125771, cve_2026_129048):
+        with patch.object(module, "HttpClient", return_value=_NotFoundClient()):
+            result = module.run_safe_probe("https://fixture.test")
+        assert result.status == "NOT_DETECTED", module.__name__
+        assert result.exploit_ran is True, module.__name__

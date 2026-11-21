@@ -40,12 +40,20 @@ def _classify(version: str | None) -> str:
 
 
 def passive_result(plugins: dict[str, Any] | None) -> Finding:
-    info = (plugins or {}).get("wp_libre_form", {}) if plugins else {}
+    info = _plugin_info(plugins) if plugins else {}
     if not info.get("found"):
         return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, detail="WP Libre Form was not detected through its public asset paths.", action="No action is required unless the plugin is installed but hidden from public detection.")
     version = info.get("version")
     status = _classify(version)
     return Finding(cve=CVE_ID, name=NAME, status=status, confidence="HIGH" if version else "MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, detail=f"Detected WP Libre Form {version or '(version unknown)'}; form submissions are written with move_uploaded_file() and no extension validation on the default path.", action="Remove the plugin or enable the media-library storage path; no vendor patch exists.")
+
+
+def _plugin_info(plugins: dict[str, Any] | None) -> dict[str, Any]:
+    for key in ("wp-libre-form", "wp_libre_form", "libre_form"):
+        info = (plugins or {}).get(key)
+        if isinstance(info, dict):
+            return info
+    return {}
 
 
 def _form_id(client: HttpClient, base: str, timeout: int, explicit: int | None) -> int | None:
@@ -143,7 +151,7 @@ def run_aggressive_probe(
         "readback_path": found_url,
     }
     if found_url:
-        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{base}{AJAX_PATH}", evidence=evidence, detail="An unauthenticated form submission wrote an inert PHP file into the web-accessible uploads directory under a predictable name; the marker executed on read-back. No command was run.", action="Remove WP Libre Form (no fix exists) or enable the media-library storage path and audit uploads for lf_*.php files.")
+        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{base}{AJAX_PATH}", uploaded_filename=found_url.lstrip("/"), evidence=evidence, detail="An unauthenticated form submission wrote an inert PHP file into the web-accessible uploads directory under a predictable name; the marker executed on read-back. No command was run.", action="Remove WP Libre Form (no fix exists) or enable the media-library storage path and audit uploads for lf_*.php files.")
     return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="HIGH", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=f"{base}{AJAX_PATH}", evidence=evidence, detail="The upload was accepted but the predicted marker path was not readable; the media-library mitigation path may be active or the server timezone may differ.", action="Check _wplf_media_library and the server timezone.")
 
 
@@ -152,23 +160,34 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     url = f"{base}/wp-content/plugins/wp-libre-form/readme.txt"
     response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
     if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The plugin readme could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin readme could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    if response.get("status") != 200:
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin readme returned HTTP {response.get('status')}; WP Libre Form is not publicly installed.", action="No action is required unless the plugin is installed but hidden from public detection.")
     body = str(response.get("body") or "")
     match = re.search(r"Stable tag:\s*([0-9.]+)", body, re.IGNORECASE)
     version = match.group(1) if match else None
     status = _classify(version)
-    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"Read plugin version {version or '(unknown)'} from the public readme (note: the stable tag can be stale); no upload was sent in safe mode.", action="Remove the plugin or enable the media-library storage path.")
+    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"Read plugin version {version or '(unknown)'} from the public readme (note: the stable tag can be stale); no upload was sent in safe mode.", action="Remove the plugin or enable the media-library storage path.")
 
 
 def check(target_url: str, cms_version: str | None = None, run_exploit_check: bool = False, timeout: int = 12, proxy: str | None = None, exploit_mode: str = "safe", plugins: dict[str, Any] | None = None, aggressive_command: str | None = None, aggressive_args: dict[str, Any] | None = None, **kwargs: Any) -> Finding:
     from ...core.args import aggressive_value
 
+    del cms_version, kwargs
     if not run_exploit_check:
         return passive_result(plugins)
     if exploit_mode == "aggressive":
+        form_id = int(aggressive_value(aggressive_args, aggressive_command, "form_id") or 0) or None
+        passive = passive_result(plugins)
+        if passive.status == "NOT_DETECTED" and not form_id:
+            passive.detail += (
+                " Aggressive proof skipped because WP Libre Form was not detected; pass "
+                "--aggressive-arg form_id=<id> to probe a known published form."
+            )
+            return passive
         return run_aggressive_probe(
             target_url,
-            form_id=int(aggressive_value(aggressive_args, aggressive_command, "form_id") or 0) or None,
+            form_id=form_id,
             marker=aggressive_value(aggressive_args, aggressive_command, "marker") or MARKER_PREFIX,
             timeout=timeout,
             proxy=proxy,
@@ -178,5 +197,39 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
     return result
 
 
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Verify an uploaded marker and report the manual removal step.
+
+    WordPress serves uploads statically, so the probe cannot delete the file
+    over HTTP. The hook still checks whether it is present so a report can
+    distinguish an already-cleaned lab from a leftover artifact.
+    """
+    from ...core.args import aggressive_value
+    from ...core.cleanup import cleanup_result
+
+    path = aggressive_value(aggressive_args, aggressive_command, "file")
+    if not path:
+        return cleanup_result(manual=["re-run with --aggressive-arg file=<uploaded_filename> from the probe evidence"])
+    if str(path).startswith(("http://", "https://")):
+        url = str(path)
+    else:
+        url = f"{normalize_url(target_url)}/{str(path).lstrip('/')}"
+    response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
+    if not is_transport_error(response) and response.get("status") == 200:
+        return cleanup_result(
+            remaining=[url],
+            manual=[f"delete the uploaded file: {url}"],
+            detail="The uploaded file is still served; delete it on the lab host.",
+        )
+    return cleanup_result(removed=[url], detail="The uploaded file is no longer served.")
+
+
 def metadata() -> dict[str, Any]:
-    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=1.5.0.1"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Unrestricted Upload / RCE", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-118423", "https://github.com/im0xfay/CVE-2026-118423", "https://github.com/anttiviljami/wp-libre-form"]}
+    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=1.5.0.1"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Unrestricted Upload / RCE", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": ["wp-libre-form"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-118423", "https://github.com/im0xfay/CVE-2026-118423", "https://github.com/anttiviljami/wp-libre-form"]}

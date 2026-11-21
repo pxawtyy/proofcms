@@ -19,6 +19,7 @@ MANIFEST_PATH = "/administrator/components/com_miniorange_oauth/miniorange_oauth
 ADMIN_PATH = "/administrator/index.php"
 ADMIN_MARKERS = ("com_cpanel", "Control Panel", "task=logout", "joomla-dashboard")
 LOGIN_MARKERS = ("mod-login-username", "form-login")
+DETECTOR_KEYS = ("miniorange_oauth", "miniorange", "com_miniorange_oauth")
 
 
 def classify_version(version: str | None) -> str:
@@ -58,29 +59,30 @@ def _session_cookie(response: dict[str, Any]) -> str:
     return ""
 
 
+def _extension_info(plugins: dict[str, Any] | None) -> dict[str, Any]:
+    for key in DETECTOR_KEYS:
+        info = (plugins or {}).get(key)
+        if isinstance(info, dict) and info.get("found"):
+            return info
+    return {}
+
+
 def passive_result(plugins: dict[str, Any] | None = None) -> Finding:
-    """Return the offline baseline; the live version is read in check()."""
-    return Finding(
-        cve=CVE_ID,
-        name=NAME,
-        status="NOT_DETECTED",
-        confidence="MEDIUM",
-        component=COMPONENT,
-        affected_rule=AFFECTED_RULE,
-        exploit_available=True,
-        detail="No miniOrange OAuth Client version has been read from the target yet.",
-        action="Run a scan to read the public component manifest.",
-    )
-
-
-def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
-    base = normalize_url(target_url)
-    client = HttpClient(timeout=timeout, proxy=proxy)
-    url = f"{base}{MANIFEST_PATH}"
-    response = client.get(url, timeout=timeout)
-    if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The miniOrange manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
-    version = _version_from_manifest(str(response.get("body") or ""))
+    """Return a version-based baseline from the Joomla extension inventory."""
+    info = _extension_info(plugins)
+    if not info.get("found"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status="NOT_DETECTED",
+            confidence="MEDIUM",
+            component=COMPONENT,
+            affected_rule=AFFECTED_RULE,
+            exploit_available=True,
+            detail="miniOrange OAuth Client was not detected through its public manifest or extension inventory.",
+            action="No action is required unless the plugin is installed but hidden from public detection.",
+        )
+    version = info.get("version")
     status = classify_version(version)
     if status == "LIKELY_VULNERABLE":
         detail = f"Detected miniOrange OAuth Client {version}; releases before 3.2.0 trust unsigned SSO bridge cookies."
@@ -91,10 +93,53 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         action = "No action is required for this CVE if version detection is accurate."
         confidence = "HIGH"
     else:
+        detail = "miniOrange OAuth Client was detected, but its version could not be determined."
+        action = "Determine the installed miniOrange OAuth Client version and upgrade to 3.2.0 or newer."
+        confidence = "MEDIUM"
+    return Finding(
+        cve=CVE_ID,
+        name=NAME,
+        status=status,
+        confidence=confidence,
+        component=COMPONENT,
+        component_version=version,
+        affected_rule=AFFECTED_RULE,
+        exploit_available=True,
+        detail=detail,
+        action=action,
+    )
+
+
+def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
+    base = normalize_url(target_url)
+    client = HttpClient(timeout=timeout, proxy=proxy)
+    url = f"{base}{MANIFEST_PATH}"
+    response = client.get(url, timeout=timeout)
+    if is_transport_error(response):
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The miniOrange manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    status_code = response.get("status")
+    body = str(response.get("body") or "")
+    if status_code == 404:
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail="The miniOrange manifest returned HTTP 404; the component is not publicly installed.", action="No action is required unless the component is installed but hidden from public detection.")
+    if status_code in (401, 403):
+        return Finding(cve=CVE_ID, name=NAME, status="DETECTED_VERSION_UNKNOWN", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The miniOrange manifest returned HTTP {status_code}; access is denied but the path exists.", action="Determine the installed miniOrange OAuth Client version through an authorized channel.")
+    version = _version_from_manifest(body)
+    status = classify_version(version)
+    if status == "LIKELY_VULNERABLE":
+        detail = f"Detected miniOrange OAuth Client {version}; releases before 3.2.0 trust unsigned SSO bridge cookies."
+        action = "Upgrade miniOrange OAuth Client to 3.2.0 or newer."
+        confidence = "HIGH"
+    elif status == "NOT_AFFECTED":
+        detail = f"Detected miniOrange OAuth Client {version}, which signs SSO bridge cookies and checks a server-side session row."
+        action = "No action is required for this CVE if version detection is accurate."
+        confidence = "HIGH"
+    elif status_code != 200 or (version is None and "<extension" not in body.lower() and "<name" not in body.lower()):
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The manifest path returned HTTP {status_code} without a miniOrange manifest body.", action="No action is required unless the component is installed but hidden from public detection.")
+    else:
         detail = "The miniOrange manifest was reachable but no version could be read."
         action = "Determine the installed miniOrange OAuth Client version and upgrade to 3.2.0 or newer."
         confidence = "MEDIUM"
-    return Finding(cve=CVE_ID, name=NAME, status=status, confidence=confidence, component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=detail, action=action)
+    return Finding(cve=CVE_ID, name=NAME, status=status, confidence=confidence, component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=detail, action=action)
 
 
 def run_aggressive_probe(
@@ -174,4 +219,4 @@ def check(target_url: str, joomla_version: str | None = None, run_exploit_check:
 
 
 def metadata() -> dict[str, Any]:
-    return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Authentication Bypass / CWE-639", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-77995", "https://github.com/advisories/GHSA-9v52-pgw4-78ww", "https://www.miniorange.com/"]}
+    return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Authentication Bypass / CWE-639", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": ["miniorange_oauth"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-77995", "https://github.com/advisories/GHSA-9v52-pgw4-78ww", "https://www.miniorange.com/"]}

@@ -83,8 +83,20 @@ def _classify(version: str | None) -> str:
     return "LIKELY_VULNERABLE" if vulnerable else "NOT_AFFECTED"
 
 
+def _plugin_info(plugins: dict[str, Any] | None) -> dict[str, Any]:
+    for key in (
+        "elex-helpdesk-customer-support-ticket-system",
+        "elex_helpdesk",
+        "wsdesk",
+    ):
+        info = (plugins or {}).get(key)
+        if isinstance(info, dict):
+            return info
+    return {}
+
+
 def passive_result(plugins: dict[str, Any] | None) -> Finding:
-    info = (plugins or {}).get("elex_helpdesk", {})
+    info = _plugin_info(plugins)
     if not info.get("found"):
         return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, detail="ELEX HelpDesk was not detected through its public manifest or asset paths.", action="No action is required unless the plugin is installed but hidden from public detection.")
     version = info.get("version")
@@ -202,7 +214,7 @@ def run_aggressive_probe(
         "readback_status": readback.get("status") if not is_transport_error(readback) else 0,
     }
     if marker_found:
-        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=ajax_url, evidence=evidence, detail="A forged Guzzle FileCookieJar object reached the unserialize() sink and its destructor wrote an inert PHP marker into the web-accessible uploads directory, where it executed. No command was run.", action="Upgrade ELEX HelpDesk to 3.4.0 or newer and audit wp-content/uploads for unexpected PHP files.")
+        return Finding(cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=ajax_url, uploaded_filename=f"wp-content/uploads/{filename}", evidence=evidence, detail="A forged Guzzle FileCookieJar object reached the unserialize() sink and its destructor wrote an inert PHP marker into the web-accessible uploads directory, where it executed. No command was run.", action="Upgrade ELEX HelpDesk to 3.4.0 or newer and audit wp-content/uploads for unexpected PHP files.")
     return Finding(cve=CVE_ID, name=NAME, status="NOT_CONFIRMED", confidence="HIGH", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=ajax_url, evidence=evidence, detail="The forged object was accepted but the marker was not read back; uploads may not be executable or the write path may differ.", action="Check the uploads directory permissions and web server configuration.")
 
 
@@ -211,18 +223,28 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
     url = f"{base}/wp-content/plugins/{PLUGIN_SLUG}/readme.txt"
     response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
     if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The plugin manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    if response.get("status") != 200:
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin manifest returned HTTP {response.get('status')}; ELEX HelpDesk is not publicly installed.", action="No action is required unless the plugin is installed but hidden from public detection.")
     version = _version_from_readme(str(response.get("body") or ""))
     status = _classify(version)
-    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"Read plugin version {version or '(unknown)'} from the public readme; no object-injection payload was sent in safe mode.", action="Upgrade to 3.4.0 or newer if the version is affected.")
+    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"Read plugin version {version or '(unknown)'} from the public readme; no object-injection payload was sent in safe mode.", action="Upgrade to 3.4.0 or newer if the version is affected.")
 
 
 def check(target_url: str, cms_version: str | None = None, run_exploit_check: bool = False, timeout: int = 12, proxy: str | None = None, exploit_mode: str = "safe", plugins: dict[str, Any] | None = None, aggressive_command: str | None = None, aggressive_args: dict[str, Any] | None = None, **kwargs: Any) -> Finding:
     from ...core.args import aggressive_value
 
+    del cms_version, kwargs
     if not run_exploit_check:
         return passive_result(plugins)
     if exploit_mode == "aggressive":
+        passive = passive_result(plugins)
+        if passive.status == "NOT_DETECTED" and not aggressive_value(aggressive_args, aggressive_command, "field"):
+            passive.detail += (
+                " Aggressive proof skipped because ELEX HelpDesk was not detected; pass "
+                "--aggressive-arg field=<slug> to probe a known custom field."
+            )
+            return passive
         return run_aggressive_probe(
             target_url,
             marker=aggressive_value(aggressive_args, aggressive_command, "marker") or MARKER_PREFIX,
@@ -235,5 +257,34 @@ def check(target_url: str, cms_version: str | None = None, run_exploit_check: bo
     return result
 
 
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict[str, Any] | None = None,
+    aggressive_command: str | None = None,
+) -> dict[str, Any]:
+    """Verify the destructor-written marker and report the manual removal step."""
+    from ...core.args import aggressive_value
+    from ...core.cleanup import cleanup_result
+
+    path = aggressive_value(aggressive_args, aggressive_command, "file")
+    if not path:
+        return cleanup_result(manual=["re-run with --aggressive-arg file=<uploaded_filename> from the probe evidence"])
+    if str(path).startswith(("http://", "https://")):
+        url = str(path)
+    else:
+        url = f"{normalize_url(target_url)}/{str(path).lstrip('/')}"
+    response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
+    if not is_transport_error(response) and response.get("status") == 200:
+        return cleanup_result(
+            remaining=[url],
+            manual=[f"delete the uploaded file: {url}"],
+            detail="The uploaded marker is still served; delete it on the lab host.",
+        )
+    return cleanup_result(removed=[url], detail="The uploaded marker is no longer served.")
+
+
 def metadata() -> dict[str, Any]:
-    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=3.3.9"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Deserialization / Code Injection", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-119077", "https://github.com/im0xfay/CVE-2026-119077", "https://github.com/advisories/GHSA-9q2c-g54m-wgqw"]}
+    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=3.3.9"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Deserialization / Code Injection", "module_version": "1.0.0", "last_reviewed": "2026-11-20", "updated": "2026-11-20", "required_detectors": ["elex-helpdesk-customer-support-ticket-system"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-119077", "https://github.com/im0xfay/CVE-2026-119077", "https://github.com/advisories/GHSA-9q2c-g54m-wgqw"]}

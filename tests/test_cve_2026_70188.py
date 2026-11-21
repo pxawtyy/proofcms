@@ -22,7 +22,7 @@ def test_70188_safe_probe_vulnerable() -> None:
     with patch.object(cve_2026_70188, "run_safe_probe", return_value=probe):
         result = cve_2026_70188.check(
             "http://127.0.0.1:9260",
-            cms_version="8.0.31",
+            aspnet_runtime={"detected": True, "version": "8.0.31"},
             run_exploit_check=True,
             exploit_mode="safe",
         )
@@ -36,7 +36,7 @@ def test_70188_safe_probe_patched() -> None:
     with patch.object(cve_2026_70188, "run_safe_probe", return_value=probe):
         result = cve_2026_70188.check(
             "http://127.0.0.1:9261",
-            cms_version="8.0.32",
+            aspnet_runtime={"detected": True, "version": "8.0.32"},
             run_exploit_check=True,
             exploit_mode="safe",
         )
@@ -48,7 +48,7 @@ def test_70188_safe_probe_inconclusive() -> None:
     with patch.object(cve_2026_70188, "run_safe_probe", return_value=probe):
         result = cve_2026_70188.check(
             "http://127.0.0.1:9260",
-            cms_version="8.0.31",
+            aspnet_runtime={"detected": True, "version": "8.0.31"},
             run_exploit_check=True,
             exploit_mode="safe",
         )

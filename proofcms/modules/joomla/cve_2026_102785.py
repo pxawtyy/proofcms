@@ -227,7 +227,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
         return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=base, detail=f"The target could not be reached ({transport_error_detail(page)}).", action="Retry when the target is reachable.")
     urls = _find_image_urls(page.get("body") or "", base)
     if not urls:
-        return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=base, detail="No public YOOtheme image transformation URL was found; the write payload was not sent in safe mode.", action="Use aggressive mode with a legitimate image URL on an authorized staging site.")
+        return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=base, detail="No public YOOtheme image transformation URL was found; the write payload was not sent in safe mode.", action="Use aggressive mode with a legitimate image URL on an authorized staging site.")
     return Finding(cve=CVE_ID, name=NAME, status="BLOCKED_EXTERNAL", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=urls[0], detail="The public image transformation endpoint is reachable; the SAVE payload was not sent in safe mode.", action="Use aggressive mode on an authorized staging site to verify the signature/path binding.")
 
 

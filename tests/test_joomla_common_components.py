@@ -164,6 +164,34 @@ class TestCommonJoomlaComponents(unittest.TestCase):
         self.assertTrue(set(joomla.COMMON_COMPONENTS).issubset(results))
         self.assertTrue(all(results[key]["source"] == "not-detected" for key in joomla.COMMON_COMPONENTS))
 
+    def test_full_inventory_includes_dedicated_detectors(self):
+        from unittest.mock import Mock
+
+        args = SimpleNamespace(timeout=2, proxy=None, concurrency=1, inventory="full")
+        absent = PluginInfo(False, None, "not-detected")
+        dedicated = {
+            "detect_icagenda": "icagenda",
+            "detect_baforms": "baforms",
+            "detect_gridbox": "gridbox",
+            "detect_sppagebuilder": "sppagebuilder",
+            "detect_jbusinessdirectory": "jbusinessdirectory",
+            "detect_pagebuilderck": "pagebuilderck",
+            "detect_rsfiles": "rsfiles",
+            "detect_helix3": "helix3",
+            "detect_helixultimate": "helixultimate",
+        }
+        mocks = {name: Mock(return_value=absent) for name in dedicated}
+        with (
+            patch.multiple(joomla, **mocks),
+            patch.object(joomla, "detect_common_component", return_value=absent),
+        ):
+            results = joomla.detect_plugins(
+                "https://example.test", args, required_plugins=set(), concurrency=1
+            )
+        for name, key in dedicated.items():
+            mocks[name].assert_called_once()
+            self.assertEqual(results[key]["source"], "not-detected")
+
     def test_acymailing_legacy_manifest_detects_version_and_enterprise_edition(self):
         manifest = """<extension type="component">
         <name>AcyMailing Enterprise</name><version>5.8.1</version></extension>"""

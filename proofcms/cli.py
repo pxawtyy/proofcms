@@ -13,7 +13,9 @@ from proofcms.chains import AVAILABLE_CHAINS
 from proofcms.core.args import parse_aggressive_args
 from proofcms.core.categories import normalize_metadata
 from proofcms.core.http import (
+    begin_discovery_cache,
     configure_tls,
+    end_discovery_cache,
     fetch_url,
     is_baseline_match,
     normalize_url,
@@ -32,6 +34,7 @@ from proofcms.core.models import (
     PluginInfo,
     Status,
 )
+from proofcms.core.transcript import attach_transcript, begin_capture, end_capture
 from proofcms.detectors import (
     detect_aspnet_runtime,
     detect_baforms,
@@ -60,6 +63,7 @@ from proofcms.detectors import (
 from proofcms.detectors import (
     detect_joomla_plugins as detect_plugins,
 )
+from proofcms.modules.generic.elfinder import clear_discovery_cache
 from proofcms.reporting import (
     append_text_result,
     hidden_results_note,
@@ -502,6 +506,8 @@ def main():
     for target in targets:
         target_started = time.monotonic()
         reset_transport_state()
+        clear_discovery_cache()
+        begin_discovery_cache()
         target_errors: list[str] = []
         try:
             baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
@@ -526,6 +532,55 @@ def main():
                 f"Warning: {target} returned a {baseline['edge_interstitial']} challenge page. "
                 "CMS and vulnerability results may describe the edge page rather than the origin."
             )
+        if baseline.get("status", 0) == 0:
+            # An unreachable target cannot yield any detector or module result.
+            # Abort early instead of waiting on dozens of dead connections.
+            info = CMSInfo("unknown", False, None, "error")
+            target_report = {
+                "target": target,
+                "scan_base_url": target,
+                "cms": {"name": "unknown", "detected": False, "version": None, "source": "error"},
+                "joomla": {"detected": False, "version": None, "source": "not-detected"},
+                "plugins": {},
+                "wordpress": {},
+                "php": {"detected": False, "version": None, "source": "not-detected"},
+                "nginx": {
+                    "detected": False, "version": None, "source": "not-detected", "server": None,
+                    "http3_advertised": False, "edge_server": None, "edge_http3_advertised": False,
+                },
+                "node": {
+                    "detected": False, "version": None, "source": "not-detected", "server": None,
+                    "framework": None, "session_cookie": False,
+                },
+                "aspnet": {
+                    "detected": False, "version": None, "source": "not-detected", "server": None,
+                    "session_cookie": False, "session_secure": False, "session_samesite": None,
+                    "genexus_detected": False, "genexus_version": None, "genexus_generator": None,
+                    "genexus_dbms": None, "genexus_source": "not-detected",
+                },
+                "genexus": {
+                    "detected": False, "version": None, "generator": None, "dbms": None,
+                    "source": "not-detected",
+                },
+                "results": [],
+                "chains": [],
+                "edge_interstitial": baseline.get("edge_interstitial"),
+                "errors": target_errors,
+                "selected_modules": list(cves),
+            }
+            print_result(
+                target,
+                info,
+                [],
+                show_patched=args.show_patched,
+                show_not_detected=args.show_not_detected,
+                show_all=args.show_all,
+                errors=target_errors,
+            )
+            target_report["duration_seconds"] = round(time.monotonic() - target_started, 3)
+            targets_reports.append(target_report)
+            end_discovery_cache()
+            continue
         try:
             info = detect_cms(target, args, baseline=baseline)
         except Exception as exc:  # noqa: BLE001
@@ -615,7 +670,14 @@ def main():
             target_errors.append(f"Joomla inventory failed: {type(exc).__name__}: {exc}")
         try:
             wordpress_inventory = (
-                detect_wordpress_plugins(operational_target, args.timeout, proxy=args.proxy, baseline=baseline)
+                detect_wordpress_plugins(
+                    operational_target,
+                    args.timeout,
+                    proxy=args.proxy,
+                    baseline=baseline,
+                    concurrency=args.concurrency,
+                    required_plugins=needed_detectors if args.inventory == "required" else None,
+                )
                 if info.detected and info.name == "wordpress"
                 else {}
             )
@@ -724,6 +786,7 @@ def main():
             print_live_result(
                 target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
             )
+        end_discovery_cache()
         for cve_id in cves:
             if cve_id in module_setup_errors:
                 setup_error = {
@@ -751,10 +814,17 @@ def main():
             selected_exploit_mode = (
                 effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
             )
+            # Only a module that targets the detected CMS may receive the core
+            # CMS version. Plugin/runtime modules must use their own detector
+            # data; passing a Joomla/WordPress core version to an ASP.NET or
+            # plugin module produced cross-version false positives.
+            cms_version_arg = info.version if module_scope == info.name else None
+            begin_capture()
+            result = None
             try:
                 result = module.check(
                     operational_target,
-                    info.version,
+                    cms_version_arg,
                     run_exploit_check=run_exploit_check,
                     timeout=args.timeout,
                     proxy=args.proxy,
@@ -767,10 +837,6 @@ def main():
                     node_runtime=node_runtime,
                     aspnet_runtime=aspnet_runtime,
                 )
-                result_dict = result.as_dict()
-                result_dict["exploit_requested"] = run_exploit_check
-                result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
-                result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
             except Exception as exc:  # noqa: BLE001 - isolate third-party probe failures per target
                 result_dict = {
                     "cve": cve_id,
@@ -789,6 +855,22 @@ def main():
                     "requested_exploit_mode": selected_exploit_mode if run_exploit_check else None,
                     "requested_exploit_mode_input": args.exploit_mode if run_exploit_check else None,
                 }
+            finally:
+                captured = end_capture()
+            if result is not None:
+                if run_exploit_check and captured and not result.exploit_ran:
+                    # The module made at least one HTTP request during the
+                    # active check, so "requested but skipped" would be
+                    # misleading even when the module forgot to set it.
+                    result.exploit_ran = True
+                if result.status in {Status.VULNERABLE, Status.VULNERABLE_UPLOAD_ONLY} and captured:
+                    evidence = dict(result.evidence or {})
+                    if "transcript" not in evidence:
+                        result.evidence = attach_transcript(evidence, captured)
+                result_dict = result.as_dict()
+                result_dict["exploit_requested"] = run_exploit_check
+                result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
+                result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
             target_report["results"].append(result_dict)
             print_live_result(result_dict, args.show_patched, args.show_not_detected, args.show_all)
         for chain_id in chains:

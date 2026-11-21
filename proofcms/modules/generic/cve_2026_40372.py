@@ -44,6 +44,10 @@ def _protected_surface(client: HttpClient, base: str, timeout: int) -> dict[str,
     response = client.get(f"{base}/", timeout=timeout)
     if is_transport_error(response):
         return None
+    status = response.get("status")
+    if status == 404:
+        # A 404 landing page cannot host an antiforgery form or auth cookie.
+        return None
     headers_multi = response.get("headers_multi") or {}
     cookies = [str(value) for value in headers_multi.get("set-cookie", [])]
     body = response.get("body") or ""
@@ -52,7 +56,7 @@ def _protected_surface(client: HttpClient, base: str, timeout: int) -> dict[str,
         or "__RequestVerificationToken" in body
     )
     return {
-        "status": response.get("status"),
+        "status": status,
         "surface": surface,
         "cookies": cookies[:5],
     }
@@ -64,16 +68,31 @@ def check(
     run_exploit_check: bool = False,
     timeout: int = 12,
     proxy: str | None = None,
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del kwargs
+    del cms_version, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_DETECTED,
+            confidence=Confidence.MEDIUM,
+            component="ASP.NET Core / DataProtection",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail="ASP.NET Core / DataProtection was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+            vulnerability_type="Improper Verification of Cryptographic Signature",
+        )
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
     surface = _protected_surface(client, base, timeout)
-    version = cms_version
+    version = runtime.get("version")
     status = classify_version(version)
 
-    if surface is None and not version:
+    if not (surface and surface.get("surface")) and not version:
         return Finding(
             cve=CVE_ID,
             name=NAME,

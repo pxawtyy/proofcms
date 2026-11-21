@@ -927,6 +927,11 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": ["/"],
         "markers": r"mod_easyfileuploader|Easy\s*File\s*Uploader",
     },
+    "easystore": {
+        "manifests": ["/administrator/components/com_easystore/easystore.xml"],
+        "routes": ["/?option=com_easystore"],
+        "markers": r"com_easystore|EasyStore",
+    },
     "dpcalendar": {
         "manifests": [
             "/administrator/components/com_dpcalendar/dpcalendar.xml",
@@ -975,6 +980,19 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         ],
         "routes": ["/"],
         "markers": r"(?:media/)?regularlabs|Regular\s*Labs|modulesanywhere|com_advancedmodules",
+    },
+    "modulesanywhere": {
+        "manifests": ["/plugins/system/modulesanywhere/modulesanywhere.xml"],
+        "routes": [],
+        "markers": r"modulesanywhere|Modules\s+Anywhere",
+    },
+    "miniorange_oauth": {
+        "manifests": [
+            "/administrator/components/com_miniorange_oauth/miniorange_oauth.xml",
+            "/plugins/system/miniorange_oauth/miniorange_oauth.xml",
+        ],
+        "routes": ["/?option=com_miniorange_oauth"],
+        "markers": r"com_miniorange_oauth|miniOrange|miniorange",
     },
     "creativecontactform": {
         "manifests": ["/administrator/components/com_creativecontactform/creativecontactform.xml"],
@@ -1186,7 +1204,8 @@ def detect_plugins(
             detect_common_component, target, component, timeout, proxy=proxy, baseline=baseline
         )
 
-    inventory_keys = set(COMMON_COMPONENTS) if getattr(args, "inventory", "full") == "full" else set()
+    inventory_mode = getattr(args, "inventory", "full")
+    inventory_keys = set(all_detectors) if inventory_mode == "full" else set()
     needed_keys = set(all_detectors) if required_plugins is None else set(required_plugins) | inventory_keys
 
     results: dict[str, dict] = {}

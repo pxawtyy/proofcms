@@ -16,7 +16,7 @@ EXPLOIT_MODES = ["safe"]
 PLUGIN_SLUG = "ai-workflow-automation-ai-agent-hub"
 README_PATH = f"/wp-content/plugins/{PLUGIN_SLUG}/readme.txt"
 FIXED_VERSION = "2.0.4"
-PLUGIN_KEYS = ("ai_workflow_automation", "mcp_server", "ai_workflow_automation_ai_agent_hub")
+PLUGIN_KEYS = ("ai-workflow-automation-ai-agent-hub", "ai_workflow_automation", "mcp_server", "ai_workflow_automation_ai_agent_hub")
 
 
 def _numeric_version(version: str | None) -> str | None:
@@ -63,7 +63,7 @@ def passive_result(plugins: dict[str, Any] | None = None, version: str | None = 
     info = _plugin_info(plugins) if plugins else {}
     if version is None and info.get("found"):
         version = info.get("version")
-    if plugins and version is None and not info.get("found"):
+    if version is None and not info.get("found"):
         return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, detail="MCP Server for WordPress was not detected through its public asset paths or the supplied plugin detector map.", action="No action is required unless the plugin is installed but hidden from public detection.")
     status = _classify(version)
     return Finding(cve=CVE_ID, name=NAME, status=status, confidence="HIGH" if version else "MEDIUM", component=COMPONENT, component_version=version, affected_rule=AFFECTED_RULE, exploit_available=True, detail=f"Detected MCP Server for WordPress {version or '(version unknown)'}; 2.0.3 guards only tool hooks, so abilities still run through prompts/get and resources/read despite a Read-only or paused connection.", action="Upgrade the plugin to 2.0.4 or newer. This module reports a version-based likelihood only; the bypass needs an authenticated MCP connection, so no reliable remote active oracle exists.")
@@ -74,7 +74,9 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None,
     url = f"{base}{README_PATH}"
     response = HttpClient(timeout=timeout, proxy=proxy).get(url, timeout=timeout)
     if is_transport_error(response):
-        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"The plugin manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+        return Finding(cve=CVE_ID, name=NAME, status="ERROR", confidence="LOW", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin manifest could not be reached ({transport_error_detail(response)}).", action="Retry when the target is reachable.")
+    if response.get("status") != 200:
+        return Finding(cve=CVE_ID, name=NAME, status="NOT_DETECTED", confidence="MEDIUM", component=COMPONENT, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"The plugin manifest returned HTTP {response.get('status')}; MCP Server for WordPress is not publicly installed.", action="No action is required unless the plugin is installed but hidden from public detection.")
     detected = _version_from_body(str(response.get("body") or ""))
     effective = version
     if effective is None and plugins:
@@ -84,21 +86,21 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None,
     if effective is None:
         effective = detected
     status = _classify(effective)
-    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=effective, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=False, proof_url=url, detail=f"Read MCP Server for WordPress version {effective or '(unknown)'} from the public manifest; no MCP request was sent in safe mode.", action="Upgrade to 2.0.4 or newer if the detected version is affected.")
+    return Finding(cve=CVE_ID, name=NAME, status=status, confidence="MEDIUM", component=COMPONENT, component_version=effective, affected_rule=AFFECTED_RULE, exploit_available=True, exploit_ran=True, proof_url=url, detail=f"Read MCP Server for WordPress version {effective or '(unknown)'} from the public manifest; no MCP request was sent in safe mode.", action="Upgrade to 2.0.4 or newer if the detected version is affected.")
 
 
 def check(target_url: str, cms_version: str | None = None, run_exploit_check: bool = False, timeout: int = 12, proxy: str | None = None, exploit_mode: str = "safe", plugins: dict[str, Any] | None = None, aggressive_command: str | None = None, aggressive_args: dict[str, Any] | None = None, **kwargs: Any) -> Finding:
-    del aggressive_command, aggressive_args
-    passive = passive_result(plugins, version=cms_version)
+    del aggressive_command, aggressive_args, cms_version, kwargs
+    passive = passive_result(plugins)
     if not run_exploit_check:
         return passive
     if exploit_mode != "safe":
         passive.detail += " This module supports only the safe (public manifest version) probe; it has no remote active oracle."
         return passive
-    result = run_safe_probe(target_url, timeout=timeout, proxy=proxy, plugins=plugins, version=cms_version)
+    result = run_safe_probe(target_url, timeout=timeout, proxy=proxy, plugins=plugins)
     result.detail += " This module is lab-confirmed but exposes only a passive version check because the bypass requires an authenticated MCP connection."
     return result
 
 
 def metadata() -> dict[str, Any]:
-    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=2.0.3"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Improper Access Control", "module_version": "1.0.0", "last_reviewed": "2026-11-21", "updated": "2026-11-21", "required_detectors": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-125771", "https://wordpress.org/plugins/ai-workflow-automation-ai-agent-hub/", "https://github.com/advisories/GHSA-mcp-wp-connection-scope"]}
+    return {"cve": CVE_ID, "cms": "wordpress", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_versions": ["<=2.0.3"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Improper Access Control", "module_version": "1.0.0", "last_reviewed": "2026-11-21", "updated": "2026-11-21", "required_detectors": ["ai-workflow-automation-ai-agent-hub"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-125771", "https://wordpress.org/plugins/ai-workflow-automation-ai-agent-hub/", "https://github.com/advisories/GHSA-mcp-wp-connection-scope"]}

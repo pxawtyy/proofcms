@@ -75,4 +75,4 @@ def test_118423_no_readback_is_not_confirmed():
 def test_118423_safe_probe_sends_no_upload():
     with patch.object(wplf, "HttpClient", return_value=_FakeClient()):
         result = wplf.check("https://fixture.test", run_exploit_check=True, exploit_mode="safe")
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True

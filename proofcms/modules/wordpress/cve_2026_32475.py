@@ -320,7 +320,7 @@ def metadata() -> dict[str, Any]:
         "module_version": "1.0.0",
         "last_reviewed": "2026-09-28",
         "updated": "2026-09-28",
-        "required_detectors": [],
+        "required_detectors": ["elementor-pro"],
         "references": [
             "https://patchstack.com/articles/critical-unauthenticated-file-upload-to-rce-in-elementor-pro-plugin/",
             "https://www.cve.org/CVERecord?id=CVE-2026-32475",

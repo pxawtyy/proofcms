@@ -36,13 +36,30 @@ def check(
     run_exploit_check: bool = False,
     timeout: int = 12,
     proxy: str | None = None,
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del target_url, timeout, proxy, kwargs
-    status = classify_version(cms_version)
+    del target_url, cms_version, timeout, proxy, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_DETECTED,
+            confidence=Confidence.MEDIUM,
+            component="ASP.NET Core / Kestrel",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=False,
+            detail="ASP.NET Core / Kestrel was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+            vulnerability_type="HTTP Request Smuggling",
+        )
+    version = runtime.get("version")
+    status = classify_version(version)
     if status == Status.LIKELY_VULNERABLE:
         detail = (
-            f"ASP.NET Core {cms_version} is in the affected range. An aborted HTTP/1 connection "
+            f"ASP.NET Core {version} is in the affected range. An aborted HTTP/1 connection "
             "can reparse unread request-body bytes as another request: the drain is skipped when "
             "the abort is recorded and the pre-fix loop keeps keep-alive on. The wire shape is "
             "reduced and confirmed in `labs/cve-2026-88092`; remote confirmation needs a "
@@ -50,7 +67,7 @@ def check(
         )
         confidence = Confidence.HIGH
     elif status == Status.PATCHED:
-        detail = f"ASP.NET Core {cms_version} is at or beyond the fixed release."
+        detail = f"ASP.NET Core {version} is at or beyond the fixed release."
         confidence = Confidence.HIGH
     else:
         detail = "ASP.NET Core was detected, but its exact runtime version is unknown."
@@ -63,7 +80,7 @@ def check(
         status=status,
         confidence=confidence,
         component="ASP.NET Core / Kestrel",
-        component_version=cms_version,
+        component_version=version,
         affected_rule=RULE,
         exploit_available=HAS_EXPLOIT,
         exploit_ran=False,

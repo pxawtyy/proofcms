@@ -16,13 +16,23 @@ def test_88092_version_boundaries():
 def test_88092_is_passive():
     result = cve_2026_88092.check(
         "https://fixture.test",
-        cms_version="8.0.31",
         run_exploit_check=True,
+        aspnet_runtime={"detected": True, "version": "8.0.31"},
     )
     assert result.status == "LIKELY_VULNERABLE"
     assert result.exploit_available is False
     assert result.exploit_ran is False
     assert "passive-only" in result.detail
+
+
+def test_88092_ignores_core_cms_version_and_requires_aspnet():
+    result = cve_2026_88092.check(
+        "https://fixture.test",
+        cms_version="6.7.0",
+        run_exploit_check=True,
+    )
+    assert result.status == "NOT_DETECTED"
+    assert result.component_version is None
 
 
 def test_88092_metadata_is_passive():

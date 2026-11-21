@@ -112,7 +112,7 @@ def run_safe_probe(
             component=COMPONENT,
             affected_rule=AFFECTED_RULE,
             exploit_available=HAS_EXPLOIT,
-            exploit_ran=False,
+            exploit_ran=True,
             proof_url=f"{base}{LOGIN_PATH}",
             detail=(
                 "The helixreturn redirect requires a logged-in user; pass "

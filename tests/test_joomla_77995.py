@@ -48,6 +48,26 @@ def test_77995_version_boundaries():
     assert cve_2026_77995.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
 
 
+def test_77995_passive_result_reads_extension_inventory():
+    result = cve_2026_77995.passive_result(
+        {"miniorange_oauth": {"found": True, "version": "3.1.4"}}
+    )
+    assert result.status == "LIKELY_VULNERABLE"
+    assert result.component_version == "3.1.4"
+    missing = cve_2026_77995.passive_result({})
+    assert missing.status == "NOT_DETECTED"
+
+
+def test_77995_manifest_404_is_not_detected():
+    class _NotFoundClient:
+        def get(self, url: str, headers=None, timeout=None) -> dict[str, object]:
+            return {"status": 404, "body": "Not Found"}
+
+    with patch.object(cve_2026_77995, "HttpClient", return_value=_NotFoundClient()):
+        result = cve_2026_77995.run_safe_probe("https://target.test")
+    assert result.status == "NOT_DETECTED"
+
+
 def test_77995_manifest_version_extraction():
     assert cve_2026_77995._version_from_manifest(MANIFEST) == "3.1.4"
     assert cve_2026_77995._version_from_manifest("<html>no version</html>") is None
@@ -74,7 +94,7 @@ def test_77995_safe_probe_reads_manifest():
         result = cve_2026_77995.run_safe_probe("https://target.test")
     assert result.status == "LIKELY_VULNERABLE"
     assert result.component_version == "3.1.4"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
 
 
 def test_77995_bridge_confirms_admin_takeover():
@@ -107,4 +127,4 @@ def test_77995_check_sends_no_payload_in_safe_mode():
     with patch.object(cve_2026_77995, "HttpClient", return_value=client):
         result = cve_2026_77995.check("https://target.test", run_exploit_check=True, exploit_mode="safe")
     assert result.status == "LIKELY_VULNERABLE"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True

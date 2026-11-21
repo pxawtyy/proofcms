@@ -5,6 +5,7 @@ import ssl
 import urllib.parse
 from typing import Any
 
+from ...core.http import tls_verification_enabled
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
 
@@ -48,6 +49,9 @@ def _send_chunk(host: str, port: int, chunk: bytes, timeout: int, use_tls: bool)
         sock = socket.create_connection((host, port), timeout=timeout)
         if use_tls:
             context = ssl.create_default_context()
+            if not tls_verification_enabled():
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
             sock = context.wrap_socket(sock, server_hostname=host)
         request = (
             b"GET / HTTP/1.1\r\n"
@@ -111,29 +115,41 @@ def check(
     timeout: int = 12,
     proxy: str | None = None,
     exploit_mode: str = "safe",
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del kwargs
-    status = classify_version(cms_version)
+    del cms_version, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID, name=NAME, status=Status.NOT_DETECTED, confidence=Confidence.MEDIUM,
+            component="ASP.NET Core / Kestrel", affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail="ASP.NET Core / Kestrel was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+            vulnerability_type="HTTP Request Smuggling",
+        )
+    version = runtime.get("version")
+    status = classify_version(version)
     if status == Status.PATCHED:
         return Finding(
             cve=CVE_ID, name=NAME, status=status, confidence=Confidence.HIGH,
-            component="ASP.NET Core / Kestrel", component_version=cms_version,
+            component="ASP.NET Core / Kestrel", component_version=version,
             affected_rule=RULE, exploit_available=HAS_EXPLOIT,
-            detail=f"ASP.NET Core {cms_version} is at or beyond the fixed release.",
+            detail=f"ASP.NET Core {version} is at or beyond the fixed release.",
             action=FIXED_RULE,
             vulnerability_type="HTTP Request Smuggling",
         )
     if not run_exploit_check:
         confidence = Confidence.HIGH if status == Status.LIKELY_VULNERABLE else Confidence.MEDIUM
         detail = (
-            f"ASP.NET Core {cms_version} is in the affected range."
+            f"ASP.NET Core {version} is in the affected range."
             if status == Status.LIKELY_VULNERABLE
             else "ASP.NET Core was detected, but its exact runtime version is unknown."
         )
         return Finding(
             cve=CVE_ID, name=NAME, status=status, confidence=confidence,
-            component="ASP.NET Core / Kestrel", component_version=cms_version,
+            component="ASP.NET Core / Kestrel", component_version=version,
             affected_rule=RULE, exploit_available=HAS_EXPLOIT,
             detail=detail, action=FIXED_RULE,
             vulnerability_type="HTTP Request Smuggling",
@@ -141,7 +157,7 @@ def check(
     if exploit_mode != "safe":
         return Finding(
             cve=CVE_ID, name=NAME, status=status, confidence=Confidence.MEDIUM,
-            component="ASP.NET Core / Kestrel", component_version=cms_version,
+            component="ASP.NET Core / Kestrel", component_version=version,
             affected_rule=RULE, exploit_available=HAS_EXPLOIT,
             detail="This module supports only the safe chunk-extension differential.",
             action=FIXED_RULE, vulnerability_type="HTTP Request Smuggling",
@@ -151,7 +167,7 @@ def check(
     if probe.get("vulnerable"):
         return Finding(
             cve=CVE_ID, name=NAME, status=Status.VULNERABLE, confidence=Confidence.CONFIRMED,
-            component="ASP.NET Core / Kestrel", component_version=cms_version,
+            component="ASP.NET Core / Kestrel", component_version=version,
             affected_rule=RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True,
             proof_url=target_url, evidence=probe,
             detail=(
@@ -164,7 +180,7 @@ def check(
     if probe.get("patched"):
         return Finding(
             cve=CVE_ID, name=NAME, status=Status.PATCHED, confidence=Confidence.HIGH,
-            component="ASP.NET Core / Kestrel", component_version=cms_version,
+            component="ASP.NET Core / Kestrel", component_version=version,
             affected_rule=RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True,
             proof_url=target_url, evidence=probe,
             detail="Kestrel closed the connection for the lone-LF chunk extension, the patched behavior.",
@@ -172,7 +188,7 @@ def check(
         )
     return Finding(
         cve=CVE_ID, name=NAME, status=Status.INCONCLUSIVE, confidence=Confidence.MEDIUM,
-        component="ASP.NET Core / Kestrel", component_version=cms_version,
+        component="ASP.NET Core / Kestrel", component_version=version,
         affected_rule=RULE, exploit_available=HAS_EXPLOIT, exploit_ran=True,
         proof_url=target_url, evidence=probe,
         detail=f"The safe differential was inconclusive: {probe.get('reason', 'unexpected connection behavior')}.",

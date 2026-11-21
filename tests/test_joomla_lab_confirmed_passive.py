@@ -67,6 +67,23 @@ def test_easystore_90901_metadata_is_safe_only():
     assert meta["intrusive"] is False
 
 
+class _NotFoundClient:
+    def get(self, url: str, headers=None, timeout=None) -> dict[str, object]:
+        return {"status": 404, "body": "Not Found", "headers": {}, "final_url": url}
+
+
+def test_easystore_90901_manifest_404_is_not_detected():
+    with patch.object(cve_2026_90901, "HttpClient", return_value=_NotFoundClient()):
+        result = cve_2026_90901.check(TARGET)
+    assert result.status == "NOT_DETECTED"
+
+
+def test_modulesanywhere_100750_manifest_404_is_not_detected():
+    with patch.object(cve_2026_100750, "HttpClient", return_value=_NotFoundClient()):
+        result = cve_2026_100750.check(TARGET)
+    assert result.status == "NOT_DETECTED"
+
+
 def test_modulesanywhere_100750_classifier_boundaries():
     assert cve_2026_100750._classify("1.5.0") == "LIKELY_VULNERABLE"
     assert cve_2026_100750._classify("9.0.5") == "LIKELY_VULNERABLE"

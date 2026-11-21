@@ -306,6 +306,95 @@ class TestMandatoryRegressionCases(unittest.TestCase):
         }
         self.assertTrue(is_baseline_match(second, baseline))
 
+    def test_reflected_request_path_matches_fake_200_baseline(self):
+        from proofcms.core.http import _build_response_dict, is_baseline_match
+
+        baseline_resp = _build_response_dict(
+            200,
+            '<html><link rel="canonical" href="https://target/_jvh_probe_abc123/"></html>',
+            "https://target/_jvh_probe_abc123/",
+            "https://target/_jvh_probe_abc123/",
+        )
+        probe = _build_response_dict(
+            200,
+            '<html><link rel="canonical" href="https://target/administrator/"></html>',
+            "https://target/administrator/",
+            "https://target/administrator/",
+        )
+        baseline = {
+            "status": baseline_resp["status"],
+            "body_hash": baseline_resp["body_hash"],
+            "normalized_body_hash": baseline_resp["normalized_body_hash"],
+            "target_root": "https://target",
+        }
+        self.assertTrue(
+            is_baseline_match(probe, baseline),
+            "A Soft-200 page that echoes its own path must still match the canary baseline",
+        )
+
+    def test_no_redirect_response_exposes_location(self):
+        import io
+        import urllib.error
+        from email.message import Message
+
+        client = HttpClient()
+        headers = Message()
+        headers["Location"] = "/login"
+
+        def raise_redirect(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 302, "Found", headers, io.BytesIO(b""))
+
+        client.no_redirect_opener.open = raise_redirect
+        response = client.request("https://target.test/admin", follow_redirects=False)
+        self.assertEqual(response["status"], 302)
+        self.assertEqual(response["final_url"], "https://target.test/login")
+        self.assertTrue(response["redirected"])
+
+    def test_stateless_request_clears_cookie_jar(self):
+        from proofcms.core import http as core_http
+
+        instances: list[object] = []
+
+        class FakeJar:
+            def __init__(self):
+                self.cleared = 0
+
+            def clear(self):
+                self.cleared += 1
+
+        class FakeClient:
+            def __init__(self, *args, **kwargs):
+                self.jar = FakeJar()
+                instances.append(self)
+
+            def request(self, *args, **kwargs):
+                return {"status": 200, "body": "", "headers": {}}
+
+        with unittest.mock.patch.object(core_http, "HttpClient", FakeClient):
+            core_http.reset_transport_state()
+            core_http.request("https://a.test/")
+            core_http.request("https://a.test/")
+        self.assertEqual(instances[-1].jar.cleared, 2)
+
+    def test_discovery_cache_deduplicates_detector_gets(self):
+        from proofcms.core import http as core_http
+
+        calls: list[str] = []
+
+        def fake_request(url, **kwargs):
+            calls.append(url)
+            return {"status": 200, "body": "home", "headers": {}}
+
+        with unittest.mock.patch.object(core_http, "request", side_effect=fake_request):
+            core_http.begin_discovery_cache()
+            try:
+                core_http.fetch_url("https://target.test/")
+                core_http.fetch_url("https://target.test/")
+            finally:
+                core_http.end_discovery_cache()
+            core_http.fetch_url("https://target.test/")
+        self.assertEqual(calls, ["https://target.test/", "https://target.test/"])
+
     def test_radware_http_200_challenge_is_identified(self):
         from proofcms.core.http import _build_response_dict
 

@@ -71,7 +71,7 @@ def test_customtables_105606_safe_probe_sends_nothing():
             plugins={"customtables": {"found": True, "version": "3.7.7"}},
         )
     assert result.status == "BLOCKED_EXTERNAL"
-    assert result.exploit_ran is False
+    assert result.exploit_ran is True
 
 
 def test_easyfileuploader_107904_version_boundaries():

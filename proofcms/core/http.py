@@ -16,6 +16,7 @@ from typing import Any, cast
 
 from .transcript import MAX_ENTRIES as _TRANSCRIPT_MAX
 from .transcript import make_entry as _transcript_entry
+from .transcript import record_capture as _transcript_capture
 
 DEFAULT_USER_AGENT = "ProofCMS/2.1 authorized-audit"
 DEFAULT_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
@@ -23,6 +24,25 @@ DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9,pt-BR;q=0.8"
 MAX_RESPONSE_BYTES = 512 * 1024
 _TLS_VERIFY = True
 _thread_clients = threading.local()
+_discovery_cache: dict[tuple[str, int, str | None, bool], dict[str, Any]] = {}
+_discovery_cache_enabled = False
+_discovery_cache_lock = threading.Lock()
+
+
+def begin_discovery_cache() -> None:
+    """Enable a per-target cache for idempotent detector GETs."""
+    global _discovery_cache_enabled
+    with _discovery_cache_lock:
+        _discovery_cache.clear()
+        _discovery_cache_enabled = True
+
+
+def end_discovery_cache() -> None:
+    """Disable and clear the discovery cache before active probes run."""
+    global _discovery_cache_enabled
+    with _discovery_cache_lock:
+        _discovery_cache.clear()
+        _discovery_cache_enabled = False
 
 
 def configure_tls(verify: bool = True) -> None:
@@ -35,6 +55,12 @@ def configure_tls(verify: bool = True) -> None:
 def reset_transport_state() -> None:
     """Drop thread-local clients so cookies never cross target boundaries."""
     _thread_clients.clients = {}
+    end_discovery_cache()
+
+
+def tls_verification_enabled() -> bool:
+    """Return the process-wide TLS verification policy."""
+    return _TLS_VERIFY
 
 
 def detect_edge_interstitial(body: str, final_url: str = "") -> str | None:
@@ -55,8 +81,14 @@ def detect_edge_interstitial(body: str, final_url: str = "") -> str | None:
     return None
 
 
-def _normalize_dynamic_html(body: str) -> str:
-    """Remove common per-request values before comparing fake-200 pages."""
+def _normalize_dynamic_html(body: str, url: str = "") -> str:
+    """Remove common per-request values before comparing fake-200 pages.
+
+    Soft-200 targets often echo the requested path (canonical links, form
+    actions, breadcrumbs).  Normalizing the path to a placeholder lets the
+    baseline canary and a probed route compare equal when the server renders
+    the same page for both.
+    """
     normalized = re.sub(r"\b[a-f0-9]{32}\b", "<joomla-token>", body, flags=re.IGNORECASE)
     normalized = re.sub(
         r"([?&](?:token|nonce|sid|session(?:id)?)=)[^&\"'<>\s]+",
@@ -64,6 +96,28 @@ def _normalize_dynamic_html(body: str) -> str:
         normalized,
         flags=re.IGNORECASE,
     )
+    if url:
+        try:
+            parsed = urllib.parse.urlsplit(url)
+        except ValueError:
+            parsed = None
+        candidates: set[str] = set()
+        for candidate in (url, url.rstrip("/")):
+            if candidate and len(candidate) > 1:
+                candidates.add(candidate)
+        if parsed is not None:
+            for candidate in (parsed.path, parsed.path.rstrip("/")):
+                if candidate and len(candidate) > 1:
+                    candidates.add(candidate)
+        for candidate in sorted(candidates, key=len, reverse=True):
+            normalized = normalized.replace(candidate, "<request-url>")
+            for quoted in (
+                urllib.parse.quote(candidate, safe=""),
+                urllib.parse.quote(candidate, safe="/:?=&%"),
+            ):
+                if quoted and quoted != candidate:
+                    normalized = normalized.replace(quoted, "<request-url>")
+    normalized = re.sub(r"/_jvh_probe_[0-9a-f]+/?", "<probe-path>", normalized, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", normalized).strip()
 
 
@@ -187,7 +241,7 @@ def _build_response_dict(
         "",
     )
     body_hash = hashlib.sha256(raw_bytes if raw_bytes else body.encode("utf-8", errors="replace")).hexdigest()
-    normalized_body = _normalize_dynamic_html(body)
+    normalized_body = _normalize_dynamic_html(body, final_url)
     return {
         "status": status,
         "body": body,
@@ -284,8 +338,10 @@ class HttpClient:
         return url
 
     def _record(self, method: str, url: str, response: dict[str, Any]) -> None:
-        self.transcript.append(_transcript_entry(method, url, response))
+        entry = _transcript_entry(method, url, response)
+        self.transcript.append(entry)
         del self.transcript[: max(0, len(self.transcript) - _TRANSCRIPT_MAX)]
+        _transcript_capture(method, url, response)
 
     def request(
         self,
@@ -333,6 +389,10 @@ class HttpClient:
             body_bytes, body, encoding_truncated = _decode_body(body_bytes, exc.headers or {})
             truncated = truncated or encoding_truncated
             final_url = exc.url if exc.url else full_url
+            if exc.code in (301, 302, 303, 307, 308) and exc.headers is not None:
+                location = exc.headers.get("Location")
+                if location:
+                    final_url = urllib.parse.urljoin(full_url, location)
             result = _build_response_dict(
                 exc.code, body, full_url, final_url, exc.headers or {}, body_bytes, truncated=truncated
             )
@@ -402,7 +462,12 @@ def request(
     timeout: int = 12,
     proxy: str | None = None,
 ) -> dict[str, Any]:
-    """Convenience function for stateless HTTP requests matching legacy modules."""
+    """Convenience function for stateless HTTP requests matching legacy modules.
+
+    The thread-local client is reused to avoid rebuilding the TLS context, but
+    its cookie jar is cleared before every call: a session established by one
+    detector or probe must never leak into the next module.
+    """
     key = (timeout, proxy, _TLS_VERIFY)
     clients = getattr(_thread_clients, "clients", None)
     if clients is None:
@@ -412,6 +477,7 @@ def request(
     if client is None:
         client = HttpClient(timeout=timeout, proxy=proxy)
         clients[key] = client
+    client.jar.clear()
     response = client.request(url, method=method, headers=headers, data=data, timeout=timeout)
     try:
         from .transcript import record_stateless
@@ -426,7 +492,18 @@ def fetch_url(url: str, timeout: int = 12, proxy: str | None = None, session: An
     """Convenience function for fetching a URL through the shared client."""
     if session is not None and hasattr(session, "get"):
         return cast(dict[str, Any], session.get(url, timeout=timeout))
-    return request(url, method="GET", timeout=timeout, proxy=proxy)
+    if not _discovery_cache_enabled:
+        return request(url, method="GET", timeout=timeout, proxy=proxy)
+    key = (url, timeout, proxy, _TLS_VERIFY)
+    with _discovery_cache_lock:
+        cached = _discovery_cache.get(key)
+    if cached is not None:
+        return cached
+    response = request(url, method="GET", timeout=timeout, proxy=proxy)
+    if response.get("status", 0) > 0:
+        with _discovery_cache_lock:
+            _discovery_cache[key] = response
+    return response
 
 
 def probe_target_baseline(target: str, timeout: int = 8, proxy: str | None = None) -> dict[str, Any]:

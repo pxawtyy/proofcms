@@ -61,9 +61,21 @@ def test_known_patched_build_is_patched():
         patch.object(webdeploy.HttpClient, "get", return_value=surface),
         patch.object(webdeploy.HttpClient, "request", return_value=probe),
     ):
-        finding = webdeploy.check("https://fixture.test", cms_version="10.0.2001", timeout=1)
+        finding = webdeploy.check("https://fixture.test", webdeploy_version="10.0.2001", timeout=1)
     assert finding.status == "PATCHED"
     assert finding.confidence == "HIGH"
+
+
+def test_core_cms_version_is_not_a_webdeploy_build():
+    surface = {"status": 401, "body": "", "headers": {"Server": "Microsoft-IIS/10.0"}}
+    probe = {"status": 401, "missing_sync_options": False, "auth_required": True, "body_hash": "auth"}
+    with (
+        patch.object(webdeploy.HttpClient, "get", return_value=surface),
+        patch.object(webdeploy.HttpClient, "request", return_value=probe),
+    ):
+        finding = webdeploy.check("https://fixture.test", cms_version="6.7.0", timeout=1)
+    assert finding.status == "LIKELY_VULNERABLE"
+    assert finding.component_version is None
 
 
 def test_exploit_request_is_passive_only():

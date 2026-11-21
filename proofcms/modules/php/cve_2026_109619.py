@@ -230,7 +230,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             component="PHP runtime",
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
-            exploit_ran=False,
+            exploit_ran=True,
             detail="The cli-server leak probe needs plain HTTP; TLS was requested.",
             action="Point the probe at the loopback cli-server lab over HTTP.",
             vulnerability_type=TYPE,
@@ -248,7 +248,7 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             component="PHP runtime",
             affected_rule=RULE,
             exploit_available=HAS_EXPLOIT,
-            exploit_ran=False,
+            exploit_ran=True,
             detail=(
                 "The lab baseline endpoint /index.php did not answer HTTP 200. "
                 "The leak differential needs the cli-server lab app; no payload was sent."

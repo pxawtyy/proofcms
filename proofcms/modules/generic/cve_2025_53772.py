@@ -103,11 +103,13 @@ def check(
     proxy: str | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del kwargs
+    del cms_version
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
     surface = _surface(client, base, timeout)
-    version = cms_version
+    # A CMS core version is not a Web Deploy build number. Callers may pass the
+    # real build as webdeploy_version; otherwise only the surface is reported.
+    version = kwargs.get("webdeploy_version")
 
     if surface is None:
         return Finding(

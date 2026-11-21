@@ -22,7 +22,9 @@ def test_40372_vulnerable_with_cookie_surface() -> None:
         "cookies": [".AspNetCore.Cookies=abc"],
     }
     with patch.object(cve_2026_40372, "_protected_surface", return_value=surface):
-        result = cve_2026_40372.check("https://app.test", cms_version="10.0.6")
+        result = cve_2026_40372.check(
+            "https://app.test", aspnet_runtime={"detected": True, "version": "10.0.6"}
+        )
     assert result.status == "LIKELY_VULNERABLE"
     assert result.confidence == "HIGH"
     assert result.exploit_available is False
@@ -32,7 +34,9 @@ def test_40372_vulnerable_with_cookie_surface() -> None:
 def test_40372_patched() -> None:
     surface = {"status": 200, "surface": True, "cookies": []}
     with patch.object(cve_2026_40372, "_protected_surface", return_value=surface):
-        result = cve_2026_40372.check("https://app.test", cms_version="10.0.7")
+        result = cve_2026_40372.check(
+            "https://app.test", aspnet_runtime={"detected": True, "version": "10.0.7"}
+        )
     assert result.status == "PATCHED"
 
 
@@ -40,6 +44,14 @@ def test_40372_no_surface_no_version() -> None:
     with patch.object(cve_2026_40372, "_protected_surface", return_value=None):
         result = cve_2026_40372.check("https://app.test")
     assert result.status == "NOT_DETECTED"
+
+
+def test_40372_404_is_not_a_protected_surface() -> None:
+    class FakeClient:
+        def get(self, url: str, **kwargs):
+            return {"status": 404, "body": "", "headers": {}, "headers_multi": {}}
+
+    assert cve_2026_40372._protected_surface(FakeClient(), "https://app.test", 1) is None
 
 
 def test_40372_metadata_is_passive() -> None:

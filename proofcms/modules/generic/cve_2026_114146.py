@@ -356,11 +356,27 @@ def check(
     exploit_mode: str = "safe",
     aggressive_command: str | None = None,
     aggressive_args: dict[str, Any] | None = None,
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
     from ...core.args import aggressive_value
 
-    passive = passive_result(cms_version)
+    del cms_version, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_DETECTED,
+            confidence=Confidence.MEDIUM,
+            component="ASP.NET Core / SignalR",
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            detail="ASP.NET Core / SignalR was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+            vulnerability_type="Incorrect Authorization",
+        )
+    passive = passive_result(runtime.get("version"))
     if not run_exploit_check:
         return passive
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.models import Finding
+from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
 
 CVE_ID = "CVE-2026-102870"
@@ -32,19 +32,36 @@ def check(
     run_exploit_check: bool = False,
     timeout: int = 12,
     proxy: str | None = None,
+    aspnet_runtime: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Finding:
-    del target_url, timeout, proxy, kwargs
-    status = classify_version(cms_version)
+    del target_url, cms_version, timeout, proxy, kwargs
+    runtime = aspnet_runtime or {}
+    if not runtime.get("detected"):
+        return Finding(
+            cve=CVE_ID,
+            name=NAME,
+            status=Status.NOT_DETECTED,
+            confidence=Confidence.MEDIUM,
+            component=COMPONENT,
+            affected_rule=RULE,
+            exploit_available=HAS_EXPLOIT,
+            exploit_ran=False,
+            detail="ASP.NET Core / Blazor WebAssembly was not detected on the target; no runtime version was evaluated.",
+            action="No action is required unless the target is served by ASP.NET Core.",
+            vulnerability_type="Code Injection",
+        )
+    version = runtime.get("version")
+    status = classify_version(version)
     if status == "LIKELY_VULNERABLE":
         detail = (
-            f"ASP.NET Core {cms_version} is in the affected range. Exploitation requires the Blazor "
+            f"ASP.NET Core {version} is in the affected range. Exploitation requires the Blazor "
             "WebAssembly debug proxy to be enabled and a debugger expression to evaluate "
             "attacker-controlled application data; it is not a generic remote web endpoint."
         )
         confidence = "HIGH"
     elif status == "PATCHED":
-        detail = f"ASP.NET Core {cms_version} is at or beyond the fixed Blazor WebAssembly server package."
+        detail = f"ASP.NET Core {version} is at or beyond the fixed Blazor WebAssembly server package."
         confidence = "HIGH"
     else:
         detail = "The ASP.NET Core / Blazor WebAssembly server package version could not be determined."
@@ -57,7 +74,7 @@ def check(
         status=status,
         confidence=confidence,
         component=COMPONENT,
-        component_version=cms_version,
+        component_version=version,
         affected_rule=RULE,
         exploit_available=HAS_EXPLOIT,
         exploit_ran=False,

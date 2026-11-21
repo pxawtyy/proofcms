@@ -25,6 +25,12 @@ KNOWN_PLUGIN_MARKERS = {
     "wpvivid-backuprestore": r"WPvivid|wpvivid-backuprestore",
     "keydatas": r"keydatas|简数",
     "elementor": r"(?:^|/)elementor(?:/|$)|Elementor",
+    "elementor-pro": r"Elementor\s*Pro|elementor-pro",
+    "wp-libre-form": r"WP\s*Libre\s*Form|wp-libre-form|libre-form",
+    "elex-helpdesk-customer-support-ticket-system": r"ELEX\s*(?:HelpDesk|Help\s*Desk)|elex[-_]helpdesk|wsdesk",
+    "wp-photo-album-plus": r"WP\s*Photo\s*Album\s*Plus|wp-photo-album-plus|wppa",
+    "wp-compress-image-optimizer": r"WP\s*Compress|wp-compress",
+    "ai-workflow-automation-ai-agent-hub": r"MCP\s*Server\s*for\s*WordPress|ai-workflow-automation|ai-agent-hub",
     "google-site-kit": r"google[-_ ]site[-_ ]kit|Site\s+Kit",
     "jetpack": r"Jetpack|my-jetpack|jetpack-boost",
     "popup-maker": r"popup-maker|Popup\s+Maker|pum_vars",
@@ -312,6 +318,8 @@ def detect_wordpress_plugins(
     timeout: int,
     proxy: str | None = None,
     baseline: dict | None = None,
+    concurrency: int | None = None,
+    required_plugins: set[str] | list[str] | None = None,
 ) -> dict:
     home = _fetch(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
     if home.get("status", 0) == 0:
@@ -340,114 +348,143 @@ def detect_wordpress_plugins(
                 rest_plugins.setdefault(slug, str(namespace))
             else:
                 unresolved_namespaces.append(str(namespace))
-    slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS) | set(rest_plugins)
+    if required_plugins is None:
+        slugs = asset_slugs | set(KNOWN_PLUGIN_MARKERS) | set(rest_plugins)
+    else:
+        # "required" inventory only probes plugins named by the selected
+        # modules, plus any plugin whose asset path was already observed.
+        slugs = asset_slugs | (set(required_plugins) & set(KNOWN_PLUGIN_MARKERS)) | set(rest_plugins)
 
-    plugins: dict[str, dict] = {}
-    for slug in sorted(slugs):
-        version = None
-        found = slug in asset_slugs or slug in rest_plugins
-        source = f"/wp-content/plugins/{slug}/"
-        if slug in rest_plugins and slug not in asset_slugs:
-            source = f"/wp-json/:{rest_plugins[slug]}"
-        marker = KNOWN_PLUGIN_MARKERS.get(slug)
+    def inspect_slug(slug: str) -> dict | None:
+        try:
+            version = None
+            found = slug in asset_slugs or slug in rest_plugins
+            source = f"/wp-content/plugins/{slug}/"
+            if slug in rest_plugins and slug not in asset_slugs:
+                source = f"/wp-json/:{rest_plugins[slug]}"
+            marker = KNOWN_PLUGIN_MARKERS.get(slug)
 
-        # Prefer the main plugin file: its `Version:` header is written by the
-        # release process, while readme `Stable tag:` values have been observed
-        # lagging behind the shipped code.
-        main_file = PLUGIN_MAIN_FILES.get(slug, f"{slug}.php")
-        main = _fetch(
-            f"{target.rstrip('/')}/wp-content/plugins/{slug}/{main_file}",
-            timeout=timeout,
-            proxy=proxy,
-        )
-        main_body = str(main.get("body", ""))
-        valid_main = marker is None or bool(re.search(marker, main_body, re.IGNORECASE))
-        if (
-            not is_baseline_match(main, baseline)
-            and main.get("status") == 200
-            and len(main_body) > 20
-            and valid_main
-        ):
-            parsed = parse_wordpress_plugin_version(main_body)
-            if parsed:
-                found = True
-                version = parsed
-                source = f"{source}{main_file}"
-
-        if not version:
-            readme = _fetch(f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt", timeout=timeout, proxy=proxy)
-            readme_body = readme.get("body", "")
-            valid_readme = marker is None or bool(re.search(marker, readme_body, re.IGNORECASE))
+            # Prefer the main plugin file: its `Version:` header is written by
+            # the release process, while readme `Stable tag:` values have been
+            # observed lagging behind the shipped code.
+            main_file = PLUGIN_MAIN_FILES.get(slug, f"{slug}.php")
+            main = _fetch(
+                f"{target.rstrip('/')}/wp-content/plugins/{slug}/{main_file}",
+                timeout=timeout,
+                proxy=proxy,
+            )
+            main_body = str(main.get("body", ""))
+            valid_main = marker is None or bool(re.search(marker, main_body, re.IGNORECASE))
             if (
-                not is_baseline_match(readme, baseline)
-                and readme.get("status") == 200
-                and len(readme_body) > 20
-                and valid_readme
+                not is_baseline_match(main, baseline)
+                and main.get("status") == 200
+                and len(main_body) > 20
+                and valid_main
             ):
-                found = True
-                parsed = parse_wordpress_plugin_version(readme_body)
+                parsed = parse_wordpress_plugin_version(main_body)
                 if parsed:
+                    found = True
                     version = parsed
-                    source = f"{source}readme.txt"
+                    source = f"{source}{main_file}"
 
-        if not version:
-            extra = PLUGIN_EXTRA_VERSION_FILES.get(slug)
-            if extra:
-                extra_file, extra_pattern = extra
-                extra_response = _fetch(
-                    f"{target.rstrip('/')}/wp-content/plugins/{slug}/{extra_file}",
+            if not version:
+                readme = _fetch(
+                    f"{target.rstrip('/')}/wp-content/plugins/{slug}/readme.txt",
                     timeout=timeout,
                     proxy=proxy,
                 )
-                extra_body = str(extra_response.get("body", ""))
-                extra_match = re.search(extra_pattern, extra_body, re.IGNORECASE | re.MULTILINE)
+                readme_body = readme.get("body", "")
+                valid_readme = marker is None or bool(re.search(marker, readme_body, re.IGNORECASE))
                 if (
-                    not is_baseline_match(extra_response, baseline)
-                    and extra_response.get("status") == 200
-                    and extra_match
+                    not is_baseline_match(readme, baseline)
+                    and readme.get("status") == 200
+                    and len(readme_body) > 20
+                    and valid_readme
                 ):
                     found = True
-                    version = extra_match.group(1)
-                    source = f"{source}{extra_file}"
+                    parsed = parse_wordpress_plugin_version(readme_body)
+                    if parsed:
+                        version = parsed
+                        source = f"{source}readme.txt"
 
-        if not version:
-            asset_match = re.search(
-                rf"/wp-content/plugins/{re.escape(slug)}/[^?\"']+\?ver=([0-9]+(?:\.[0-9]+)*)",
-                html,
-                re.IGNORECASE,
-            )
-            if asset_match:
-                version = asset_match.group(1)
-                source = f"{source}asset-query"
+            if not version:
+                extra = PLUGIN_EXTRA_VERSION_FILES.get(slug)
+                if extra:
+                    extra_file, extra_pattern = extra
+                    extra_response = _fetch(
+                        f"{target.rstrip('/')}/wp-content/plugins/{slug}/{extra_file}",
+                        timeout=timeout,
+                        proxy=proxy,
+                    )
+                    extra_body = str(extra_response.get("body", ""))
+                    extra_match = re.search(extra_pattern, extra_body, re.IGNORECASE | re.MULTILINE)
+                    if (
+                        not is_baseline_match(extra_response, baseline)
+                        and extra_response.get("status") == 200
+                        and extra_match
+                    ):
+                        found = True
+                        version = extra_match.group(1)
+                        source = f"{source}{extra_file}"
 
-        if slug == "popup-maker" and not version:
-            popup_version = re.search(
-                r"\bpum_vars\s*=\s*\{.*?[\"']version[\"']\s*:\s*[\"']([^\"']+)",
-                html,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if popup_version:
-                version = popup_version.group(1).strip()
-                source = "/:pum_vars"
+            if not version:
+                asset_match = re.search(
+                    rf"/wp-content/plugins/{re.escape(slug)}/[^?\"']+\?ver=([0-9]+(?:\.[0-9]+)*)",
+                    html,
+                    re.IGNORECASE,
+                )
+                if asset_match:
+                    version = asset_match.group(1)
+                    source = f"{source}asset-query"
 
-        if slug == "wp-rocket":
-            rocket = re.search(
-                r'<meta\s+name=["\']generator["\']\s+content=["\']WP\s+Rocket\s+([^"\']+)',
-                html,
-                re.IGNORECASE,
-            )
-            if rocket:
-                found = True
-                version = version or rocket.group(1).strip()
-                source = "/:generator"
+            if slug == "popup-maker" and not version:
+                popup_version = re.search(
+                    r"\bpum_vars\s*=\s*\{.*?[\"']version[\"']\s*:\s*[\"']([^\"']+)",
+                    html,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if popup_version:
+                    version = popup_version.group(1).strip()
+                    source = "/:pum_vars"
 
-        if found:
-            plugins[slug] = {
-                "found": True,
-                "version": version,
-                "source": source,
-                "version_confidence": "LOW" if "asset-query" in source else "HIGH",
-            }
+            if slug == "wp-rocket":
+                rocket = re.search(
+                    r'<meta\s+name=["\']generator["\']\s+content=["\']WP\s+Rocket\s+([^"\']+)',
+                    html,
+                    re.IGNORECASE,
+                )
+                if rocket:
+                    found = True
+                    version = version or rocket.group(1).strip()
+                    source = "/:generator"
+
+            if found:
+                return {
+                    "found": True,
+                    "version": version,
+                    "source": source,
+                    "version_confidence": "LOW" if "asset-query" in source else "HIGH",
+                }
+            return None
+        except Exception:  # noqa: BLE001 - one plugin must not abort the inventory
+            return None
+
+    plugins: dict[str, dict] = {}
+    ordered_slugs = sorted(slugs)
+    workers = max(1, concurrency or 5)
+    if workers > 1 and len(ordered_slugs) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=min(workers, len(ordered_slugs))) as executor:
+            inspected = executor.map(inspect_slug, ordered_slugs)
+            for slug, info in zip(ordered_slugs, inspected):
+                if info:
+                    plugins[slug] = info
+    else:
+        for slug in ordered_slugs:
+            info = inspect_slug(slug)
+            if info:
+                plugins[slug] = info
 
     return {
         "plugins": plugins,
