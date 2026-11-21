@@ -38,8 +38,18 @@ Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
   a patched IIS/.NET 3.5 container, if Windows container mode is enabled.
 - Surface gating: a patched lab with no `.axd`/`__ASPXAUTH` must return
   `INCONCLUSIVE`/`NOT_AFFECTED`, not `LIKELY_VULNERABLE`.
-- PHP-on-Windows CVEs (CVE-2024-4577, CVE-2024-5585) need a Windows container
-  plus a vulnerable PHP build; the same Windows-mode prerequisite applies.
+- PHP-on-Windows CVEs: CVE-2024-4577 is now CONFIRMED on the
+  `dockur/windows` VM (see below); CVE-2024-5585 still needs a fixture.
+
+## PHP-CGI (CVE-2024-4577)
+
+- Validated on a `dockur/windows` Server 2019 VM with Apache 2.4.71
+  `mod_cgi` and PHP 8.2.19 NTS x64 (control 8.2.20). The `%AD` payload needs
+  the system ANSI code page 936 (or 950/932); IIS CGI passes the query string
+  percent-encoded in `argv` and does not reproduce.
+- `display_errors=Off` is required on PHP 8.2 because the `allow_url_include`
+  deprecation is printed before the CGI headers and Apache returns 500.
+- See `labs/cve-2024-4577` for the compose, OEM setup, and verifier.
 
 ## Web Deploy (CVE-2025-53772)
 
@@ -62,6 +72,8 @@ Windows Server VM inside a Linux container (no Windows-container mode switch).
 
 - `labs/cve-2025-53772` provides the optional profiles `windows` (vulnerable
   Web Deploy 10.0.2000) and `windows-control` (patched 10.0.2001).
+- `labs/cve-2024-4577` uses the same image with its own volume
+  (`proofcms-4577-storage`): web viewer `8008`, RDP `3391`, Apache `8182`.
 - Web viewer: `http://127.0.0.1:8006` (vuln) / `8007` (control); RDP: `3389` /
   `3390`; Web Deploy: `8180`/`8172` (vuln) and `8181`/`8173` (control).
 - The VM uses 2 GB RAM and a 40 GB disk in the Docker named volumes
