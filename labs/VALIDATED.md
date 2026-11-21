@@ -238,7 +238,7 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
 |---|---|---|---|---|---|---|
-| CVE-2026-132825 | Ruby 3.4.12 official image (glibc 2.41) + valgrind; Rack 3.2.9 `Rack::MethodOverride`; Puma loopback | safe `21 x 0xDF`/mixed `N=28` ISO-8859-1 `upcase`; Valgrind invalid write at `case_map` + invalid read; native N=1244 victim/guard abort (exit 134/139); Rack multipart `_method` with `charset=ISO-8859-1` reaches `case_map`, the N=1244 request aborts 3.4.12 (exit 139), and a live Puma worker dies (exit 134) while 3.4.13 returns 200 | CONFIRMED (web-facing availability via Rack/Puma multipart; High/AV:N for Rack deployments; integrity/confidentiality not demonstrated) | 3.4.13 NOT_CONFIRMED (no invalid write/read; Rack/Puma requests return 200) | `labs/cve-2026-132825` | 2026-11-21 |
+| CVE-2026-132825 | Ruby 3.4.12 official image (glibc 2.41) + valgrind; Rack 3.2.9 `Rack::MethodOverride`; Puma loopback | safe `21 x 0xDF`/mixed `N=28` ISO-8859-1 `upcase`; Valgrind invalid write at `case_map` + invalid read; native N=1244 victim/guard abort (exit 134/139); Rack multipart `_method` with `charset=ISO-8859-1` reaches `case_map`, the N=1244 request aborts 3.4.12 (exit 139), and a live Puma worker dies (exit 134; multi-worker 3/3 worker crashes, master restarts) while 3.4.13 returns 200 | CONFIRMED (web-facing availability via Rack/Puma multipart; High/AV:N for Rack deployments; integrity/confidentiality not demonstrated) | 3.4.13 NOT_CONFIRMED (no invalid write/read; Rack/Puma requests return 200) | `labs/cve-2026-132825` | 2026-11-21 |
 
 ## React Server Components - active probes
 
