@@ -2,7 +2,8 @@
 
 Items in this file are **not registered checks** yet. They are kept here with
 enough context to build a module, lab and validation row later. When a check is
-implemented, move it to the registry and `docs/CVE-INDEX.md`.
+implemented, move it to the registry and `docs/CVE-INDEX.md`, and add its
+validation row to `labs/VALIDATED.md`; do not leave it duplicated here.
 
 ## NGINX HTTP/2 RCE (disclosed 2026-11-18)
 
@@ -110,60 +111,13 @@ technical write-up or a reproducible appliance fixture exists.
 - No HTTP module: the trigger is a local Base64 decode, not an application
   endpoint. The public chain (heap grooming/writer/reader) is not included.
 
-## ASP.NET and .NET candidates
-
-| CVE | Component | Type | Status / fixture needed |
-|---|---|---|---|
-| CVE-2025-55315 | ASP.NET Core Kestrel | request smuggling | CONFIRMED (`labs/cve-2025-55315`) |
-| CVE-2026-88092 | ASP.NET Core Kestrel | aborted-connection request smuggling (CWE-444) | 8.0.0–8.0.31, 9.0.0–9.0.20, 10.0.0–10.0.12, 11 preview1–rc1; fixed 8.0.32/9.0.21/10.0.13/11 rc2; CONFIRMED (`labs/cve-2026-88092`) |
-| CVE-2020-0688 | Exchange ViewState | deserialization RCE | passive build/surface module; active BLOCKED (Exchange/Windows fixture) |
-| CVE-2026-40372 | ASP.NET Core DataProtection | signature verification bypass / forged cookies (CWE-347) | 10.0.0–10.0.6 (netstandard2.0/net462 managed asset); fixed 10.0.7; CONFIRMED (`labs/cve-2026-40372`) |
-| CVE-2026-114146 | ASP.NET Core SignalR | identity binding / EoP (CWE-863) | 1.2.0–1.2.13 and runtimes 8.0 ≤8.0.33 / 9.0 ≤9.0.22 / 10.0 ≤10.0.14 / 11.0 ≤rc.3; fixed 1.2.14 / 8.0.34 / 9.0.23 / 10.0.15 / 11.0.0; CONFIRMED (`labs/cve-2026-114146`) |
-| CVE-2026-70188 | ASP.NET Core Kestrel | HTTP/2 trailer/HPACK newline smuggling (CWE-444) | 8.0.0–8.0.31, 9.0.0–9.0.20, 10.0.0–10.0.12, 11 preview1–rc1; fixed 8.0.32/9.0.21/10.0.13/11 rc2; CONFIRMED (`labs/cve-2026-70188`) |
-
-## Pending Joomla candidates from the previous batch
+## Pending Joomla candidates
 
 | CVE | Component | Type | Fixture still needed |
 |---|---|---|---|
 | CVE-2026-76602 | Fabrik | unauthenticated ORDER BY SQLi | Fabrik 4.7.0/4.7.1 + 4.7.2 |
-| CVE-2026-100752 | OrdaSoft Real Estate Manager | unauthenticated `order_field` SQLi | 6.7.8 + 6.7.9 (module ready) |
-| CVE-2026-102782 | OrdaSoft Simple Membership | unauthenticated `checkLoginPass` SQLi | 7.3.x + 7.4.0 (module ready) |
-| CVE-2026-77995 | miniOrange OAuth Client | arbitrary account takeover via SSO bridge cookies | 1.0.0–3.1.9, fixed 3.2.0; CONFIRMED (`labs/cve-2026-77995`, Joomla 3.9 + documented J3-branch shim, 3.1.4 vs 3.2.2) |
-| CVE-2026-100750 | Regular Labs Modules Anywhere | LFI / SSRF via module attribute overrides | 1.5.0–9.0.5 → **10.0.0** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-100750`):** in 9.0.4 PRO `Replace.php::processMatch()` writes any unrecognised `{module ...}` tag attribute into the module params (`override_settings` default on), so `{module id="120" rssurl="file:///tmp/proofcms-100750-feed.xml"}` makes the core Feed module open and render a local RSS file (LFI; network URLs give SSRF). 10.0.0 removes the overrides from `getTagOptions()`/gates them via `Security::allowsParameterOverrides()`; the marker is not rendered. Fixtures: Pro 9.0.4 (vuln) and 10.0.0 (control) supplied by the user. |
-| CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete; 1.0.0–6.2.2, fixed 6.2.3 | CONFIRMED (`labs/cve-2026-75949`) |
-| CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
-| CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 → **3.0.1** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-90901`):** `admin/src/Traits/Media.php::deleteImage()` concatenates the comma-split `ids` parameter straight into `id IN (...)`; an admin POST to `task=api.deleteImage` with `ids=9001) OR 1=1-- ` deletes both seeded temp-media rows on 3.0.0, while 3.0.1 (`intval()` + `whereIn()` + CSRF check) deletes only the legitimate row. Free-edition task is `api.deleteImage` (the advisory's `media.deleteImage` 404s). |
-| CVE-2026-92223 | Joomla core | workflow stage batch ACL bypass; 5.0.0–5.4.8 and 6.0.0–6.1.3, fixed 5.4.9/6.1.4 | CONFIRMED (`labs/cve-2026-92223`) |
-| CVE-2026-65878 | SP Page Builder | authenticated arbitrary file rename/delete via the media `thumb`; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-48908`, 6.0.0 vs 6.10.0) |
-| CVE-2026-65766 | SP Page Builder | Dynamic Content `direction` ORDER BY SQLi; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
-| CVE-2026-67285 | SP Page Builder | addon-name local PHP file inclusion via the editor preview; 1.0.0–6.7.0, fixed 6.8.0 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
-| CVE-2026-105606 | Custom Tables | unauthenticated file upload via `view=fileuploader`; 1.0–3.7.7, fixed 3.7.8 | CONFIRMED (`labs/cve-2026-105606`, 3.7.7 vs 3.7.8) |
-| CVE-2026-65879 | SP Page Builder | unauthenticated mail relay via product-wide form salt; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65879`, 6.0.0 vs 6.10.0 + GreenMail) |
+| CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0-2.9.4 + fixed |
 
-## High/Critical WordPress candidates with public technical detail (2026-11-20)
-
-**New (2026-11-21):** `CVE-2026-15748` — Forminator <= 1.56.1 unauthenticated
-upload → RCE, **CONFIRMED** in `labs/cve-2026-15748` with 1.56.1 vs 1.56.2
-control. A forged Select `return` injects an upload field config; the
-`php|php5` pipe-alternative MIME key bypasses the blocklist; the frontend POST
-path omits the protective `.htaccess` in a custom upload root. The shell
-executes on 1.56.1; 1.56.2 rejects the forged Select (HTTP 500) and writes no
-file. Fixtures on wordpress.org, no public working PoC (only a version
-scanner) — the chain was reconstructed from the source diff.
-
-
-
-Researched from public advisories and PoC repositories. None is registered as a
-check yet; they are ordered by exploitability with the infrastructure already
-in this repo (`labs/_wp-base`, `tools/wp_lab.py`). Acquisition still required —
-do not move any of these into `CVE-INDEX.md` or `VALIDATED.md` before a live
-vulnerable + patched (or mitigation) control run.
-
-| CVE | Component | CVSS / type | Affected → fixed | Evidence and next step |
-|---|---|---|---|---|
-| CVE-2026-118423 | WP Libre Form | 10.0 (some advisories 9.8), CWE-434 unauthenticated upload → RCE | ≤1.5.0.1 → **no fix** (plugin closed on wordpress.org 2026-09-08) | **CONFIRMED** (`labs/cve-2026-118423`, `tools/wp_lab.py`): the unauthenticated `wplf_submit` upload writes an inert PHP marker to a predictable path in `wp-content/uploads/`, where it executes. Control is the `_wplf_media_library=1` mitigation (no fixed release): core `media_handle_upload()` rejects the PHP file. Public PoC/reference: `github.com/im0xfay/CVE-2026-118423`. |
-| CVE-2026-73343 | WP Compress (`wp-compress-image-optimizer`) | 10.0, unauthenticated RCE / code injection | <7.20.01 → **7.20.01** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-73343`):** source-diff analysis identified the `bg_swap` REST callback writing an attacker-controlled `filename` after only `basename()`; `validate.py` sends an HMAC-signed JPEG/PHP polyglot to `/wp-json/wpc/v2/bg_swap` and the marker executes from uploads on 7.10.09, while 7.20.01 returns `filename_derive_failed` and writes nothing. `validate_full.py` also reproduces the full unauthenticated chain: unauthenticated `?apiGenerateCritical=1` leaks the `api_key` via `addons/criticalCss/criticalCss.php::initCritical()` (returns `apikey` in JSON when the API supplies `apiResults`), which then signs the `bg_swap` callback; on 7.20.01 the leak is gone and the callback returns 401. Caveat: the leaky class is the *legacy* Critical API (`WPS_IC_SETTINGS['mcCriticalCSS'] = 'api'`); the default `criticalCss-v2.php` does not echo the key, and the API must return `apiResults` — both are controlled in the lab and need verifying on a real target. |
-| CVE-2026-129048 | WP Photo Album Plus (`wp-photo-album-plus`) | 9.9, code injection / RCE, PR:L | ≤9.3.06.003 → **9.3.07.001** | **CONFIRMED (lab-side, 2026-11-20; `labs/cve-2026-129048`):** the anonymous `getshortcodedrenderedfenodelay` shortcode route reaches `wppa_proc_set()` with an unallowlisted option and persists an attacker-controlled value in the `wppa-set` option; `validate.py` proves the state change on 9.3.06.003 and its absence on 9.3.07.001. Prerequisite: `wppa_enable_shortcode_wppa_set` defaults to `no` (`wppa-defaults.php:980`). Full RCE sink is `wppa-photo-files.php` `exec($path . $command)` via `wppa_image_magick`; not executed in the lab (inert marker only). Source diff supplied by external analysis. |
-| CVE-2026-119077 | ELEX HelpDesk & Customer Support Ticket System | 9.8, CWE-502 unauthenticated PHP object injection → RCE | ≤3.3.9 → **3.4.0** (2026-11-12) | **CONFIRMED** (`labs/cve-2026-119077`, 3.3.9 vs 3.4.0 via `tools/wp_lab.py`): forged Guzzle `FileCookieJar` reaches the `unserialize()` sink and its destructor writes an inert PHP marker into `/wp-content/uploads/`; 3.4.0's object guard rejects the same value. Public PoC: `github.com/im0xfay/CVE-2026-119077`. |
-| CVE-2026-119977 | WordPress core | 8.1, CWE-367 TOCTOU core-upgrade → RCE | 4.7.0–7.1.3 → **7.1.4** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-119977`):** `validate.py` unpacks 7.1.3 into the predictable `wp-content/upgrade/wordpress-7.1.3/` path, drives the staged `setup-config.php?step=2` with attacker DB settings and verifies a `wp-config.php` with the attacker's `DB_NAME` is written in the working tree. 7.1.4 has all three hardening layers (random 16-char staging suffix, `index.php` protection, `wp-config.php` in `update_core()`'s skip list) and is reported `NOT_AFFECTED`. The destructive promotion via `copy_dir()` is not executed. Source diff supplied by external analysis. |
-| CVE-2026-125771 | MCP Server for WordPress (`ai-workflow-automation-ai-agent-hub`) | 7.2, CWE-266 incorrect privilege assignment (PR:H) | ≤2.0.3 → **2.0.4** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-125771`):** `validate.py` shows 2.0.3 has no `pre_prompt_get`/`pre_resource_read` guard and a paused site still returns `PASSED_THROUGH` for `prompts/get`; 2.0.4 has both hooks and returns `ai_access_paused`. Root cause from external source analysis: policy applied only to `tools/call` while abilities also execute via `prompts/get`/`resources/read`, plus write abilities registered as prompts. This is connection-scope escalation (OAuth/preset), not a WordPress role change; PR:H applies. |
+All other candidates that previously appeared in this file now have a
+registered module, a `docs/CVE-INDEX.md` row and a `labs/VALIDATED.md`
+disposition; use those registries instead of this backlog.

@@ -6,10 +6,10 @@ Use the **system** `python` for checks — the repo `.venv` has broken
 `uv`-trampoline exes (`pytest`, `ruff` binaries fail there):
 
 ```powershell
-python -m pytest -q -p no:cacheprovider   # full suite (~905 tests, ~150 s)
+python -m pytest -q -p no:cacheprovider   # full suite (~993 tests, ~60 s)
 python -m pytest tests/test_x.py -q -p no:cacheprovider
 python -m ruff check .
-python -m mypy proofcms tools             # 125+ files, must be clean
+python -m mypy proofcms tools             # 240+ files, must be clean
 ```
 
 For a change set, prefer the fail-fast wrapper (stops at the first red
@@ -27,13 +27,22 @@ Pre-commit runs `ruff check` + trailing-whitespace + end-of-file-fixer +
 
 ## Contract test
 
-`tests/test_module_contract.py` enforces:
+`tests/test_module_contract.py` enforces 8 contracts:
 
 1. Every module with non-empty `exploit_modes` has referencing unit tests.
 2. Every such module has a `labs/VALIDATED.md` row with a disposition.
 3. Every CONFIRMED row points at an existing `labs/` directory.
 4. **Every registered CVE** (all four registries) has a matrix row —
    passive-only modules link to what blocks active proof.
+5. Every registered CVE has a `docs/CVE-INDEX.md` row, and the index has no
+   rows for unregistered checks.
+6. Non-core modules return `NOT_DETECTED` when every public artifact is 404,
+   even when a CMS core version is supplied (`cms_version` scope guard).
+7. Plugin/extension keys consulted by a module (`PLUGIN_KEYS`,
+   `DETECTOR_KEYS`, `plugins.get(...)`) resolve to a real WordPress marker or
+   Joomla detector key (AST check).
+8. Modules that report `uploaded_filename` or perform an aggressive file write
+   expose a valid `cleanup()` hook and appear in `cleanup_capable_cves()`.
 
 Run it alone: `python -m unittest tests.test_module_contract -v`.
 
@@ -52,6 +61,9 @@ python -m proofcms -u http://127.0.0.1:PORT --cms joomla --cve CVE-XXXX \
   --i-understand-authorized --i-understand-lab-only
 python -m proofcms --lab-cleanup CVE-XXXX -u http://127.0.0.1:PORT \
   --aggressive-arg file_hash=<h> --i-understand-authorized --i-understand-lab-only
+python -m proofcms -u http://127.0.0.1:PORT --rate-limit 10 --concurrency 5
+python -m proofcms -u http://127.0.0.1:PORT --json retest.json --diff previous.json
+python -m proofcms -u http://127.0.0.1:PORT --sarif results.sarif
 python -m proofcms --list-cves
 ```
 

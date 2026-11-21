@@ -78,16 +78,36 @@ Five patterns used to be copy-pasted across modules; they live in core now:
   legacy `--aggressive-command` strings keep working as a fallback.
   Document the keys in the `--aggressive-arg` help and the lab README.
 - **Proof transcripts** (`proofcms/core/transcript.py`): `HttpClient`
-  records a lightweight entry (method, scrubbed URLs, status, body hash)
-  per exchange, and the stateless `request()` helper keeps a thread-local
-  ring. Attach the tail via `attach_transcript(evidence, sess)` or
-  `take_transcript()` when building a `VULNERABLE` finding so reports
-  carry comparable request/response pairs. Bodies are never stored.
+  records a lightweight entry (method, scrubbed URLs, status, body hash, and
+  `waf` when a challenge page is detected) per exchange, and the stateless
+  `request()` helper keeps a thread-local ring. The CLI wraps every
+  `module.check()` with `begin_capture()` / `end_capture()` and automatically
+  attaches the transcript to `VULNERABLE` / `VULNERABLE_UPLOAD_ONLY` findings
+  when the module did not attach one. It also promotes `exploit_ran=True` when
+  an active check made at least one HTTP request. Modules may still attach a
+  richer session transcript explicitly with `attach_transcript(evidence, sess)`
+  or `take_transcript()`. Bodies are never stored.
 - **Lab cleanup** (`proofcms/core/cleanup.py` + `proofcms --lab-cleanup CVE`):
   modules that create artifacts expose `cleanup(target_url, *, timeout,
   proxy, aggressive_args, aggressive_command)` returning `cleanup_result()`
-  (`removed` / `remaining` / `manual`). Prefer exact IDs from the probe
-  report (`file_hash`, `folder`/`file`/`token`), fall back to sweeping the
-  module's known `proofcms-*` patterns, and always report dotfiles and
-  folders HTTP cannot delete as `manual` shell steps. `proofcms --lab-cleanup`
-  lists modules with hooks when the CVE has none.
+  (`removed` / `remaining` / `manual`). For statically served uploads, use
+  `cleanup_http_artifact(...)`, which reads `file`/`path`/`url` from
+  `--aggressive-arg`, verifies each artifact over HTTP, and reports what the
+  application cannot unlink. The module contract requires a valid `cleanup()`
+  hook for any module that sets `uploaded_filename` or performs an aggressive
+  file write. Prefer exact IDs from the probe report (`file_hash`,
+  `folder`/`file`/`token`), fall back to sweeping the module's known
+  `proofcms-*` patterns, and always report dotfiles and folders HTTP cannot
+  delete as `manual` shell steps. `proofcms --lab-cleanup` lists modules with
+  hooks when the CVE has none.
+
+## CMS version scope
+
+The CLI passes the detected core CMS version as the second positional argument
+only when `metadata()["cms"] == info.name`. A Joomla core module on a detected
+Joomla target receives `info.version`; plugin, extension, and runtime modules
+receive `None` and must use their own detector/runtime data (`plugins`,
+`php_runtime`, `aspnet_runtime`, `nginx_runtime`, `node_runtime`). Never use
+`cms_version` as a fallback for a plugin or runtime version: doing so produced
+cross-version false positives (for example, treating WordPress 6.7 as an
+ASP.NET Core version).

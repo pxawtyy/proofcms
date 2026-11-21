@@ -14,7 +14,7 @@
 
 ## Python / venv
 
-- System `python` (3.14, has pytest/ruff/mypy) is the check runner. The repo
+- System `python` (3.12.10, has pytest/ruff/mypy) is the check runner. The repo
   `.venv` is broken for exes (`python.exe`, `proofcms.exe` fail with uv
   trampoline errors) — but `.venv\Scripts\python.exe` historically ran
   probes; prefer system `python` unless a probe needs venv deps.

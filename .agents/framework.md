@@ -40,7 +40,13 @@ in `--aggressive-arg` help. Established keys: `admin_user`,
 
 `HttpClient` records `{method, url (user info scrubbed), status, body_len,
 body_hash}` per exchange; stateless `request()` keeps a bounded thread-local
-ring. Never bodies. Attach on VULNERABLE findings:
+ring. Never bodies. WAF/challenge responses also record `waf`.
+
+The CLI now wraps every `module.check()` with `begin_capture()` /
+`end_capture()` and automatically attaches the captured transcript to
+`VULNERABLE` / `VULNERABLE_UPLOAD_ONLY` findings when the module did not attach
+one. It also sets `exploit_ran=True` when an active check made at least one
+HTTP request. Modules may still attach a richer session transcript explicitly:
 
 ```python
 evidence = attach_transcript({...}, sess)          # session client
@@ -63,7 +69,32 @@ def cleanup(target_url, *, timeout=12, proxy=None, aggressive_args=None, aggress
     return cleanup_result(removed=[...], remaining=[...], manual=[...])
 ```
 
+For statically served uploads, use the shared verifier instead of duplicating
+the HTTP check:
+
+```python
+from ...core.cleanup import cleanup_http_artifact
+return cleanup_http_artifact(
+    target_url, timeout=timeout, proxy=proxy,
+    aggressive_args=aggressive_args, aggressive_command=aggressive_command,
+)
+```
+
+It reads `file`, `path`, or `url` from `--aggressive-arg`, verifies each
+artifact over HTTP, and reports `remaining`/`manual` when the application
+cannot unlink it. The module contract requires a valid `cleanup()` hook for any
+module that sets `uploaded_filename` or performs an aggressive file write.
+
 `proofcms --lab-cleanup CVE -u URL` runs it (auth flags required, exit 2 if
 anything remains). In-probe evidence should record what cleanup needs
 (e.g. 18781's `delete_token`); the CLI lists hook-capable CVEs when the
 requested one has no hook.
+
+## 6. CMS version scope — `cms_version`
+
+The CLI passes the detected core CMS version as the second positional argument
+only when `metadata()["cms"] == info.name` (for example, a Joomla core module on
+a detected Joomla target). Plugin, extension, and runtime modules receive
+`None` and must use their own detector/runtime data (`plugins`, `php_runtime`,
+`aspnet_runtime`, etc.). Never use `cms_version` as a fallback for a plugin or
+runtime version.

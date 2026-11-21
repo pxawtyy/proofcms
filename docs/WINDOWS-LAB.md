@@ -102,13 +102,22 @@ Windows Server VM inside a Linux container (no Windows-container mode switch).
   and `windows/WebDeploy_10.0.2001.msi` (patched control). The OEM scripts
   install only their own version. The module itself stays passive.
 
-## Options
+## Current status
 
-1. Provide a Windows VM with an old .NET 2.0/3.5 snapshot (best for CONFIRMED).
-2. Enable Windows containers and accept a **surface-only** patched lab (not a
-   CVE confirmation).
-3. Keep the Windows-only modules `BLOCKED_EXTERNAL` and focus active work on
-   the Linux labs.
+The Windows-only checks are no longer a blanket `BLOCKED_EXTERNAL`:
+
+- `CVE-2010-3332` and `CVE-2011-3416` were CONFIRMED on Windows Server 2008 R2
+  SP1 + .NET 4.0 RTM, with .NET 4.5 as the control.
+- `CVE-2024-4577` was CONFIRMED on Windows Server 2019 + Apache 2.4.71
+  `mod_cgi` + PHP 8.2.19 NTS (ACP 936), with PHP 8.2.20 as the control.
+- `CVE-2025-53772` was CONFIRMED with Web Deploy 10.0.2000; 10.0.2001 blocked
+  the write.
+- These runs used the `dockur/windows` VM path described above; quote the
+  corresponding `labs/VALIDATED.md` rows instead of reopening them.
+
+The remaining Windows-specific blocker is Exchange OWA (`CVE-2020-0688`): it
+needs an Exchange fixture or a pre-patch cumulative update. Keep that module
+`BLOCKED_EXTERNAL` until such a fixture exists.
 
 The Linux-based labs remain the default; nothing in the repository requires
 Windows mode to run the test suite or the Linux labs.

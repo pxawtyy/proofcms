@@ -65,6 +65,11 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-94132` | AcyMailing Enterprise | Remote code execution |
 | `CVE-2026-48908` | SP Page Builder | Remote code execution |
 | `CVE-2026-57829` | Helix Ultimate | Stored XSS |
+
+### Additional Joomla checks
+
+| CVE | Check | Affected rule | Mode |
+|---|---|---|---|
 | `CVE-2026-102425` | Balbooa Forms unauthenticated PHP-after-submission shortcode RCE | Balbooa Forms 1.0.0 through 2.4.3.3; fixed in 2.4.3.4 | `aggressive` |
 | `CVE-2026-67364` | Balbooa Forms pre-auth PHP code injection via URL parameter shortcode | Balbooa Forms 1.0.0 through 2.4.3.1; fixed in 2.4.3.2 | `aggressive` |
 | `CVE-2026-67365` | iCagenda calendar module unauthenticated SQL injection | iCagenda 4.0.0 through 4.0.11; fixed in 4.0.12 | `aggressive` |
@@ -73,7 +78,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2026-65880` | Balbooa Forms unauthenticated signature-field code execution | Balbooa Forms 1.0.0 through 2.4.3.1; fixed in 2.4.3.2 | `aggressive` |
 | `CVE-2026-65766` | SP Page Builder Dynamic Content order SQL injection | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | `aggressive` |
 | `CVE-2026-65876` | SP Page Builder loadMoreArticles catid SQL injection | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
-| `CVE-2026-65879` | SP Page Builder hardcoded mail-relay secret | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | passive |
+| `CVE-2026-65879` | SP Page Builder hardcoded mail-relay secret | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.7.1 | `passive` |
 | `CVE-2026-67285` | SP Page Builder addon-name local PHP file inclusion | SP Page Builder 1.0.0 through 6.7.0; fixed in 6.8.0 | `aggressive` |
 | `CVE-2025-30085` | RSForm! Pro authenticated submission-export remote code execution | RSForm! Pro 3.0.0 through 3.3.14; fixed in 3.3.15 | `aggressive` |
 | `CVE-2026-66494` | SP Page Builder unauthenticated stored XSS in the Shapes API | SP Page Builder 1.0.0 through 6.6.1; fixed in 6.7.0 | `aggressive` |
@@ -121,6 +126,10 @@ one session or one request sequence. A patched prerequisite makes the chain
 - Python 3.10 or newer
 - `requests>=2.28.0`
 - `packaging>=21.0`
+- `cryptography>=41.0`
+
+Optional: install `proofcms[http2]` (`h2>=4.0`) for the CVE-2026-70188 HTTP/2
+trailer probe.
 
 ## Installation
 
@@ -277,13 +286,17 @@ filtering.
 
 ```text
 proofcms/
-├── core/                 # HTTP, evidence, models, categories, probes, versions
-├── detectors/            # Independent Joomla and WordPress discovery
+├── core/                 # HTTP, transcript, cleanup, evidence, models, probes, versions
+├── detectors/            # Independent Joomla, WordPress, and runtime discovery
 ├── modules/
 │   ├── base.py           # VulnerabilityModule protocol
+│   ├── generic/          # Runtime/product checks (ASP.NET, Node.js, elFinder, ...)
 │   ├── joomla/           # Joomla core and extension checks
-│   └── wordpress/        # WordPress check namespace
-├── reporting/            # Console, JSON, and text output
+│   ├── php/              # PHP runtime checks
+│   └── wordpress/        # WordPress core and plugin checks
+├── chains/               # Named composite attack-chain aggregators
+├── reporting/            # Console, JSON, text, diff, and SARIF output
+├── redaction.py          # Output redaction for URLs, headers, and evidence
 ├── cli.py                # Command-line orchestration
 └── __main__.py           # python -m proofcms entry point
 ```
