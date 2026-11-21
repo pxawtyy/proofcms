@@ -96,6 +96,26 @@ Named chains keep their own report section. The `wp2shell` chain combines
 proofcms -u https://lab.example.test --cms wordpress --chain wp2shell
 ```
 
+Additional chains aggregate primitives that are already exposed by separate
+checks. They report composition exposure, not a replayed end-to-end exploit:
+
+| Chain | Primitives | What it means |
+|---|---|---|
+| `phpinfo-to-origin-bypass` | `PROOFCMS-PHPINFO-EXPOSURE` + `PROOFCMS-ORIGIN-DIRECT-ACCESS` + `CVE-2019-11043`/`CVE-2024-4577` | phpinfo and direct-origin access expose the PHP-FPM/CGI RCE surface. |
+| `joomla-session-to-upload` | `CVE-2026-90907` or `CVE-2026-48897` or `CVE-2026-92227` + `CVE-2026-105603` | A confirmed session-acquisition path plus the authenticated DJ-Classifieds avatar upload. |
+| `joomla-token-to-upload` | `CVE-2026-21627` + `CVE-2026-105606` | A token-handling weakness plus a token-gated Custom Tables upload. |
+
+```bash
+proofcms -u https://lab.example.test --cms joomla --chain joomla-session-to-upload
+proofcms -u https://lab.example.test --cms joomla --chain joomla-token-to-upload
+proofcms -u https://lab.example.test --chain phpinfo-to-origin-bypass
+```
+
+The aggregates are conservative: they use `LIKELY_VULNERABLE` when the
+prerequisites were confirmed independently but the chain itself was not run as
+one session or one request sequence. A patched prerequisite makes the chain
+`NOT_AFFECTED`.
+
 ## Requirements
 
 - Python 3.10 or newer
