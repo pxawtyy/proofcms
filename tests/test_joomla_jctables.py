@@ -42,17 +42,46 @@ class TestJcTablesVersionPolicy(unittest.TestCase):
 
 class TestJcTablesBooleanProbe(unittest.TestCase):
     def test_differential_confirms(self):
-        client = FakeClient(['{"rows": [{"id": 1}]}', '{"rows": []}'])
+        true_body = '{"success":true,"data":{"data":[{"id":595}],"table_id":"0","row_id":"true"}}'
+        false_body = '{"success":true,"data":{"data":[[]],"table_id":"0","row_id":"false"}}'
+        client = FakeClient([true_body, false_body])
         with patch.object(cve_2026_76570, "HttpClient", return_value=client):
             result = cve_2026_76570.run_safe_probe("https://target.test", timeout=2)
         self.assertEqual(result.status, "VULNERABLE")
         self.assertEqual(result.confidence, "CONFIRMED")
         self.assertTrue(result.exploit_ran)
         self.assertTrue(result.evidence["boolean_differential"])
+        self.assertEqual(result.evidence["comparison"], "data.data")
+
+    def test_request_keeps_component_and_json_format(self):
+        client = FakeClient(['{"success":true,"data":{"data":[]}}'] * 2)
+        with patch.object(cve_2026_76570, "HttpClient", return_value=client):
+            cve_2026_76570.run_safe_probe("https://target.test", timeout=2)
+        self.assertTrue(client.calls)
+        for url in client.calls:
+            self.assertIn("option=com_jctables", url)
+            self.assertIn("format=json", url)
+            self.assertIn("task=getrow", url)
 
     def test_identical_responses_do_not_confirm(self):
         body = '{"error": "no such table"}'
         client = FakeClient([body, body])
+        with patch.object(cve_2026_76570, "HttpClient", return_value=client):
+            result = cve_2026_76570.run_safe_probe("https://target.test", timeout=2)
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+
+    def test_body_only_difference_does_not_confirm(self):
+        true_body = '<html><link rel="canonical" href="?idx=%27%27+OR+%281%3D1%29+OR+%27%27"></html>'
+        false_body = '<html><link rel="canonical" href="?idx=%27%27+OR+%281%3D2%29+OR+%27%27"></html>'
+        client = FakeClient([true_body, false_body])
+        with patch.object(cve_2026_76570, "HttpClient", return_value=client):
+            result = cve_2026_76570.run_safe_probe("https://target.test", timeout=2)
+        self.assertEqual(result.status, "NOT_CONFIRMED")
+
+    def test_row_id_echo_alone_does_not_confirm(self):
+        true_body = '{"success":true,"data":{"data":[[]],"table_id":"0","row_id":"true"}}'
+        false_body = '{"success":true,"data":{"data":[[]],"table_id":"0","row_id":"false"}}'
+        client = FakeClient([true_body, false_body])
         with patch.object(cve_2026_76570, "HttpClient", return_value=client):
             result = cve_2026_76570.run_safe_probe("https://target.test", timeout=2)
         self.assertEqual(result.status, "NOT_CONFIRMED")

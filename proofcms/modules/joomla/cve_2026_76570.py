@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from ...core.http import HttpClient, is_transport_error, normalize_url, transport_error_detail
@@ -73,11 +74,49 @@ def passive_result(plugins: dict[str, Any] | None) -> Finding:
 def _getrow(client: HttpClient, base: str, mid: int, tid: int, idx: str, timeout: int) -> dict | None:
     from urllib.parse import urlencode
 
-    query = urlencode({"mid": mid, "tid": tid, "task": "getrow", "idx": idx})
-    response = client.get(f"{base}{GETROW_ENDPOINT.split('?')[0]}?{query}", timeout=timeout)
+    query = urlencode({
+        "option": "com_jctables",
+        "format": "json",
+        "task": "getrow",
+        "mid": mid,
+        "tid": tid,
+        "idx": idx,
+    })
+    response = client.get(f"{base}/index.php?{query}", timeout=timeout)
     if is_transport_error(response) or response.get("status") != 200:
         return None
     return response
+
+
+def _data_signature(body: str) -> str | None:
+    """Return a stable signature for the JCTables ``data.data`` payload.
+
+    ``getrow`` echoes the submitted ``idx`` in ``data.row_id``; comparing the
+    whole body would therefore always differ and produce a false positive. Only
+    the SQL result under ``data.data`` is evidence of server-side evaluation.
+    """
+    try:
+        payload = json.loads(body)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    data = payload.get("data")
+    if not isinstance(data, dict) or "data" not in data:
+        return None
+    return json.dumps(data.get("data"), sort_keys=True)
+
+
+def _is_empty_data(signature: str) -> bool:
+    try:
+        value = json.loads(signature)
+    except ValueError:
+        return False
+    if value in (None, [], {}):
+        return True
+    if isinstance(value, list):
+        return all(item in (None, [], {}) for item in value)
+    return False
 
 
 def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None) -> Finding:
@@ -112,7 +151,18 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
             attempts += 1
             true_body = true_resp.get("body", "") or ""
             false_body = false_resp.get("body", "") or ""
-            if true_body != false_body and (true_body.strip() or false_body.strip()):
+            true_data = _data_signature(true_body)
+            false_data = _data_signature(false_body)
+            if true_data is not None and false_data is not None:
+                differential = true_data != false_data and not (
+                    _is_empty_data(true_data) and _is_empty_data(false_data)
+                )
+            else:
+                # Without the structured data.data payload there is no reliable
+                # signal: getrow echoes idx in row_id and generic Joomla pages
+                # echo the query string, so body-only differences are noise.
+                differential = False
+            if differential:
                 return Finding(
                     cve=CVE_ID, name=NAME, status="VULNERABLE", confidence="CONFIRMED",
                     component=COMPONENT, affected_rule=AFFECTED_RULE,
@@ -122,14 +172,15 @@ def run_safe_probe(target_url: str, timeout: int = 12, proxy: str | None = None)
                         "component_present": True,
                         "handler_reached": True,
                         "boolean_differential": True,
+                        "comparison": "data.data",
                         "mid": mid,
                         "tid": tid,
                         "attempts": attempts,
                     },
                     detail=(
-                        "Paired always-true / always-false getrow conditions returned different responses, "
-                        f"proving server-side SQL evaluation (mid={mid}, tid={tid}). "
-                        "No database content was read or written."
+                        "Paired always-true / always-false getrow conditions returned different "
+                        f"SQL results (mid={mid}, tid={tid}). The row_id echo is ignored; "
+                        "no database content was read or written."
                     ),
                     action=f"Update JCTables to {FIXED_RULE} and audit administrator accounts.",
                 )
