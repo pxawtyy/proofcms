@@ -306,6 +306,26 @@ def check(
     return result
 
 
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict | None = None,
+    aggressive_command: str | None = None,
+) -> dict:
+    """Verify the uploaded artifact and report any manual removal step."""
+    from ...core.cleanup import cleanup_http_artifact
+
+    return cleanup_http_artifact(
+        target_url,
+        timeout=timeout,
+        proxy=proxy,
+        aggressive_args=aggressive_args,
+        aggressive_command=aggressive_command,
+    )
+
+
 def metadata() -> dict[str, Any]:
     return {
         "cve": CVE_ID,

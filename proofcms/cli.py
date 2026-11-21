@@ -622,7 +622,12 @@ def main():
 
             php_runtime_info = PHPRuntimeInfo(False, None, "error")
         try:
-            aspnet_runtime_info = detect_aspnet_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
+            aspnet_runtime_info = detect_aspnet_runtime(
+                operational_target,
+                timeout=args.timeout,
+                proxy=args.proxy,
+                cms_name=info.name if info.detected else None,
+            )
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"ASP.NET/GeneXus detection failed: {type(exc).__name__}: {exc}")
             aspnet_runtime_info = AspNetRuntimeInfo(False, None, "error")

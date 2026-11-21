@@ -73,3 +73,28 @@ def test_source_records_the_response_path_with_the_version_header():
         info = detect_aspnet_runtime("https://target.test")
     assert info.version == "2.0.50727"
     assert info.source.startswith("/login.aspx:X-AspNet-Version")
+
+
+def test_confirmed_cms_skips_secondary_aspnet_crawl():
+    root = {
+        "status": 200,
+        "headers": {},
+        "body": (
+            "<a href='login.aspx'>login</a>"
+            "<a href='app.aspx'>app</a>"
+            "<script src='gxcfg.js'></script>"
+        ),
+    }
+
+    class Client:
+        def __init__(self):
+            self.paths = []
+
+        def get(self, path):
+            self.paths.append(path)
+            return root
+
+    client = Client()
+    with patch("proofcms.detectors.aspnet.HttpClient", return_value=client):
+        detect_aspnet_runtime("https://target.test", cms_name="joomla")
+    assert client.paths == ["/"]

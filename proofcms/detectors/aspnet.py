@@ -25,7 +25,12 @@ def _cookie_flags(set_cookie: str) -> tuple[bool, bool, str | None]:
     return True, bool(re.search(r"\bSecure\b", attrs, re.IGNORECASE)), same_site.group(1) if same_site else None
 
 
-def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None = None) -> AspNetRuntimeInfo:
+def detect_aspnet_runtime(
+    target_url: str,
+    timeout: int = 12,
+    proxy: str | None = None,
+    cms_name: str | None = None,
+) -> AspNetRuntimeInfo:
     """Fingerprint legacy ASP.NET and GeneXus from one public GET response."""
     normalized_target = normalize_url(target_url)
     target_parts = urlsplit(normalized_target)
@@ -38,61 +43,67 @@ def detect_aspnet_runtime(target_url: str, timeout: int = 12, proxy: str | None 
     responses = [response]
     selected_path = "/"
     root_body = str(response.get("body", ""))[:512_000]
+    # A confirmed Joomla/WordPress site is not a GeneXus portal. Skip the
+    # secondary link/asset crawl to avoid ~20 pointless requests per target.
+    skip_crawl = (cms_name or "").strip().lower() in {"joomla", "wordpress"}
     candidate_paths: list[str] = []
-    for match in re.finditer(r"(?:href|src)\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE):
-        candidate = match.group(1).strip()
-        parsed = urlsplit(candidate)
-        if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
-            continue
-        path = parsed.path or "/"
-        if not candidate.startswith("/") and not re.search(r"\.(?:aspx?|html?)$", path, re.IGNORECASE):
-            continue
-        if path != "/" and path not in candidate_paths:
-            candidate_paths.append(path)
-        if len(candidate_paths) >= 12:
-            break
-    for match in re.finditer(
-        r"(?:document\.)?location(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE
-    ):
-        candidate = match.group(1).strip()
-        parsed = urlsplit(candidate)
-        if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
-            continue
-        path = parsed.path or "/"
-        if path != "/" and path not in candidate_paths:
-            candidate_paths.append(path)
-        if len(candidate_paths) >= 12:
-            break
+    if not skip_crawl:
+        for match in re.finditer(r"(?:href|src)\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE):
+            candidate = match.group(1).strip()
+            parsed = urlsplit(candidate)
+            if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
+                continue
+            path = parsed.path or "/"
+            if not candidate.startswith("/") and not re.search(r"\.(?:aspx?|html?)$", path, re.IGNORECASE):
+                continue
+            if path != "/" and path not in candidate_paths:
+                candidate_paths.append(path)
+            if len(candidate_paths) >= 12:
+                break
+        for match in re.finditer(
+            r"(?:document\.)?location(?:\.href)?\s*=\s*['\"]([^'\"]+)['\"]", root_body, re.IGNORECASE
+        ):
+            candidate = match.group(1).strip()
+            parsed = urlsplit(candidate)
+            if parsed.scheme or parsed.netloc or candidate.startswith(("#", "javascript:", "mailto:")):
+                continue
+            path = parsed.path or "/"
+            if path != "/" and path not in candidate_paths:
+                candidate_paths.append(path)
+            if len(candidate_paths) >= 12:
+                break
     # A common portal layout links the generated application below a short
     # sub-path. Keep this bounded and let the link-derived paths win first.
-    for path in candidate_paths + ["/portal/"]:
-        if any(str(item.get("body", "")).strip() for item in responses if item.get("final_url", "").rstrip("/").endswith(path.rstrip("/"))):
-            continue
-        candidate_response = client.get(path)
-        responses.append(candidate_response)
-        candidate_body = str(candidate_response.get("body", ""))
-        candidate_headers = _headers(candidate_response)
-        if (
-            candidate_headers.get("x-aspnet-version")
-            or "GeneXus" in candidate_body
-            or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", candidate_body, re.IGNORECASE)
-        ):
-            response = candidate_response
-            selected_path = path
-            break
+    if not skip_crawl:
+        for path in candidate_paths + ["/portal/"]:
+            if any(str(item.get("body", "")).strip() for item in responses if item.get("final_url", "").rstrip("/").endswith(path.rstrip("/"))):
+                continue
+            candidate_response = client.get(path)
+            responses.append(candidate_response)
+            candidate_body = str(candidate_response.get("body", ""))
+            candidate_headers = _headers(candidate_response)
+            if (
+                candidate_headers.get("x-aspnet-version")
+                or "GeneXus" in candidate_body
+                or re.search(r"\b(?:gxgral|gxcfg|gx\.evt)\b", candidate_body, re.IGNORECASE)
+            ):
+                response = candidate_response
+                selected_path = path
+                break
     headers = _headers(response)
     body = str(response.get("body", ""))[:512_000]
     asset_bodies: list[str] = []
     final_url = str(response.get("final_url") or target_url)
-    for match in re.finditer(r"<script[^>]+src=[\"']([^\"']+)[\"']", body, re.IGNORECASE):
-        source = match.group(1).strip()
-        if not re.search(r"(?:gxcfg|login)\.js(?:$|\?)", source, re.IGNORECASE):
-            continue
-        asset = client.get(urljoin(final_url, source))
-        if asset.get("status") == 200:
-            asset_bodies.append(str(asset.get("body", ""))[:128_000])
-        if len(asset_bodies) >= 4:
-            break
+    if not skip_crawl:
+        for match in re.finditer(r"<script[^>]+src=[\"']([^\"']+)[\"']", body, re.IGNORECASE):
+            source = match.group(1).strip()
+            if not re.search(r"(?:gxcfg|login)\.js(?:$|\?)", source, re.IGNORECASE):
+                continue
+            asset = client.get(urljoin(final_url, source))
+            if asset.get("status") == 200:
+                asset_bodies.append(str(asset.get("body", ""))[:128_000])
+            if len(asset_bodies) >= 4:
+                break
     fingerprint_body = body + "\n" + "\n".join(asset_bodies)
     asp_version = headers.get("x-aspnet-version") or headers.get("x-aspnetmvc-version")
     server = headers.get("server") or None

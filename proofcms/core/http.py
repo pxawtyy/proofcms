@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-import http.cookiejar
 import random
 import re
 import secrets
-import ssl
 import string
 import threading
 import urllib.error
@@ -13,6 +11,10 @@ import urllib.parse
 import urllib.request
 import zlib
 from typing import Any, cast
+
+import requests
+from requests.cookies import RequestsCookieJar
+from typing_extensions import Self
 
 from .transcript import MAX_ENTRIES as _TRANSCRIPT_MAX
 from .transcript import make_entry as _transcript_entry
@@ -143,16 +145,16 @@ def _decode_body(body_bytes: bytes, headers: Any) -> tuple[bytes, str, bool]:
         except zlib.error:
             decoded_bytes = body_bytes
     charset = headers.get_content_charset() if hasattr(headers, "get_content_charset") else None
+    if not charset:
+        content_type = str(headers.get("Content-Type", "")) if hasattr(headers, "get") else ""
+        match = re.search(r"charset=([A-Za-z0-9._-]+)", content_type, re.IGNORECASE)
+        if match:
+            charset = match.group(1)
     try:
         body = decoded_bytes.decode(charset or "utf-8", errors="replace")
     except LookupError:
         body = decoded_bytes.decode("utf-8", errors="replace")
     return decoded_bytes, body, encoding_truncated
-
-
-class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
 
 
 def normalize_url(url: str, timeout: int = 0, proxy: str | None = None) -> str:
@@ -282,6 +284,55 @@ def transport_error_detail(response: dict[str, Any] | None) -> str:
     return str(error) or "no response received"
 
 
+class _RequestsResponse:
+    """Small urllib-like wrapper around a streaming requests response."""
+
+    def __init__(self, response: requests.Response):
+        self._response = response
+        self.status = response.status_code
+        self.url = response.url
+        raw_headers = getattr(response.raw, "headers", None)
+        self.headers = raw_headers if raw_headers is not None else response.headers
+
+    def read(self, amt: int | None = None) -> bytes:
+        if amt is None:
+            data = self._response.raw.read()
+        else:
+            data = self._response.raw.read(amt, decode_content=False)
+        return data or b""
+
+    def close(self) -> None:
+        self._response.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+
+class _RequestsOpener:
+    """Keep-alive transport with the same ``open(req, timeout=...)`` shape as urllib."""
+
+    def __init__(self, session: requests.Session, timeout: int, follow_redirects: bool):
+        self.session = session
+        self.timeout = timeout
+        self.follow_redirects = follow_redirects
+
+    def open(self, req: urllib.request.Request, timeout: int | None = None) -> _RequestsResponse:
+        headers = {str(key): str(value) for key, value in req.header_items()}
+        response = self.session.request(
+            method=req.get_method(),
+            url=req.full_url,
+            headers=headers,
+            data=req.data,
+            timeout=timeout if timeout is not None else self.timeout,
+            allow_redirects=self.follow_redirects,
+            stream=True,
+        )
+        return _RequestsResponse(response)
+
+
 class HttpClient:
     """
     Unified HTTP client supporting cookie persistence, proxy routing,
@@ -301,35 +352,20 @@ class HttpClient:
         self.proxy = proxy
         self.user_agent = user_agent
         self.verify_tls = _TLS_VERIFY if verify_tls is None else verify_tls
-        self.jar = http.cookiejar.CookieJar()
+        self.jar = RequestsCookieJar()
         self.transcript: list[dict[str, Any]] = []
+        self.session = requests.Session()
+        self.session.cookies = self.jar
+        self.session.trust_env = False
+        self.session.verify = self.verify_tls
+        self.session.proxies = {"http": proxy, "https": proxy} if proxy else {}
+        self.session.headers["Accept-Encoding"] = "gzip, deflate"
         self._rebuild_opener()
 
-    def _rebuild_opener(self):
-        ctx = ssl.create_default_context()
-        if not self.verify_tls:
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-        handlers: list[urllib.request.BaseHandler] = [
-            # Register both schemes explicitly. Some Python/Windows builds
-            # omit the default HTTP handler when a custom HTTPS handler is
-            # supplied, which made plain-http targets return a transport
-            # error before any detector ran.
-            urllib.request.HTTPHandler(),
-            urllib.request.HTTPSHandler(context=ctx),
-            urllib.request.HTTPCookieProcessor(self.jar),
-        ]
-        if self.proxy:
-            handlers.append(urllib.request.ProxyHandler({"http": self.proxy, "https": self.proxy}))
-        else:
-            # Do not inherit a machine-wide proxy for direct scans.  On
-            # Windows, an environment/WinINET proxy commonly handles HTTPS
-            # but rejects plain HTTP, turning otherwise valid http:// targets
-            # into a misleading transport failure before detection runs.
-            # An explicit --proxy still opts into proxy routing above.
-            handlers.append(urllib.request.ProxyHandler({}))
-        self.opener = urllib.request.build_opener(*handlers)
-        self.no_redirect_opener = urllib.request.build_opener(_NoRedirectHandler(), *handlers)
+    def _rebuild_opener(self) -> None:
+        self.session.verify = self.verify_tls
+        self.opener = _RequestsOpener(self.session, self.timeout, True)
+        self.no_redirect_opener = _RequestsOpener(self.session, self.timeout, False)
 
     def _resolve_url(self, url: str) -> str:
         if self.base_url and not url.startswith(("http://", "https://")):
@@ -367,6 +403,14 @@ class HttpClient:
 
         effective_timeout = timeout if timeout is not None else self.timeout
 
+        cache_key: tuple[str, int, str | None, bool] | None = None
+        if _discovery_cache_enabled and method.upper() == "GET" and not headers and data is None:
+            cache_key = (full_url, effective_timeout, self.proxy, self.verify_tls)
+            with _discovery_cache_lock:
+                cached = _discovery_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
         try:
             req = urllib.request.Request(full_url, method=method, headers=req_headers, data=payload_bytes)
             opener = self.opener if follow_redirects else self.no_redirect_opener
@@ -377,10 +421,17 @@ class HttpClient:
                 body_bytes, body, encoding_truncated = _decode_body(body_bytes, response.headers)
                 truncated = truncated or encoding_truncated
                 final_url: str = response.url or full_url
+                if not follow_redirects and response.status in (301, 302, 303, 307, 308):
+                    location = response.headers.get("Location") if hasattr(response.headers, "get") else None
+                    if location:
+                        final_url = urllib.parse.urljoin(full_url, str(location))
                 result = _build_response_dict(
                     response.status, body, full_url, final_url, response.headers, body_bytes, truncated=truncated
                 )
                 self._record(method, full_url, result)
+                if cache_key is not None and result.get("status", 0) > 0:
+                    with _discovery_cache_lock:
+                        _discovery_cache[cache_key] = result
                 return result
         except urllib.error.HTTPError as exc:
             body_bytes = exc.read(MAX_RESPONSE_BYTES + 1) if hasattr(exc, "read") else b""
@@ -397,6 +448,9 @@ class HttpClient:
                 exc.code, body, full_url, final_url, exc.headers or {}, body_bytes, truncated=truncated
             )
             self._record(method, full_url, result)
+            if cache_key is not None:
+                with _discovery_cache_lock:
+                    _discovery_cache[cache_key] = result
             return result
         except Exception as exc:  # noqa: BLE001
             result = _build_response_dict(

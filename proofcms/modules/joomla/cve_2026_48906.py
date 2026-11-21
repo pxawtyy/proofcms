@@ -200,5 +200,25 @@ def check(target_url: str, joomla_version: str | None = None, run_exploit_check:
     return result
 
 
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict | None = None,
+    aggressive_command: str | None = None,
+) -> dict:
+    """Verify the uploaded artifact and report any manual removal step."""
+    from ...core.cleanup import cleanup_http_artifact
+
+    return cleanup_http_artifact(
+        target_url,
+        timeout=timeout,
+        proxy=proxy,
+        aggressive_args=aggressive_args,
+        aggressive_command=aggressive_command,
+    )
+
+
 def metadata() -> dict[str, Any]:
     return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Arbitrary File Deletion", "module_version": "1.0.0", "last_reviewed": "2026-11-17", "updated": "2026-11-17", "required_detectors": ["nrframework"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-48906", "https://www.tassos.gr/blog/company/security-update-arbitrary-file-deletion-vulnerability-fixed", "https://mysites.guru/vulnerabilities/CVE-2026-48906"]}

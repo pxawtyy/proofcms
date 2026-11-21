@@ -10,10 +10,13 @@ README Development).
 
 from __future__ import annotations
 
+import ast
+import contextlib
 import importlib
 import pathlib
 import re
 import unittest
+from unittest.mock import patch
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 REGISTRIES = (
@@ -29,6 +32,122 @@ DISPOSITIONS = (
     "NOT_YET_VALIDATED",
     "AGGRESSIVE_SENT",
 )
+DEDICATED_JOOMLA_DETECTORS = {
+    "icagenda",
+    "baforms",
+    "gridbox",
+    "sppagebuilder",
+    "jbusinessdirectory",
+    "pagebuilderck",
+    "rsfiles",
+    "helix3",
+    "helixultimate",
+}
+NOT_FOUND_RESPONSE = {
+    "status": 404,
+    "body": "Not Found",
+    "headers": {},
+    "headers_multi": {},
+    "final_url": "https://fixture.test/",
+    "url": "https://fixture.test/",
+    "requested_url": "https://fixture.test/",
+    "body_hash": "not-found",
+    "normalized_body_hash": "not-found",
+    "body_len": 9,
+    "title": "",
+    "error": None,
+    "truncated": False,
+    "captured_bytes": 9,
+}
+
+
+class _NotFoundClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get(self, *args, **kwargs):
+        return dict(NOT_FOUND_RESPONSE)
+
+    def request(self, *args, **kwargs):
+        return dict(NOT_FOUND_RESPONSE)
+
+    def post(self, *args, **kwargs):
+        return dict(NOT_FOUND_RESPONSE)
+
+    def post_multipart(self, *args, **kwargs):
+        return dict(NOT_FOUND_RESPONSE)
+
+
+def _not_found_request(*args, **kwargs):
+    return dict(NOT_FOUND_RESPONSE)
+
+
+def _registered_modules() -> list[tuple[str, str, object, str]]:
+    """Return (cve_id, module_path, module, registry_cms)."""
+    found = []
+    for package in REGISTRIES:
+        registry = importlib.import_module(package)
+        cms = package.rsplit(".", 1)[-1]
+        for cve_id, module_path in sorted(getattr(registry, "AVAILABLE_CVES", {}).items()):
+            module = importlib.import_module(module_path)
+            found.append((cve_id, module_path, module, cms))
+    return found
+
+
+def _is_core_module(meta: dict) -> bool:
+    component = str(meta.get("component") or "").lower()
+    name = str(meta.get("name") or "").lower()
+    return "core" in component or "core" in name
+
+
+def _literal_strings(node: ast.AST) -> list[str]:
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return [
+            element.value
+            for element in node.elts
+            if isinstance(element, ast.Constant) and isinstance(element.value, str)
+        ]
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    return []
+
+
+def _receiver_names(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.BoolOp):
+        names: set[str] = set()
+        for value in node.values:
+            names |= _receiver_names(value)
+        return names
+    if isinstance(node, ast.Attribute):
+        return _receiver_names(node.value)
+    return set()
+
+
+def _detector_keys_from_source(source: str) -> tuple[set[str], set[str]]:
+    tree = ast.parse(source)
+    declared: set[str] = set()
+    consulted: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id in {
+                    "PLUGIN_KEYS",
+                    "DETECTOR_KEYS",
+                    "PLUGIN_SLUG",
+                }:
+                    declared.update(_literal_strings(node.value))
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and node.args
+            and (_receiver_names(node.func.value) & {"plugins", "extensions"})
+        ):
+            consulted.update(_literal_strings(node.args[0]))
+    return declared, consulted
 
 
 def _active_modules() -> list[tuple[str, str]]:
@@ -173,6 +292,119 @@ class TestModuleContract(unittest.TestCase):
             [],
             "docs/CVE-INDEX.md rows that are not registered checks "
             "(remove or fix the identifier):\n" + "\n".join(extra),
+        )
+
+    def test_non_core_modules_are_silent_on_404(self):
+        """A 404-only target must never yield a non-core finding.
+
+        This is the regression guard for the cross-version false positives:
+        non-core modules must use their own detector/runtime evidence and
+        treat a missing manifest/readme as NOT_DETECTED, even when a CMS core
+        version (3.9.0 here) is present.
+        """
+        failures: list[str] = []
+        for cve_id, module_path, module, _registry_cms in _registered_modules():
+            meta = module.metadata()
+            if _is_core_module(meta):
+                continue
+            with contextlib.ExitStack() as stack:
+                for attr, replacement in (
+                    ("HttpClient", _NotFoundClient),
+                    ("HttpSession", _NotFoundClient),
+                    ("request", _not_found_request),
+                    ("fetch_url", _not_found_request),
+                ):
+                    if hasattr(module, attr):
+                        stack.enter_context(patch.object(module, attr, replacement))
+                try:
+                    result = module.check(
+                        "https://fixture.test",
+                        cms_version="3.9.0",
+                        run_exploit_check=False,
+                        timeout=1,
+                        proxy=None,
+                        plugins={},
+                        php_runtime={"detected": False},
+                        nginx_runtime={"detected": False},
+                        node_runtime={"detected": False},
+                        aspnet_runtime={"detected": False},
+                    )
+                except Exception as exc:  # noqa: BLE001 - report the module, keep scanning
+                    failures.append(f"{cve_id} ({module_path}): {type(exc).__name__}: {exc}")
+                    continue
+            if result.status != "NOT_DETECTED":
+                failures.append(
+                    f"{cve_id} ({module_path}): {result.status} - {result.detail[:140]}"
+                )
+        self.assertEqual(
+            failures,
+            [],
+            "non-core modules must return NOT_DETECTED when every public artifact is 404:\n"
+            + "\n".join(failures),
+        )
+
+    def test_plugin_detector_keys_align_with_detectors(self):
+        """Every plugin/extension lookup must name a real detector key."""
+        from proofcms.detectors.joomla import COMMON_COMPONENTS
+        from proofcms.detectors.wordpress import KNOWN_PLUGIN_MARKERS
+
+        allowed_wordpress = set(KNOWN_PLUGIN_MARKERS)
+        allowed_joomla = set(COMMON_COMPONENTS) | DEDICATED_JOOMLA_DETECTORS
+        violations: list[str] = []
+        for cve_id, module_path, module, registry_cms in _registered_modules():
+            source = pathlib.Path(module.__file__).read_text(encoding="utf-8", errors="replace")
+            declared, consulted = _detector_keys_from_source(source)
+            if not declared and not consulted:
+                continue
+            meta = module.metadata()
+            cms = meta.get("cms") or registry_cms
+            if cms == "wordpress":
+                allowed = allowed_wordpress
+            elif cms == "joomla":
+                allowed = allowed_joomla
+            else:
+                continue
+            effective = declared | consulted
+            if not (effective & allowed):
+                violations.append(
+                    f"{cve_id} ({module_path}): no key matches a detector; "
+                    f"declared={sorted(declared)} consulted={sorted(consulted)}"
+                )
+            unknown = consulted - allowed - declared
+            if unknown:
+                violations.append(
+                    f"{cve_id} ({module_path}): consulted but undeclared keys {sorted(unknown)}"
+                )
+        self.assertEqual(
+            violations,
+            [],
+            "module plugin/extension keys must exist in the WordPress markers or Joomla detectors:\n"
+            + "\n".join(violations),
+        )
+
+    def test_upload_modules_have_cleanup_hook(self):
+        """Any module that reports an uploaded file or writes one needs cleanup()."""
+        from proofcms.cli import cleanup_capable_cves
+
+        capable = set(cleanup_capable_cves())
+        write_markers = ("move_uploaded_file", "file_put_contents", "fopen(", "fwrite(", "unlink(")
+        missing: list[str] = []
+        for cve_id, module_path, module, _registry_cms in _registered_modules():
+            source = pathlib.Path(module.__file__).read_text(encoding="utf-8", errors="replace")
+            meta = module.metadata()
+            modes = set(meta.get("exploit_modes") or [])
+            needs_cleanup = "uploaded_filename" in source or (
+                "aggressive" in modes and any(marker in source for marker in write_markers)
+            )
+            if not needs_cleanup:
+                continue
+            if not callable(getattr(module, "cleanup", None)) or cve_id not in capable:
+                missing.append(f"{cve_id} ({module_path})")
+        self.assertEqual(
+            missing,
+            [],
+            "modules that upload/write files must expose a valid cleanup() hook:\n"
+            + "\n".join(missing),
         )
 
 

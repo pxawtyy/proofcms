@@ -87,8 +87,91 @@ class TestProofCMSHttpAndMultipart(unittest.TestCase):
 
     def test_http_client_registers_plain_http_transport(self):
         client = HttpClient("http://example.com")
-        self.assertTrue(any(type(handler).__name__ == "HTTPHandler" for handler in client.opener.handlers))
+        # The keep-alive transport must be attached to both redirect modes and
+        # must not inherit a machine-wide proxy for a plain HTTP target.
+        self.assertIs(client.opener.session, client.session)
+        self.assertIs(client.no_redirect_opener.session, client.session)
+        self.assertFalse(client.session.trust_env)
         self.assertEqual(client._resolve_url("/health"), "http://example.com/health")
+
+    def test_http_client_keepalive_and_duplicate_headers(self):
+        import http.server
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            connections = 0
+
+            def setup(self):
+                super().setup()
+                type(self).connections += 1
+
+            def do_GET(self):
+                body = b"ok"
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Set-Cookie", "session=one; Path=/")
+                self.send_header("Set-Cookie", "prefs=two; Path=/")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            client = HttpClient(timeout=3)
+            for _ in range(4):
+                result = client.get(f"http://127.0.0.1:{server.server_port}/")
+                self.assertEqual(result["status"], 200)
+                self.assertEqual(len(result["headers_multi"]["set-cookie"]), 2)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+        self.assertLessEqual(Handler.connections, 2)
+
+    def test_http_client_uses_discovery_cache(self):
+        from proofcms.core import http as core_http
+
+        class FakeResponse:
+            status = 200
+            url = "http://target.test/"
+
+            def __init__(self):
+                self.headers = {"Content-Type": "text/html"}
+
+            def read(self, amt=None):
+                return b"<html>home</html>"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        client = HttpClient(timeout=1)
+        calls: list[str] = []
+
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            return FakeResponse()
+
+        client.opener.open = fake_open
+        client.no_redirect_opener.open = fake_open
+        core_http.begin_discovery_cache()
+        try:
+            first = client.get("http://target.test/")
+            second = client.get("http://target.test/")
+        finally:
+            core_http.end_discovery_cache()
+        self.assertEqual(first["status"], 200)
+        self.assertEqual(second["status"], 200)
+        self.assertEqual(calls, ["http://target.test/"])
+        client.get("http://target.test/")
+        self.assertEqual(len(calls), 2)
 
     def test_http_client_initialization(self):
         client = HttpClient(timeout=10, user_agent="CustomAgent/1.0", proxy="http://127.0.0.1:8080")

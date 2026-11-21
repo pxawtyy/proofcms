@@ -218,5 +218,25 @@ def check(target_url: str, joomla_version: str | None = None, run_exploit_check:
     return result
 
 
+def cleanup(
+    target_url: str,
+    *,
+    timeout: int = 12,
+    proxy: str | None = None,
+    aggressive_args: dict | None = None,
+    aggressive_command: str | None = None,
+) -> dict:
+    """Verify the uploaded artifact and report any manual removal step."""
+    from ...core.cleanup import cleanup_http_artifact
+
+    return cleanup_http_artifact(
+        target_url,
+        timeout=timeout,
+        proxy=proxy,
+        aggressive_args=aggressive_args,
+        aggressive_command=aggressive_command,
+    )
+
+
 def metadata() -> dict[str, Any]:
     return {"cve": CVE_ID, "cms": "joomla", "name": NAME, "component": COMPONENT, "affected_rule": AFFECTED_RULE, "affected_joomla_versions": ["*"], "exploit_available": True, "exploit_modes": EXPLOIT_MODES, "intrusive": INTRUSIVE, "vulnerability_type": "Remote Code Execution", "module_version": "1.0.0", "last_reviewed": "2026-11-16", "updated": "2026-11-16", "required_detectors": ["rsform"], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2025-30085", "https://www.rsjoomla.com", "https://mysites.guru/vulnerabilities/CVE-2025-30085"]}
