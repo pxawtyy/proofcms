@@ -29,3 +29,29 @@ def test_helix_105602_safe_probe_delegates_to_mega_menu():
         result = cve_2026_105602.run_safe_probe("https://target.test")
     assert result.cve == "CVE-2026-105602"
     assert result.name == cve_2026_105602.NAME
+
+
+class _GuardedClient:
+    def get(self, url, **kwargs):
+        return {
+            "status": 200,
+            "body": '<li class="item-101">Home</li>',
+            "headers": {},
+            "final_url": url,
+        }
+
+    def request(self, url, **kwargs):
+        return {
+            "status": 200,
+            "body": '{"success":false,"message":"Invalid security token"}',
+            "headers": {},
+            "final_url": url,
+        }
+
+
+def test_helix_105602_marks_auth_token_guard_as_blocked():
+    with patch.object(cve_2026_105602, "HttpClient", return_value=_GuardedClient()):
+        result = cve_2026_105602.run_aggressive_probe("https://target.test", menu_item=101)
+    assert result.status == "BLOCKED_EXTERNAL"
+    assert "authentication/CSRF" in result.detail
+    assert "HELIX-105602" in result.action

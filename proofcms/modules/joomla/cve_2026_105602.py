@@ -61,12 +61,16 @@ def run_aggressive_probe(
 ) -> Finding:
     """Write an inert badge marker and look for the unescaped tag on the homepage.
 
-    The write path is the shared Helix Mega Menu dispatcher. The badge value is
-    a separate field from the layout values covered by CVE-2026-78077; 2.2.11
-    changes ``Helper::sanitizeMegaMenuBadge()`` from HTML-encoding the stored
-    value to ``InputFilter::clean(..., 'STRING')`` before the output escaping.
-    The probe writes an inert ``<img>`` tag, checks the homepage and clears the
-    badge key afterwards.
+    The shared ``saveMegaMenuSettings`` dispatcher is authenticated and
+    CSRF-guarded in 2.2.10, and it sanitizes the badge with
+    ``htmlspecialchars(strip_tags())`` before storing it; the frontend escapes
+    it again. The 2.2.11 change to ``InputFilter::clean(..., 'STRING')`` is a
+    normalization, and that release also adds preview-token/AJAX authorization.
+    The remaining plausible sink is the administrator menu-item form
+    (``helixultimatemenulayout`` hidden field and the deprecated
+    ``textFieldHTML`` value attribute), which needs an authenticated menu
+    editor. This unauthenticated probe cannot reach that path; see
+    ``docs/HELIX-105602.md``.
     """
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
@@ -159,6 +163,22 @@ def run_aggressive_probe(
             action="Purge the Joomla cache and verify the badge value manually on an authorized staging site.",
         )
     status = "BLOCKED_EXTERNAL" if write.get("status") in (401, 403) else "NOT_CONFIRMED"
+    refusal_text = (refusal or "").lower()
+    guarded = write.get("status") in (401, 403) or any(
+        marker in refusal_text
+        for marker in ("token", "author", "forbidden", "not permitted", "login")
+    )
+    if guarded:
+        status = "BLOCKED_EXTERNAL"
+        detail = (
+            f"The Mega Menu badge write was rejected by the authentication/CSRF guard "
+            f"(HTTP {write.get('status')}{'; ' + refusal if refusal else ''}). The unauthenticated "
+            "probe cannot reach the administrator menu-item form sink."
+        )
+        action = "Use an authenticated menu-editor lab; see docs/HELIX-105602.md."
+    else:
+        detail = f"The Mega Menu badge write was not accepted (HTTP {write.get('status')}{'; ' + refusal if refusal else ''})."
+        action = "Upgrade affected Helix Ultimate versions and verify the badge field manually."
     return Finding(
         cve=CVE_ID,
         name=NAME,
@@ -172,8 +192,8 @@ def run_aggressive_probe(
         evidence=evidence,
         cleanup_attempted=True,
         cleanup_verified=cleanup_verified,
-        detail=f"The Mega Menu badge write was not accepted (HTTP {write.get('status')}{'; ' + refusal if refusal else ''}).",
-        action="Upgrade affected Helix Ultimate versions and verify the badge field manually.",
+        detail=detail,
+        action=action,
     )
 
 
