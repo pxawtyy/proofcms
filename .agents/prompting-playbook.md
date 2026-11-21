@@ -32,6 +32,18 @@ first.
 - Put identifiers only in a final references section, or omit them when the
   upstream source and the fix commit are enough for the analysis.
 
+## Redaction mechanics
+
+- Replace identifiers with a single hyphenated token (for example
+  `case-conversion`), never with a phrase containing spaces. The replacement
+  can land inside a shell path, a YAML key, or a code string and break the
+  artifact.
+- Do not run text replacements inside code blocks, paths, filenames, or
+  configuration keys. Rewrite the snippet or omit it.
+- After sanitizing, run a syntax check on any included shell/YAML and re-scan
+  the whole packet. A reviewer may reject broken artifacts even when the
+  wording is clean.
+
 ## Scope of the request
 
 Ask for a **classification and remediation decision**, not for an impact path:
@@ -102,6 +114,11 @@ source, the fix, and the benign lab observation.
 - Third-party research prose and crash logs carry their own trigger terms;
   paraphrase the technical geometry and keep only the upstream source, the fix,
   and the benign observation.
+- A clean-looking prompt can still include broken artifacts: a redaction that
+  replaces an identifier with a multi-word phrase corrupted a shell `log=` path
+  and a YAML key in one packet. Rewrite code, never string-replace inside it.
+- The reviewer may correct technical claims in the packet. Record those
+  corrections in the repository's lab notes instead of only in the chat.
 
 ## Note
 
