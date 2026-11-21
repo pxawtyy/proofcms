@@ -81,23 +81,28 @@ reports neither. The native N=1244 diagnostic aborts in the allocator on
 - Demonstrated: a one-byte out-of-bounds write (`S`/`s`), a one-byte
   out-of-bounds read, a native availability abort on glibc 2.41 (N=1244
   victim/guard diagnostic), and a web-facing availability abort via a Rack
-  multipart `_method` request.
+  multipart `_method` request and a loopback Puma server.
 - Impact on the lab runtime (glibc 2.41): memory-safety violation, native
-  availability, and web-facing availability via Rack; no integrity or
+  availability, and web-facing availability via Rack/Puma; no integrity or
   confidentiality impact is demonstrated.
 - A jemalloc canary test (N=1236/1492/2004/3028/4052) left the adjacent guard
-  byte unchanged; adjacent live payload modification under jemalloc is not
-  demonstrated.
+  byte unchanged; adjacent data modification under jemalloc is not
+  demonstrated. The test did not verify physical adjacency, so it does not
+  disprove the class.
 - Rack multipart path (verified): Rack 3.2.9's multipart parser tags a part
   body with the part's `charset` (`tag_multipart_encoding` ->
   `body.force_encoding`) and `Rack::MethodOverride` calls `upcase` on
   `_method`. A part with `charset=ISO-8859-1` reaches `case_map`; the N=1244
-  request aborts 3.4.12 and 3.4.13 returns 200. Query/form-urlencoded data
-  defaults to UTF-8/ASCII-8BIT; the multipart part charset is the reachable
-  gap.
-- NVD CVSS 3.1 7.4 (`AV:L/AC:H`). The advisory is rated Critical; the local
-  vector predates the Rack reachability result. Treat the inventory verdict as
-  an exposure signal, not as a higher-impact proof.
+  request aborts 3.4.12, and a live Puma worker dies (exit 134) while 3.4.13
+  returns 200. Query/form-urlencoded data defaults to UTF-8/ASCII-8BIT; the
+  multipart part charset is the reachable gap.
+- NVD CVSS 3.1 7.4 (`AV:L/AC:H`). The independent review's second pass
+  classified the Rack/Puma path as web-facing availability (High/AV:N for Rack
+  deployments) and noted that the AV:L vector is not defensible for web-facing
+  triage. Integrity and confidentiality remain not demonstrated.
+- Remaining evidence for a higher impact: pointer-verified jemalloc adjacency,
+  the exit-139 backtrace, multi-worker Puma/Rails reliability, and a glibc
+  overlapping-chunk diagnostic.
 
 ## Exit codes
 
