@@ -119,6 +119,10 @@ source, the fix, and the benign lab observation.
   and a YAML key in one packet. Rewrite code, never string-replace inside it.
 - The reviewer may correct technical claims in the packet. Record those
   corrections in the repository's lab notes instead of only in the chat.
+- A reviewer's "not reachable by default" claim can miss a parser-level
+  charset path. Audit the framework source and run a minimal request: the Rack
+  multipart `charset` + `_method.upcase` path was verified after the review
+  said it required a non-default encoding.
 
 ## Note
 

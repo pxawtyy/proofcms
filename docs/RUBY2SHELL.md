@@ -68,27 +68,36 @@ docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-vuln
 docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-control
 docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-vuln sh /lab/run_mixed.sh
 docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-control sh /lab/run_mixed.sh
+docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-vuln sh /lab/run_crash.sh
+docker compose -f labs/cve-2026-132825/compose.yml run --rm ruby-control sh /lab/run_crash.sh
 ```
 
 The vulnerable runs report the Valgrind invalid write and read; the control
-reports neither. A native run of the mixed input completes without a crash on
-the lab image (glibc 2.41).
+reports neither. The native N=1244 diagnostic aborts in the allocator on
+3.4.12 (exit 134/139) and survives on 3.4.13.
 
 ## Review summary (2026-11-21)
 
-- Demonstrated: a one-byte out-of-bounds write (`S`/`s`) and a one-byte
-  out-of-bounds read in the affected single-byte case-conversion path.
-- Impact on the lab runtime (glibc 2.41): only the Valgrind-detected write and
-  read; no native crash was observed for the mixed input, and no integrity or
+- Demonstrated: a one-byte out-of-bounds write (`S`/`s`), a one-byte
+  out-of-bounds read, a native availability abort on glibc 2.41 (N=1244
+  victim/guard diagnostic), and a web-facing availability abort via a Rack
+  multipart `_method` request.
+- Impact on the lab runtime (glibc 2.41): memory-safety violation, native
+  availability, and web-facing availability via Rack; no integrity or
   confidentiality impact is demonstrated.
-- Non-headered allocators such as jemalloc could expose adjacent live payload
-  instead of chunk metadata; that is structurally plausible but not
+- A jemalloc canary test (N=1236/1492/2004/3028/4052) left the adjacent guard
+  byte unchanged; adjacent live payload modification under jemalloc is not
   demonstrated.
-- Default Rails/Rack/Sinatra decode request data as UTF-8 or ASCII-8BIT, so
-  reaching the affected path requires an application that preserves one of the
-  14 encodings. Veria Labs' default-deployment claim is unverified.
-- NVD CVSS 3.1 7.4 (`AV:L/AC:H`). The advisory is rated Critical; treat the
-  inventory verdict as an exposure signal, not as a higher-impact proof.
+- Rack multipart path (verified): Rack 3.2.9's multipart parser tags a part
+  body with the part's `charset` (`tag_multipart_encoding` ->
+  `body.force_encoding`) and `Rack::MethodOverride` calls `upcase` on
+  `_method`. A part with `charset=ISO-8859-1` reaches `case_map`; the N=1244
+  request aborts 3.4.12 and 3.4.13 returns 200. Query/form-urlencoded data
+  defaults to UTF-8/ASCII-8BIT; the multipart part charset is the reachable
+  gap.
+- NVD CVSS 3.1 7.4 (`AV:L/AC:H`). The advisory is rated Critical; the local
+  vector predates the Rack reachability result. Treat the inventory verdict as
+  an exposure signal, not as a higher-impact proof.
 
 ## Exit codes
 

@@ -238,7 +238,7 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 
 | CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
 |---|---|---|---|---|---|---|
-| CVE-2026-132825 | Ruby 3.4.12 official image (glibc 2.41) + valgrind | safe `21 x 0xDF` and mixed `20 x 0xDF + 7 x 'a' + 1 x 0xDF` ISO-8859-1 `upcase`; Valgrind reports `Invalid write of size 1` at `case_map (iso_8859_1.c:293)` and an invalid read at `rb_str_casemap`/`rb_str_new`; the native mixed run does not crash | CONFIRMED (one-byte OOB write and read; no native crash or higher impact demonstrated) | 3.4.13 NOT_CONFIRMED (no invalid write/read in the same mixed geometry) | `labs/cve-2026-132825` | 2026-11-21 |
+| CVE-2026-132825 | Ruby 3.4.12 official image (glibc 2.41) + valgrind; Rack 3.2.9 `Rack::MethodOverride` | safe `21 x 0xDF`/mixed `N=28` ISO-8859-1 `upcase`; Valgrind invalid write at `case_map` + invalid read; native N=1244 victim/guard abort (exit 134/139); Rack multipart `_method` with `charset=ISO-8859-1` reaches `case_map` and the N=1244 request aborts 3.4.12 (exit 139) | CONFIRMED (remote memory-safety primitive and web-facing availability abort via Rack multipart; integrity/confidentiality not demonstrated) | 3.4.13 NOT_CONFIRMED (no invalid write/read; native and Rack requests survive/200) | `labs/cve-2026-132825` | 2026-11-21 |
 
 ## React Server Components - active probes
 
