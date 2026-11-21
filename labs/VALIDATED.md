@@ -199,7 +199,6 @@ Dispositions:
 | CVE-2023-21722 (.NET DoS) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36560 (ASP.NET bypass) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36899 (ASP.NET EoP) | Passive version detection only: needs IIS/.NET app-pool and OS prerequisites; no lab harness. |
-| CVE-2025-53772 (IIS Web Deploy) | Passive surface only: msdeploy.axd/IIS detected and safe header probe; optional `dockur/windows` VM harness in `labs/cve-2025-53772`; the 10.0.2000 MSI is archived (`windows/WebDeploy_10.0.2000.msi`, SHA-256 `2befd8da…b3489`), but the active BinaryFormatter proof has not been run yet. |
 | CVE-2026-42945 (NGINX rewrite) | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
 | CVE-2026-9256 (NGINX rewrite captures) | Passive version/config detection only: needs vulnerable rewrite captures; no safe lab harness. |
 | CVE-2026-42530 (NGINX HTTP/3 UAF) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
@@ -249,3 +248,9 @@ Wiz proof-of-concept is not public; neither lab claims a weaponized RCE.
 |---|---|---|---|---|---|---|
 | CVE-2025-55182 | Next.js 15.0.4 + React 19.0.0, App Router (`labs/cve-2025-55182`, port 8109) | safe `Next-Action: detect` Flight payload returns HTTP 500 + `E{"digest"`; aggressive payload runs `printf PROOFCMS_55182_*` and reflects the marker in `X-Action-Redirect` | CONFIRMED | 15.0.8 NOT_CONFIRMED (safe returns the normal page; aggressive returns no marker) | `labs/cve-2025-55182` | 2026-11-20 |
 | CVE-2026-126187 | Next.js 16.4.0 + React 19.3.0, Cache Components (`labs/cve-2026-126187`, port 8113) | safe forged data row at the post-desync resume offset is parsed as the annotation marker; aggressive forged action row runs `printf PROOFCMS_126187_*` and reflects it in the page `<pre>` | CONFIRMED | 16.4.1 NOT_CONFIRMED (safe marker not parsed; aggressive returns no marker) | `labs/cve-2026-126187` | 2026-11-20 |
+
+## Windows / IIS - active probes
+
+| CVE | Fixture | Probe | Disposition | Patched control | Lab | Validated |
+|---|---|---|---|---|---|---|
+| CVE-2025-53772 | Windows Server 2019 + IIS + Web Deploy 4.0 10.0.2000 (`labs/cve-2025-53772`, dockur/windows, port 8180) | authenticated NTLM POST to `/MSDEPLOYAGENTSERVICE` with the repo `trigger.py --proof-temp` TypeConfuseDelegate `MSDeploy.SyncOptions` payload; returns HTTP 200 and writes `C:\Windows\Temp\pwned.txt` (read back over SMB `C$`) | CONFIRMED | same VM upgraded to Web Deploy 10.0.2001; the same `trigger.py --proof-temp` returns HTTP 500 and does not recreate `pwned.txt` | `labs/cve-2025-53772` | 2026-11-20 |

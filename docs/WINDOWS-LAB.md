@@ -50,9 +50,10 @@ Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
 - The module is passive: it checks `/msdeploy.axd` and sends a header-only
   probe **without** `MSDeploy.SyncOptions`. It never sends a serialized
   object.
-- A real active lab needs a Windows VM/container with Web Deploy 10.0.2000;
-  the current Linux-container daemon cannot host it. Keep the active proof
-  `BLOCKED_EXTERNAL` until such a fixture exists.
+- The active proof was validated on a `dockur/windows` Server 2019 VM with Web
+  Deploy 10.0.2000: the repo `trigger.py` (public TypeConfuseDelegate template)
+  wrote `C:\Windows\Temp\pwned.txt` through the NTLM Agent Service. Upgrading
+  the same VM to 10.0.2001 stopped the payload. See `labs/VALIDATED.md`.
 
 ## Optional Windows VM: dockur/windows
 
@@ -63,16 +64,16 @@ Windows Server VM inside a Linux container (no Windows-container mode switch).
   Web Deploy 10.0.2000) and `windows-control` (patched 10.0.2001).
 - Web viewer: `http://127.0.0.1:8006` (vuln) / `8007` (control); RDP: `3389` /
   `3390`; Web Deploy: `8180`/`8172` (vuln) and `8181`/`8173` (control).
-- The VM uses 2 GB RAM and a 40 GB sparse disk in
-  `D:/ProofCMS-Labs/windows-53772-*`; run one VM at a time on this host.
+- The VM uses 2 GB RAM and a 40 GB disk in the Docker named volumes
+  `proofcms-53772-vuln-storage` / `proofcms-53772-control-storage`; run one VM
+  at a time on this host.
   Docker Desktop's WSL2 limit must be at least 4 GB (6 GB recommended):
   `%UserProfile%\.wslconfig` → `memory=6GB`, then `wsl --shutdown` and restart
   Docker Desktop. The default 3 GB limit is not enough for Server 2019.
-- **The vulnerable MSI is now archived:** `windows/WebDeploy_10.0.2000.msi`
-  (Microsoft Web Deploy 4.0, ProductVersion 10.0.2000, SHA-256
-  `2befd8da31817d96875815ef1d0c30e11bd26838f7b65da6fd7ea80b041b3489`). The
-  current Microsoft download is 10.0.2001 (the patched control). The active
-  proof still needs a live VM run; the module stays passive until then.
+- **Both MSIs are archived:** `windows/WebDeploy_10.0.2000.msi` (vulnerable,
+  SHA-256 `2befd8da31817d96875815ef1d0c30e11bd26838f7b65da6fd7ea80b041b3489`)
+  and `windows/WebDeploy_10.0.2001.msi` (patched control). The OEM scripts
+  install only their own version. The module itself stays passive.
 
 ## Options
 
