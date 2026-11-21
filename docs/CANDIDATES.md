@@ -142,6 +142,17 @@ technical write-up or a reproducible appliance fixture exists.
 
 ## High/Critical WordPress candidates with public technical detail (2026-11-20)
 
+**New (2026-11-21):** `CVE-2026-15748` — Forminator <= 1.56.1 unauthenticated
+upload → RCE, **CONFIRMED** in `labs/cve-2026-15748` with 1.56.1 vs 1.56.2
+control. A forged Select `return` injects an upload field config; the
+`php|php5` pipe-alternative MIME key bypasses the blocklist; the frontend POST
+path omits the protective `.htaccess` in a custom upload root. The shell
+executes on 1.56.1; 1.56.2 rejects the forged Select (HTTP 500) and writes no
+file. Fixtures on wordpress.org, no public working PoC (only a version
+scanner) — the chain was reconstructed from the source diff.
+
+
+
 Researched from public advisories and PoC repositories. None is registered as a
 check yet; they are ordered by exploitability with the infrastructure already
 in this repo (`labs/_wp-base`, `tools/wp_lab.py`). Acquisition still required —
