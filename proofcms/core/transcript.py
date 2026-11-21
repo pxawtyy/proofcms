@@ -65,6 +65,9 @@ def make_entry(
     error = response.get("error")
     if error:
         entry["error"] = str(error.get("type") if isinstance(error, dict) else error)
+    waf = response.get("edge_interstitial")
+    if waf:
+        entry["waf"] = str(waf)
     return entry
 
 

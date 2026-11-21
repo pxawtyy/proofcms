@@ -20,11 +20,16 @@ from .console import (
     strip_ansi,
     visible_results,
 )
+from .diff import build_scan_diff, format_scan_diff
 from .json import write_json_report
+from .sarif import build_sarif_report
 from .text import append_text_result, write_text_report
 
 __all__ = [
     "append_text_result",
+    "build_sarif_report",
+    "build_scan_diff",
+    "format_scan_diff",
     "hidden_results_note",
     "is_joomla_core_result",
     "is_wordpress_core_result",

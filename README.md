@@ -195,6 +195,7 @@ modules do not fall back to `Other`.
 | `VULNERABLE` | Runtime evidence confirmed the reported impact. |
 | `VULNERABLE_UPLOAD_ONLY` | A file write was confirmed, but execution was not. |
 | `NOT_CONFIRMED` | A requested proof did not confirm the vulnerability. |
+| `BLOCKED_EXTERNAL` | A WAF/challenge page or missing external fixture prevented a definitive proof. |
 | `ERROR` | A check failed without stopping the remaining scan. |
 
 ## Reports and CI
@@ -208,6 +209,29 @@ proofcms -u https://example.test --json results.json
 Text reports go to `reports/proofcms_<timestamp>_<run-id>.txt` unless
 `--no-text-report` is used. Report output redacts URL credentials, common
 sensitive query parameters, proxy credentials, commands, and tokens.
+
+Export SARIF 2.1.0 for GitHub Security, DefectDojo, or another SARIF consumer:
+
+```bash
+proofcms -u https://example.test --sarif results.sarif
+```
+
+Compare a retest against a previous JSON report (prints only status/version
+changes and suppresses the normal per-finding console output):
+
+```bash
+proofcms -u https://example.test --json retest.json --diff results.json
+```
+
+Limit outbound request rate and parallelize passive/safe modules:
+
+```bash
+proofcms -u https://example.test --rate-limit 10 --concurrency 5
+```
+
+`--rate-limit` is a process-wide token bucket in requests/second. `--concurrency`
+applies to detector inventories and to passive or non-intrusive safe modules;
+intrusive/aggressive probes still run serially.
 
 Use `--fail-on` in a pipeline:
 

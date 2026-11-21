@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import json
 import sys
 import tempfile
 import time
@@ -14,6 +15,7 @@ from proofcms.core.args import parse_aggressive_args
 from proofcms.core.categories import normalize_metadata
 from proofcms.core.http import (
     begin_discovery_cache,
+    configure_rate_limit,
     configure_tls,
     end_discovery_cache,
     fetch_url,
@@ -66,6 +68,9 @@ from proofcms.detectors import (
 from proofcms.modules.generic.elfinder import clear_discovery_cache
 from proofcms.reporting import (
     append_text_result,
+    build_sarif_report,
+    build_scan_diff,
+    format_scan_diff,
     hidden_results_note,
     is_joomla_core_result,
     print_banner,
@@ -257,6 +262,35 @@ def cleanup_capable_cves() -> list[str]:
     return sorted(capable)
 
 
+def apply_waf_classification(result: Finding, captured: list[dict], run_exploit_check: bool) -> Finding:
+    """Turn a negative active result into BLOCKED_EXTERNAL when a WAF intervened."""
+    if not run_exploit_check or result.status not in {
+        Status.NOT_CONFIRMED,
+        Status.INCONCLUSIVE,
+        Status.ERROR,
+    }:
+        return result
+    hits = [str(entry.get("waf")) for entry in captured if entry.get("waf")]
+    if not hits:
+        return result
+    waf = hits[0]
+    evidence = dict(result.evidence or {})
+    evidence["waf"] = waf
+    evidence["waf_responses"] = len(hits)
+    result.evidence = evidence
+    result.status = Status.BLOCKED_EXTERNAL
+    result.confidence = Confidence.MEDIUM
+    result.detail = (
+        f"{result.detail} The active probe received a {waf} challenge/block page, "
+        "so the negative result is inconclusive rather than evidence of a fix."
+    ).strip()
+    result.action = (
+        "Retry from an allowlisted source or with an authorized session, "
+        "or verify the component version manually."
+    )
+    return result
+
+
 def run_lab_cleanup(args, targets: list[str], aggressive_args: dict) -> int:
     """Execute ``module.cleanup()`` for one CVE across targets; no scanning."""
     cve_id = (args.lab_cleanup or "").strip().upper()
@@ -377,7 +411,18 @@ def main():
         ),
     )
     parser.add_argument("--timeout", type=int, default=12, help="HTTP timeout in seconds")
-    parser.add_argument("--concurrency", type=int, default=5, help="Concurrency limit for detector probes. Default: 5")
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=5,
+        help="Concurrency limit for detector probes and passive/safe modules. Default: 5",
+    )
+    parser.add_argument(
+        "--rate-limit",
+        type=float,
+        default=0.0,
+        help="Maximum HTTP requests per second across the scan (0 = unlimited).",
+    )
     parser.add_argument(
         "--inventory",
         choices=["full", "required"],
@@ -392,6 +437,12 @@ def main():
     parser.add_argument("--proxy", help="Proxy URL passed to CVE modules")
     parser.add_argument("--json", dest="json_path", help="Write JSON report to this path")
     parser.add_argument("--overwrite-json", action="store_true", help="Replace an existing --json report atomically")
+    parser.add_argument(
+        "--diff",
+        dest="diff_path",
+        help="Compare against a previous JSON report and show only status/version changes.",
+    )
+    parser.add_argument("--sarif", dest="sarif_path", help="Write a SARIF 2.1.0 report to this path.")
     parser.add_argument("--report-dir", default=str(ROOT / "reports"), help="Directory for timestamped text reports")
     parser.add_argument("--no-text-report", action="store_true", help="Disable automatic timestamped text report")
     parser.add_argument("--show-patched", action="store_true", help="Show PATCHED CVEs in terminal and text report")
@@ -475,6 +526,8 @@ def main():
         return 1
 
     configure_tls(verify=not args.insecure)
+    configure_rate_limit(args.rate_limit)
+    diff_mode = bool(args.diff_path)
     try:
         targets = load_targets(args)
     except (OSError, ValueError) as exc:
@@ -766,9 +819,10 @@ def main():
                     vulnerability_type="Information Disclosure",
                 ).as_dict()
             )
-            print_live_result(
-                target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
-            )
+            if not diff_mode:
+                print_live_result(
+                    target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
+                )
         if php_runtime_info.origin_reachable:
             target_report["results"].append(
                 Finding(
@@ -788,13 +842,25 @@ def main():
                     vulnerability_type="Improper Access Control",
                 ).as_dict()
             )
-            print_live_result(
-                target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
-            )
+            if not diff_mode:
+                print_live_result(
+                    target_report["results"][-1], args.show_patched, args.show_not_detected, args.show_all
+                )
         end_discovery_cache()
-        for cve_id in cves:
+        def run_one_module(
+            cve_id: str,
+            *,
+            info=info,
+            operational_target=operational_target,
+            wordpress_inventory=wordpress_inventory,
+            plugins=plugins,
+            php_runtime=php_runtime,
+            nginx_runtime=nginx_runtime,
+            node_runtime=node_runtime,
+            aspnet_runtime=aspnet_runtime,
+        ) -> dict | None:
             if cve_id in module_setup_errors:
-                setup_error = {
+                return {
                     "cve": cve_id,
                     "name": cve_id,
                     "vulnerability_type": "Other",
@@ -807,14 +873,11 @@ def main():
                     "action": "Check module integrity.",
                     "exploit_available": False,
                 }
-                target_report["results"].append(setup_error)
-                print_live_result(setup_error, args.show_patched, args.show_not_detected, args.show_all)
-                continue
             module = importlib.import_module(AVAILABLE_CVES[cve_id])
             meta = normalize_metadata(getattr(module, "metadata", dict)())
             module_scope = meta.get("cms", "joomla")
             if module_scope not in {info.name, "php", "generic"}:
-                continue
+                return None
             run_exploit_check = cve_id in exploits
             selected_exploit_mode = (
                 effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
@@ -843,7 +906,7 @@ def main():
                     aspnet_runtime=aspnet_runtime,
                 )
             except Exception as exc:  # noqa: BLE001 - isolate third-party probe failures per target
-                result_dict = {
+                return {
                     "cve": cve_id,
                     "name": meta.get("name", cve_id),
                     "vulnerability_type": meta.get("vulnerability_type", "Other"),
@@ -862,22 +925,93 @@ def main():
                 }
             finally:
                 captured = end_capture()
-            if result is not None:
-                if run_exploit_check and captured and not result.exploit_ran:
-                    # The module made at least one HTTP request during the
-                    # active check, so "requested but skipped" would be
-                    # misleading even when the module forgot to set it.
-                    result.exploit_ran = True
-                if result.status in {Status.VULNERABLE, Status.VULNERABLE_UPLOAD_ONLY} and captured:
-                    evidence = dict(result.evidence or {})
-                    if "transcript" not in evidence:
-                        result.evidence = attach_transcript(evidence, captured)
-                result_dict = result.as_dict()
-                result_dict["exploit_requested"] = run_exploit_check
-                result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
-                result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
+            if result is None:
+                return None
+            result = apply_waf_classification(result, captured, run_exploit_check)
+            if run_exploit_check and captured and not result.exploit_ran:
+                # The module made at least one HTTP request during the active
+                # check, so "requested but skipped" would be misleading even
+                # when the module forgot to set it.
+                result.exploit_ran = True
+            if result.status in {Status.VULNERABLE, Status.VULNERABLE_UPLOAD_ONLY} and captured:
+                evidence = dict(result.evidence or {})
+                if "transcript" not in evidence:
+                    result.evidence = attach_transcript(evidence, captured)
+            result_dict = result.as_dict()
+            result_dict["exploit_requested"] = run_exploit_check
+            result_dict["requested_exploit_mode"] = selected_exploit_mode if run_exploit_check else None
+            result_dict["requested_exploit_mode_input"] = args.exploit_mode if run_exploit_check else None
+            return result_dict
+
+        concurrent_cves: list[str] = []
+        serial_cves: list[str] = []
+        for cve_id in cves:
+            if cve_id in module_setup_errors:
+                concurrent_cves.append(cve_id)
+                continue
+            try:
+                module = importlib.import_module(AVAILABLE_CVES[cve_id])
+                meta = normalize_metadata(getattr(module, "metadata", dict)())
+            except Exception:  # noqa: BLE001 - let the worker report the setup error
+                concurrent_cves.append(cve_id)
+                continue
+            module_scope = meta.get("cms", "joomla")
+            if module_scope not in {info.name, "php", "generic"}:
+                continue
+            run_exploit_check = cve_id in exploits
+            selected_exploit_mode = (
+                effective_exploit_mode(module, args.exploit_mode) if run_exploit_check else args.exploit_mode
+            )
+            if not run_exploit_check or (
+                selected_exploit_mode == "safe" and not meta.get("intrusive")
+            ):
+                concurrent_cves.append(cve_id)
+            else:
+                serial_cves.append(cve_id)
+
+        module_results: dict[str, dict | None] = {}
+        workers = max(1, int(args.concurrency or 1))
+        if workers > 1 and len(concurrent_cves) > 1:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            with ThreadPoolExecutor(max_workers=min(workers, len(concurrent_cves))) as executor:
+                futures = {
+                    executor.submit(run_one_module, cve_id): cve_id for cve_id in concurrent_cves
+                }
+                for future in as_completed(futures):
+                    cve_id = futures[future]
+                    try:
+                        module_results[cve_id] = future.result()
+                    except Exception as exc:  # noqa: BLE001 - keep other modules alive
+                        module_results[cve_id] = {
+                            "cve": cve_id,
+                            "name": cve_id,
+                            "vulnerability_type": "Other",
+                            "component": "Unknown",
+                            "component_version": None,
+                            "affected_rule": "unknown",
+                            "status": "ERROR",
+                            "confidence": "LOW",
+                            "detail": f"Unexpected module error: {type(exc).__name__}: {exc}",
+                            "action": "Check module integrity and target connectivity.",
+                            "exploit_available": False,
+                            "exploit_ran": False,
+                            "exploit_requested": cve_id in exploits,
+                            "requested_exploit_mode": None,
+                            "requested_exploit_mode_input": None,
+                        }
+        else:
+            for cve_id in concurrent_cves:
+                module_results[cve_id] = run_one_module(cve_id)
+        for cve_id in serial_cves:
+            module_results[cve_id] = run_one_module(cve_id)
+        for cve_id in cves:
+            result_dict = module_results.get(cve_id)
+            if result_dict is None:
+                continue
             target_report["results"].append(result_dict)
-            print_live_result(result_dict, args.show_patched, args.show_not_detected, args.show_all)
+            if not diff_mode:
+                print_live_result(result_dict, args.show_patched, args.show_not_detected, args.show_all)
         for chain_id in chains:
             try:
                 aggregate = AVAILABLE_CHAINS[chain_id]["aggregate"]
@@ -895,19 +1029,20 @@ def main():
             target_report["results"], args.show_patched, args.show_not_detected, args.show_all
         )
         hidden_note = hidden_results_note(hidden)
-        if hidden_note:
-            print(f"({hidden_note})\n")
-        print_chain_results(target_report["chains"])
-        if info.detected and info.name == "joomla":
-            print_plugins(
-                plugins,
-                show_not_detected=args.show_not_detected,
-                show_all=args.show_all,
-            )
-            print()
-        elif info.detected and info.name == "wordpress":
-            print_wordpress_inventory(wordpress_inventory)
-            print()
+        if not diff_mode:
+            if hidden_note:
+                print(f"({hidden_note})\n")
+            print_chain_results(target_report["chains"])
+            if info.detected and info.name == "joomla":
+                print_plugins(
+                    plugins,
+                    show_not_detected=args.show_not_detected,
+                    show_all=args.show_all,
+                )
+                print()
+            elif info.detected and info.name == "wordpress":
+                print_wordpress_inventory(wordpress_inventory)
+                print()
         target_report["duration_seconds"] = round(time.monotonic() - target_started, 3)
         targets_reports.append(target_report)
 
@@ -953,6 +1088,7 @@ def main():
             "timeout": args.timeout,
             "proxy": "***" if args.proxy else None,
             "concurrency": args.concurrency,
+            "rate_limit": args.rate_limit or None,
             "inventory": args.inventory,
             "fail_on": args.fail_on,
             "command_provided": bool(args.aggressive_command),
@@ -960,6 +1096,8 @@ def main():
             "show_patched": args.show_patched,
             "show_not_detected": args.show_not_detected,
             "show_all": args.show_all,
+            "diff": args.diff_path,
+            "sarif": args.sarif_path,
         },
         "tls_policy": "insecure_skip_verify" if args.insecure else "verify",
         "modules_selected": cves,
@@ -968,6 +1106,18 @@ def main():
         "summary_by_chain_status": chain_summary,
         "targets": targets_reports,
     }
+
+    if args.diff_path:
+        try:
+            previous = json.loads(Path(args.diff_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"Error: could not read --diff report {args.diff_path}: {exc}")
+        else:
+            diff = build_scan_diff(previous, full_report, args.diff_path)
+            full_report["diff"] = diff
+            print()
+            print(format_scan_diff(diff))
+            print()
 
     report_write_error = False
     if args.json_path:
@@ -978,6 +1128,15 @@ def main():
         except OSError as exc:
             print(f"Error: could not save JSON report to {out}: {exc}")
             summary["ERROR"] += 1
+            report_write_error = True
+
+    if args.sarif_path:
+        out = Path(args.sarif_path)
+        try:
+            saved_sarif = write_json_report(out, build_sarif_report(full_report), overwrite=True)
+            print(f"SARIF report saved to: {saved_sarif}")
+        except OSError as exc:
+            print(f"Error: could not save SARIF report to {out}: {exc}")
             report_write_error = True
 
     if not args.no_text_report:
