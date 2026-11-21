@@ -104,9 +104,11 @@ reports neither. The native N=1244 diagnostic aborts in the allocator on
   deployments) and noted that the AV:L vector is not defensible for web-facing
   triage. Integrity and confidentiality remain not demonstrated.
 - Remaining evidence for a higher impact: a jemalloc setup with a truly
-  adjacent canary (the current tracer shows the guard is not adjacent); the
-  exit-139 backtrace is optional (the latest abort is 134). No further glibc
-  adjacent-chunk research is warranted; the allocator aborts.
+  adjacent canary (the current tracer shows the guard is not adjacent; an
+  adjacent-canary attempt found A/B but the mapping did not reuse A, so
+  `B[0]` stayed `0x43` and the test is inconclusive); the exit-139 backtrace is
+  optional (the latest abort is 134). No further glibc adjacent-chunk research
+  is warranted; the allocator aborts.
 
 ## Exit codes
 
