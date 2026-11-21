@@ -61,16 +61,15 @@ def run_aggressive_probe(
 ) -> Finding:
     """Write an inert badge marker and look for the unescaped tag on the homepage.
 
-    The shared ``saveMegaMenuSettings`` dispatcher is authenticated and
-    CSRF-guarded in 2.2.10, and it sanitizes the badge with
-    ``htmlspecialchars(strip_tags())`` before storing it; the frontend escapes
-    it again. The 2.2.11 change to ``InputFilter::clean(..., 'STRING')`` is a
-    normalization, and that release also adds preview-token/AJAX authorization.
-    The remaining plausible sink is the administrator menu-item form
-    (``helixultimatemenulayout`` hidden field and the deprecated
-    ``textFieldHTML`` value attribute), which needs an authenticated menu
-    editor. This unauthenticated probe cannot reach that path; see
-    ``docs/HELIX-105602.md``.
+    The active frontend and modern admin paths escape the badge in both 2.2.10
+    and 2.2.11; the AJAX save path is authenticated, CSRF-guarded and sanitized.
+    Release 2.2.11's sanitizer change is display/encoding normalization, not an
+    active sink fix. The legacy ``fields/helixmegamenu.php`` field has unescaped
+    attribute writes, but it is deprecated and is not loaded by the default
+    ``params/megamenu.xml``; its reachability is not demonstrated. See
+    ``docs/HELIX-105602.md``. The higher-value 2.2.11 fixes are the
+    ``sanitizeEmbed()`` filter mode, ``tag_id`` escaping, preview tokens, path
+    containment and ``helix_id`` scoping.
     """
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
@@ -175,7 +174,10 @@ def run_aggressive_probe(
             f"(HTTP {write.get('status')}{'; ' + refusal if refusal else ''}). The unauthenticated "
             "probe cannot reach the administrator menu-item form sink."
         )
-        action = "Use an authenticated menu-editor lab; see docs/HELIX-105602.md."
+        action = (
+            "The badge is escaped on active paths; verify a custom deployment that loads the "
+            "legacy field, or review the non-badge layout fields. See docs/HELIX-105602.md."
+        )
     else:
         detail = f"The Mega Menu badge write was not accepted (HTTP {write.get('status')}{'; ' + refusal if refusal else ''})."
         action = "Upgrade affected Helix Ultimate versions and verify the badge field manually."
