@@ -1,0 +1,43 @@
+name: proofcms-aspnet-legacy
+
+# Optional Windows Server 2008 R2 SP1 VM for the legacy ASP.NET checks
+# (CVE-2010-3332 / CVE-2011-3416). The rtl8139 adapter is required because the
+# 2008 R2 image does not carry a virtio-net driver. Run one VM at a time.
+
+services:
+  windows:
+    image: dockurr/windows@sha256:59f8bed19cfd49cf1701debe34f9df6311e61a4e2ae68aa9f41206e2184e31cc
+    profiles: ["windows"]
+    container_name: proofcms-aspnet-windows
+    environment:
+      VERSION: "2008"
+      RAM_SIZE: "2G"
+      CPU_CORES: "2"
+      DISK_SIZE: "40G"
+      DISK_CACHE: "writeback"
+      DISK_IO: "threads"
+      USERNAME: "proofcms"
+      PASSWORD: "proofcms-lab-password"
+      USER_PORTS: "80"
+      HOST: "proofcms-aspnet"
+      ADAPTER: "rtl8139"
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "127.0.0.1:8009:8006"
+      - "127.0.0.1:3392:3389/tcp"
+      - "127.0.0.1:3392:3389/udp"
+      - "127.0.0.1:8183:80"
+    volumes:
+      - "proofcms-aspnet-legacy-storage:/storage"
+      - "./oem:/oem:ro"
+      - "D:/ProofCMS-Labs/archives/windows:/shared:ro"
+    restart: "no"
+    stop_grace_period: 2m
+
+volumes:
+  proofcms-aspnet-legacy-storage:
+    name: proofcms-aspnet-legacy-storage

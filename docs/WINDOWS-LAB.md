@@ -26,11 +26,12 @@ Even after switching to Windows containers, a **vulnerable** .NET Framework
 - There is no official unpatched .NET 2.0/3.5 container image.
 - A true vulnerable lab needs an old Windows Server 2008 R2/2012 VM with
   .NET 2.0 SP2 (or 3.5 SP1) installed **before** the MS10-070/MS11-100
-  patches, or a prebuilt vulnerable VM snapshot.
+  patches, or the original .NET 4.0 RTM build on Server 2008 R2 SP1 (the
+  approach used below).
 
-Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
-`labs/VALIDATED.md`; the modules are surface-gated and will only promote to
-`LIKELY_VULNERABLE` when the relevant surface is observed.
+Consequently, CVE-2010-3332 and CVE-2011-3416 were validated on a Server 2008
+R2 SP1 VM with the original .NET 4.0 RTM build (see below); the SP1 .NET 3.5.1
+feature is already patched for MS10-070.
 
 ## What can still be validated
 
@@ -40,6 +41,20 @@ Consequently, CVE-2010-3332 and CVE-2011-3416 stay `BLOCKED_EXTERNAL` in
   `INCONCLUSIVE`/`NOT_AFFECTED`, not `LIKELY_VULNERABLE`.
 - PHP-on-Windows CVEs: CVE-2024-4577 is now CONFIRMED on the
   `dockur/windows` VM (see below); CVE-2024-5585 still needs a fixture.
+
+## ASP.NET legacy (CVE-2010-3332 / CVE-2011-3416)
+
+- Validated on a `dockur/windows` **Server 2008 R2 SP1** VM with **.NET Framework
+  4.0 RTM** (4.0.30319.1). The SP1 image already includes MS10-070 in its
+  .NET 3.5.1 feature, so the lab installs the original 4.0 RTM build instead.
+- 2010-3332: the module's safe `ScriptResource.axd?d=` control/tamper
+  differential returns 200/500 on 4.0 RTM and no differential on 4.5.
+- 2011-3416: a login that calls `FormsAuthentication.SetAuthCookie` with
+  `admin\x00proofcms` yields a ticket for `admin` on 4.0 RTM; .NET 4.5 returns
+  a 500 ("Value does not fall within the expected range").
+- Harness: `labs/aspnet-legacy` (compose, OEM, apps); proofs:
+  `labs/cve-2010-3332/verify.py`, `labs/cve-2011-3416/verify.py`.
+- Use `ADAPTER: "rtl8139"`: the 2008 R2 image has no virtio-net driver.
 
 ## PHP-CGI (CVE-2024-4577)
 

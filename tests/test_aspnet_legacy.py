@@ -9,6 +9,13 @@ RUNTIME = {
     "server": None,
 }
 
+RUNTIME4 = {
+    "detected": True,
+    "version": "4.0.30319",
+    "source": "/default.aspx:X-AspNet-Version",
+    "server": None,
+}
+
 
 def test_2010_3332_without_webforms_surface_is_inconclusive():
     page = {"status": 200, "body": "<html>no resource</html>", "body_hash": "page"}
@@ -67,6 +74,33 @@ def test_2010_3332_surface_without_token_is_likely():
     assert result.status == "LIKELY_VULNERABLE"
     assert result.exploit_ran is True
     assert "no ScriptResource/WebResource token" in result.detail
+
+
+def test_2010_3332_netfx4_without_exploit_stays_inconclusive():
+    page = {"status": 200, "body": "x", "body_hash": "page"}
+    with patch.object(cve_2010_3332, "HttpClient") as client:
+        client.return_value.get.return_value = page
+        result = cve_2010_3332.check("https://fixture.test", aspnet_runtime=RUNTIME4, timeout=1)
+    assert result.status == "INCONCLUSIVE"
+    assert result.confidence == "MEDIUM"
+
+
+def test_2010_3332_netfx4_active_oracle_confirms():
+    page = {"status": 200, "body": "ScriptResource.axd?d=AAAA", "body_hash": "page"}
+    control = {"status": 200, "body": "ok", "body_hash": "control"}
+    probe = {"status": 500, "body": "error", "body_hash": "probe"}
+    with patch.object(cve_2010_3332, "HttpClient") as client:
+        client.return_value.get.side_effect = [page, control, probe]
+        result = cve_2010_3332.check(
+            "https://fixture.test",
+            run_exploit_check=True,
+            exploit_mode="safe",
+            aspnet_runtime=RUNTIME4,
+            timeout=1,
+        )
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["probe_status"] == 500
 
 
 def test_2011_3416_forms_auth_surface_is_likely_vulnerable():

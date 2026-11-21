@@ -69,7 +69,13 @@ def check(
         cvss=CVSS,
     )
     if finding.status != Status.LIKELY_VULNERABLE:
-        return finding
+        active_inconclusive = (
+            finding.status == Status.INCONCLUSIVE
+            and run_exploit_check
+            and exploit_mode == "safe"
+        )
+        if not active_inconclusive:
+            return finding
 
     client = HttpClient(base_url=normalize_url(target_url), timeout=timeout, proxy=proxy)
     surface = _find_surface(client, timeout)
@@ -84,8 +90,8 @@ def check(
         )
         return finding
 
-    finding.status = Status.LIKELY_VULNERABLE
-    finding.confidence = Confidence.HIGH
+    if finding.status == Status.LIKELY_VULNERABLE:
+        finding.confidence = Confidence.HIGH
     finding.evidence = {
         "surface_path": surface["path"],
         "surface_url": surface["url"],
