@@ -100,13 +100,13 @@ reports neither. The native N=1244 diagnostic aborts in the allocator on
   defaults to UTF-8/ASCII-8BIT; the multipart part charset is the reachable
   gap.
 - NVD CVSS 3.1 7.4 (`AV:L/AC:H`). The independent review's second pass
-  classified the Rack/Puma path as web-facing availability (High/AV:N for Rack
+  classified the Rack/Puma path as web-facing availability (AV:N/AC:L, High for Rack
   deployments) and noted that the AV:L vector is not defensible for web-facing
   triage. Integrity and confidentiality remain not demonstrated.
 - Remaining evidence for a higher impact: a jemalloc setup with a truly
-  adjacent canary (the current tracer shows the guard is not adjacent), the
-  exit-139 backtrace (the latest abort is 134), and a glibc adjacent-chunk
-  reuse diagnostic (not observed; the allocator aborts).
+  adjacent canary (the current tracer shows the guard is not adjacent); the
+  exit-139 backtrace is optional (the latest abort is 134). No further glibc
+  adjacent-chunk research is warranted; the allocator aborts.
 
 ## Exit codes
 
