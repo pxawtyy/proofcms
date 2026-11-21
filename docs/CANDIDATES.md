@@ -132,7 +132,7 @@ technical write-up or a reproducible appliance fixture exists.
 | CVE-2026-100750 | Regular Labs Modules Anywhere | LFI / SSRF via module attribute overrides | Pro 9.0.5 + fixed |
 | CVE-2026-75949 | J-BusinessDirectory | path traversal + upload/delete; 1.0.0–6.2.2, fixed 6.2.3 | CONFIRMED (`labs/cve-2026-75949`) |
 | CVE-2026-102780 | TF Content | missing authorization in public RecordController | 2.9.0–2.9.4 + fixed |
-| CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 + fixed |
+| CVE-2026-90901 | Easy Store | SQLi in media delete endpoint | 1.0.0–3.0.0 → **3.0.1** | **CONFIRMED (lab-side, 2026-11-21; `labs/cve-2026-90901`):** `admin/src/Traits/Media.php::deleteImage()` concatenates the comma-split `ids` parameter straight into `id IN (...)`; an admin POST to `task=api.deleteImage` with `ids=9001) OR 1=1-- ` deletes both seeded temp-media rows on 3.0.0, while 3.0.1 (`intval()` + `whereIn()` + CSRF check) deletes only the legitimate row. Free-edition task is `api.deleteImage` (the advisory's `media.deleteImage` 404s). |
 | CVE-2026-92223 | Joomla core | workflow stage batch ACL bypass; 5.0.0–5.4.8 and 6.0.0–6.1.3, fixed 5.4.9/6.1.4 | CONFIRMED (`labs/cve-2026-92223`) |
 | CVE-2026-65878 | SP Page Builder | authenticated arbitrary file rename/delete via the media `thumb`; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-48908`, 6.0.0 vs 6.10.0) |
 | CVE-2026-65766 | SP Page Builder | Dynamic Content `direction` ORDER BY SQLi; 1.0.0–6.7.0, fixed 6.7.1 | CONFIRMED (`labs/cve-2026-65766`, 6.7.0 vs 6.10.0) |
