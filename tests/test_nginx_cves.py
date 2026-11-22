@@ -362,3 +362,29 @@ def test_nginx_memory_proofs_remain_passive():
     )
     assert result.exploit_ran is False
     assert "could crash a worker" in result.detail
+
+
+def test_42055_length_limit_status_differential():
+    with patch.object(cve_2026_42055, "_status", side_effect=[502, 502, 502]):
+        result = cve_2026_42055.run_aggressive_probe("https://fixture.test")
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["above_status"] == 502
+    assert result.evidence["above_differs"] is False
+
+    with patch.object(cve_2026_42055, "_status", side_effect=[502, 502, 500]):
+        result = cve_2026_42055.run_aggressive_probe("https://fixture.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["above_differs"] is True
+
+
+def test_42055_check_requires_aggressive_mode():
+    runtime = {"detected": True, "version": "1.30.2", "server": "nginx/1.30.2"}
+    result = cve_2026_42055.check(
+        "https://fixture.test",
+        run_exploit_check=True,
+        exploit_mode="safe",
+        nginx_runtime=runtime,
+    )
+    assert result.exploit_ran is False
+    assert "isolated-lab aggressive" in result.detail

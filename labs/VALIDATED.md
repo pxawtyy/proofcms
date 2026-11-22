@@ -221,7 +221,7 @@ Dispositions:
 | CVE-2026-9256 (NGINX rewrite captures) | Passive version/config detection only: needs vulnerable rewrite captures; no safe lab harness. |
 | CVE-2026-42530 (NGINX HTTP/3 UAF) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-90439 (NGINX HTTP/3 overflow) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
-| CVE-2026-42055 (NGINX proxy-v2/gRPC) | Passive version/config detection only: needs proxy-v2 or gRPC configuration; no safe lab harness. |
+| CVE-2026-42055 (NGINX proxy-v2/gRPC) | CONFIRMED (lab-side): aggressive HTTP/2 field-length status differential in `labs/cve-2026-42055` (2026-11-22) — with proxy-v2 upstream config, a header above `NGX_HTTP_V2_MAX_FIELD` (2,097,278 bytes) is accepted on 1.30.2 (HTTP 502, no rejection) and rejected on the 1.30.3 control (`too long http2 header value`, HTTP 500); a below-limit control and a small baseline match on both. Multi-megabyte header and possible worker restart; isolated lab only. |
 | CVE-2026-42533 (NGINX map-regex) | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
 | CVE-2026-56434 (NGINX SSI UAF) | Passive version/config detection only: needs `ngx_http_ssi_module` configured; no safe lab harness. |
 | CVE-2026-60005 (NGINX slice) | Passive version/config detection only: needs `ngx_http_slice_module` configured; no safe lab harness. |
