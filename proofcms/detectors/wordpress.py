@@ -28,6 +28,7 @@ KNOWN_PLUGIN_MARKERS = {
     "elementor-pro": r"Elementor\s*Pro|elementor-pro",
     "wp-libre-form": r"WP\s*Libre\s*Form|wp-libre-form|libre-form",
     "elex-helpdesk-customer-support-ticket-system": r"ELEX\s*(?:HelpDesk|Help\s*Desk)|elex[-_]helpdesk|wsdesk",
+    "wpforo": r"wpForo|wpforo",
     "wp-photo-album-plus": r"WP\s*Photo\s*Album\s*Plus|wp-photo-album-plus|wppa",
     "wp-compress-image-optimizer": r"WP\s*Compress|wp-compress",
     "ai-workflow-automation-ai-agent-hub": r"MCP\s*Server\s*for\s*WordPress|ai-workflow-automation|ai-agent-hub",
@@ -91,6 +92,7 @@ PLUGIN_MAIN_FILES = {
     "woocommerce-payments": "woocommerce-payments.php",
     "wp-file-manager": "file_folder_manager.php",
     "wpvivid-backuprestore": "wpvivid-backuprestore.php",
+    "wpforo": "wpforo.php",
 }
 
 
