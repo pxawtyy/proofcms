@@ -29,6 +29,7 @@ KNOWN_PLUGIN_MARKERS = {
     "wp-libre-form": r"WP\s*Libre\s*Form|wp-libre-form|libre-form",
     "elex-helpdesk-customer-support-ticket-system": r"ELEX\s*(?:HelpDesk|Help\s*Desk)|elex[-_]helpdesk|wsdesk",
     "wpforo": r"wpForo|wpforo",
+    "wpdirectorykit": r"WP\s*Directory\s*Kit|wpdirectorykit",
     "buddypress-media": r"rtMedia|buddypress-media|BuddyPress Media",
     "wp-photo-album-plus": r"WP\s*Photo\s*Album\s*Plus|wp-photo-album-plus|wppa",
     "wp-compress-image-optimizer": r"WP\s*Compress|wp-compress",
@@ -69,6 +70,7 @@ REST_NAMESPACE_PLUGINS = {
     "webp-converter": "webp-converter",
     "wpcom": "jetpack",
     "wp-mail-smtp": "wp-mail-smtp",
+    "wdk": "wpdirectorykit",
     "wp-rocket": "wp-rocket",
     "monsterinsights": "monsterinsights",
     "yoast": "yoast",
@@ -76,6 +78,7 @@ REST_NAMESPACE_PLUGINS = {
 
 PLUGIN_EXTRA_VERSION_FILES = {
     "wp-automatic": ("changelog", r"^\s*Version\s+([0-9]+(?:\.[0-9]+)+)"),
+    "wpdirectorykit": ("README.txt", r"^\s*Stable\s+tag:\s*([^\r\n<]+)"),
 }
 
 PLUGIN_MAIN_FILES = {
@@ -94,6 +97,7 @@ PLUGIN_MAIN_FILES = {
     "wp-file-manager": "file_folder_manager.php",
     "wpvivid-backuprestore": "wpvivid-backuprestore.php",
     "wpforo": "wpforo.php",
+    "wpdirectorykit": "wpdirectorykit.php",
     "buddypress-media": "index.php",
 }
 
