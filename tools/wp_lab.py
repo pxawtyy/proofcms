@@ -179,7 +179,17 @@ def reset(quiet: bool = False) -> None:
     )
     if restored.returncode != 0:
         raise SystemExit(clean(restored.stderr.decode("utf-8", "replace")) or "plugin restore failed")
-    exec_service(COMPOSE, "cli", "sh", "-c", "mkdir -p /var/www/html/wp-content/uploads && chown -R www-data:www-data /var/www/html/wp-content/plugins /var/www/html/wp-content/uploads")
+    exec_service(COMPOSE, "cli", "chown", "-R", "www-data:www-data", "/var/www/html/wp-content/plugins")
+    # The WordPress image runs Apache as www-data UID 33; the CLI image's
+    # www-data is UID 82. Chown uploads inside the WordPress container so the
+    # web process can create rtMedia upload directories after a reset.
+    exec_service(
+        COMPOSE,
+        "wordpress",
+        "sh",
+        "-c",
+        "mkdir -p /var/www/html/wp-content/uploads && chown -R www-data:www-data /var/www/html/wp-content/uploads",
+    )
     if not quiet:
         print("reset")
 
