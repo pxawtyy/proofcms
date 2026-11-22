@@ -242,6 +242,8 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2026-123634 | NGINX resolver / mirror | Passive version/config detection only: needs `resolver` + variable `proxy_pass` + `mirror`; decisive directives are private and no lab harness exists. |
 | CVE-2026-121810 | NGINX HTTP/3 / QUIC | Passive version + Alt-Svc HTTP/3 detection only: needs upstream forwarding and connection-slot pressure; private configuration, no lab harness. |
 | CVE-2026-113425 | NGINX mail proxy | Passive version detection only: needs `mail { proxy on; auth_http ...; }`; mail ports are observable but the decisive configuration is private, no lab harness. |
+| CVE-2014-7984 | Joomla core GMail auth | Passive version detection only: proof needs the legacy GMail auth plugin and an authentication service; no safe lab harness. Fixed in 2.5.19 / 3.2.3. |
+| CVE-2020-35616 | Joomla core ACL violation | Passive version detection only: proof needs authenticated access to an affected core view and a crafted ACL ruleset; no safe lab harness. Fixed in 3.9.23. |
 
 ## Shared infrastructure to retain
 

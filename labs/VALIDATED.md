@@ -175,6 +175,8 @@ Dispositions:
 | CVE | Note |
 |---|---|
 | CVE-2025-26854 (Articles Good Search) | BLOCKED_EXTERNAL: needs 1.2.4.0011 package. |
+| CVE-2014-7984 (core GMail auth bypass) | BLOCKED_EXTERNAL: passive version check only; proof needs the legacy GMail auth plugin enabled plus an authentication service. Fixed in 2.5.19 / 3.2.3; plugin removed in 4.0. |
+| CVE-2020-35616 (core write ACL violation) | BLOCKED_EXTERNAL: passive version check only; proof needs authenticated access to an affected core view and a crafted ACL ruleset. Fixed in 3.9.23. |
 | CVE-2026-61424 (DJ-Classifieds) | Validated via active safe probe; see Joomla active-probes table (`labs/cve-2026-61424`). |
 | CVE-2026-92222 (core SSRF) | Resolved via active safe probe; see Joomla active-probes table (`labs/cve-2026-92222`). |
 | PROOFCMS-K2-REGISTRATION-AVATAR | Companion surface probe (no CVE): reports the public K2 registration avatar upload surface used by CVE-2019-19576/19634. Passive detection only — needs Joomla + K2 with public registration enabled. |
