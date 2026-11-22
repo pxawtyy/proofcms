@@ -47,6 +47,12 @@
 - Component-level `core.admin` works: grant it on the component asset to make a
   delegated component admin who is not a global Super User. `root.1` alone
   does not grant it.
+- When building a source bundle from two upstream releases, do not pick files
+  from the diff `--stat` alone. Check that the changed files actually match the
+  advisory's subject: a triage packet for an HTTP/3 overflow shipped core/startup
+  hunks because those were the files in the selected version pair, and the
+  reviewer correctly flagged the mechanism as absent. Verify the changed file
+  names against the advisory description before packetizing.
 
 ## Evidence / tests
 
