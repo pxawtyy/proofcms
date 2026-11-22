@@ -758,6 +758,11 @@ COMMON_COMPONENTS: dict[str, dict[str, Any]] = {
         "routes": [],
         "markers": r"(?:plg_system_)?nrframework|NovaRain|Tassos\s+Framework",
     },
+    "astroid": {
+        "manifests": ["/administrator/manifests/libraries/astroid.xml"],
+        "routes": [],
+        "markers": r"Astroid\s+Framework|astroidframe\.work",
+    },
     "google_structured_data": {
         "manifests": [
             "/administrator/components/com_gsd/gsd.xml",
