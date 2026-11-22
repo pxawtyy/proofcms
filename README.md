@@ -50,6 +50,7 @@ A curated subset of the highest-impact checks. The complete registry lives in
 | `CVE-2024-4577` | PHP-CGI on Windows | Remote code execution |
 | `CVE-2025-53772` | IIS Web Deploy (msdeploy.axd) | Authenticated deserialization RCE |
 | WP2Shell / `CVE-2026-63030` + `CVE-2026-60137` | WordPress core chain | Remote code execution |
+| NGINX2Root / `CVE-2026-123007` + 4 more | NGINX HTTP/2, HTTP/3, resolver/mirror and mail proxy | Independent source-confirmed memory-safety defects; passive checks only |
 | `CVE-2012-1823` | PHP-CGI query string | Remote code execution |
 | `CVE-2019-11043` | PHP-FPM PATH_INFO underflow | Remote code execution |
 | `CVE-2015-8562` | Joomla core | Remote code execution |
@@ -109,17 +110,21 @@ checks. They report composition exposure, not a replayed end-to-end exploit:
 | `phpinfo-to-origin-bypass` | `PROOFCMS-PHPINFO-EXPOSURE` + `PROOFCMS-ORIGIN-DIRECT-ACCESS` + `CVE-2019-11043`/`CVE-2024-4577` | phpinfo and direct-origin access expose the PHP-FPM/CGI RCE surface. |
 | `joomla-session-to-upload` | `CVE-2026-90907` or `CVE-2026-48897` or `CVE-2026-92227` + `CVE-2026-105603` | A confirmed session-acquisition path plus the authenticated DJ-Classifieds avatar upload. |
 | `joomla-token-to-upload` | `CVE-2026-21627` + `CVE-2026-105606` | A token-handling weakness plus a token-gated Custom Tables upload. |
+| `nginx2root` | `CVE-2026-123007`, `CVE-2026-123634`, `CVE-2026-123633`, `CVE-2026-121810`, `CVE-2026-113425` | Five independent, configuration-dependent NGINX defects; portfolio exposure for patch prioritization, not a demonstrated chain. |
 
 ```bash
 proofcms -u https://lab.example.test --cms joomla --chain joomla-session-to-upload
 proofcms -u https://lab.example.test --cms joomla --chain joomla-token-to-upload
 proofcms -u https://lab.example.test --chain phpinfo-to-origin-bypass
+proofcms -u https://lab.example.test --chain nginx2root
 ```
 
 The aggregates are conservative: they use `LIKELY_VULNERABLE` when the
 prerequisites were confirmed independently but the chain itself was not run as
 one session or one request sequence. A patched prerequisite makes the chain
-`NOT_AFFECTED`.
+`NOT_AFFECTED`. `nginx2root` is a portfolio aggregate of independent paths, so
+it reports exposure for prioritization only and never claims a demonstrated
+chain.
 
 ## Requirements
 
