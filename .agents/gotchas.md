@@ -38,6 +38,15 @@
   `live_site` matching the loopback URL, `session_handler='database'`.
 - Re-running a seed after `installation/` was removed: guard on
   `configuration.php` presence instead of waiting for installer files.
+- Joomla asset-rule JSON is `action -> group id -> allow`, e.g.
+  `{"core.admin":{"7":1}}`. Writing it group-first (`{"7":{"core.admin":1}}`)
+  parses as a bogus action named `7` and grants nothing — the user then fails
+  `allowSave()`/`canView()` with an unrelated 403. Verify the ACL inside the
+  container (`$user->authorise('core.admin','com_users')`) before trusting a
+  permission fixture.
+- Component-level `core.admin` works: grant it on the component asset to make a
+  delegated component admin who is not a global Super User. `root.1` alone
+  does not grant it.
 
 ## Evidence / tests
 
