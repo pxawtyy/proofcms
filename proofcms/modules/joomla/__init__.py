@@ -2,6 +2,7 @@
 
 from . import (
     cve_2010_4166,
+    cve_2012_1563,
     cve_2014_7984,
     cve_2015_7297,
     cve_2015_7857,
@@ -12,6 +13,7 @@ from . import (
     cve_2017_8917,
     cve_2017_14596,
     cve_2018_6376,
+    cve_2018_11323,
     cve_2018_15882,
     cve_2019_19576,
     cve_2019_19634,
@@ -103,6 +105,7 @@ from . import (
 
 AVAILABLE_CVES: dict[str, str] = {
     "CVE-2010-4166": "proofcms.modules.joomla.cve_2010_4166",
+    "CVE-2012-1563": "proofcms.modules.joomla.cve_2012_1563",
     "CVE-2014-7984": "proofcms.modules.joomla.cve_2014_7984",
     "CVE-2015-7297": "proofcms.modules.joomla.cve_2015_7297",
     "CVE-2015-7857": "proofcms.modules.joomla.cve_2015_7857",
@@ -114,6 +117,7 @@ AVAILABLE_CVES: dict[str, str] = {
     "CVE-2017-8917": "proofcms.modules.joomla.cve_2017_8917",
     "CVE-2018-15882": "proofcms.modules.joomla.cve_2018_15882",
     "CVE-2018-6376": "proofcms.modules.joomla.cve_2018_6376",
+    "CVE-2018-11323": "proofcms.modules.joomla.cve_2018_11323",
     "CVE-2019-19576": "proofcms.modules.joomla.cve_2019_19576",
     "CVE-2019-19634": "proofcms.modules.joomla.cve_2019_19634",
     "CVE-2020-35616": "proofcms.modules.joomla.cve_2020_35616",
@@ -205,6 +209,7 @@ AVAILABLE_CVES: dict[str, str] = {
 __all__ = [
     "AVAILABLE_CVES",
     "cve_2010_4166",
+    "cve_2012_1563",
     "cve_2014_7984",
     "cve_2015_7297",
     "cve_2015_7857",
@@ -215,6 +220,7 @@ __all__ = [
     "cve_2017_8917",
     "cve_2017_14596",
     "cve_2018_6376",
+    "cve_2018_11323",
     "cve_2018_15882",
     "cve_2019_19576",
     "cve_2019_19634",
