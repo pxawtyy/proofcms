@@ -239,6 +239,9 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2026-42533 | NGINX map-regex | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
 | CVE-2024-58288 | GeneXus Protection Server | Windows service unquoted-path local privilege escalation: needs a Windows host and the 9.7.2.10 installer; no Linux web harness. |
 | CVE-2026-56434 / CVE-2026-60005 | NGINX SSI / slice modules | Passive version/config detection only: needs the respective module configured; no safe lab harness. |
+| CVE-2026-123634 | NGINX resolver / mirror | Passive version/config detection only: needs `resolver` + variable `proxy_pass` + `mirror`; decisive directives are private and no lab harness exists. |
+| CVE-2026-121810 | NGINX HTTP/3 / QUIC | Passive version + Alt-Svc HTTP/3 detection only: needs upstream forwarding and connection-slot pressure; private configuration, no lab harness. |
+| CVE-2026-113425 | NGINX mail proxy | Passive version detection only: needs `mail { proxy on; auth_http ...; }`; mail ports are observable but the decisive configuration is private, no lab harness. |
 
 ## Shared infrastructure to retain
 

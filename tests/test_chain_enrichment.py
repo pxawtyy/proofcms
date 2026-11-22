@@ -3,6 +3,7 @@ from __future__ import annotations
 from proofcms.chains import AVAILABLE_CHAINS
 from proofcms.chains.joomla_session_to_upload import aggregate as session_to_upload
 from proofcms.chains.joomla_token_to_upload import aggregate as token_to_upload
+from proofcms.chains.nginx2root import aggregate as nginx2root
 from proofcms.chains.phpinfo_origin_bypass import aggregate as phpinfo_origin
 from proofcms.modules.generic import AVAILABLE_CVES as GENERIC_CVES
 from proofcms.modules.joomla import AVAILABLE_CVES as JOOMLA_CVES
@@ -143,3 +144,46 @@ def test_token_to_upload_chain_not_affected_when_token_is_patched():
         ]
     )
     assert result["status"] == "NOT_AFFECTED"
+
+
+def test_nginx2root_portfolio_reports_independent_exposure():
+    results = [
+        _result(cve, "LIKELY_VULNERABLE")
+        for cve in (
+            "CVE-2026-123007",
+            "CVE-2026-123634",
+            "CVE-2026-123633",
+            "CVE-2026-121810",
+            "CVE-2026-113425",
+        )
+    ]
+    result = nginx2root(results)
+    assert result["status"] == "LIKELY_VULNERABLE"
+    assert result["confidence"] == "MEDIUM"
+    assert len(result["components"]) == 5
+    assert "no cross-defect chain" in result["detail"]
+
+
+def test_nginx2root_portfolio_not_affected_when_all_patched():
+    results = [
+        _result(cve, "PATCHED")
+        for cve in (
+            "CVE-2026-123007",
+            "CVE-2026-123634",
+            "CVE-2026-123633",
+            "CVE-2026-121810",
+            "CVE-2026-113425",
+        )
+    ]
+    assert nginx2root(results)["status"] == "NOT_AFFECTED"
+
+
+def test_nginx2root_portfolio_inconclusive_when_partial():
+    result = nginx2root(
+        [
+            _result("CVE-2026-123007", "LIKELY_VULNERABLE"),
+            _result("CVE-2026-123634", "NOT_CONFIRMED"),
+        ]
+    )
+    assert result["status"] == "INCONCLUSIVE"
+    assert result["component_statuses"]["CVE-2026-113425"] == "MISSING"

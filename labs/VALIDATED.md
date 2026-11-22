@@ -215,6 +215,9 @@ Dispositions:
 | CVE-2026-42533 (NGINX map-regex) | Passive version/config detection only: needs a vulnerable map regex; no safe lab harness. |
 | CVE-2026-56434 (NGINX SSI UAF) | Passive version/config detection only: needs `ngx_http_ssi_module` configured; no safe lab harness. |
 | CVE-2026-60005 (NGINX slice) | Passive version/config detection only: needs `ngx_http_slice_module` configured; no safe lab harness. |
+| CVE-2026-123634 (NGINX resolver/mirror) | BLOCKED_EXTERNAL: core detached-list use-after-free and the 1.31.9 fix are source-confirmed, but `resolver` + variable `proxy_pass` + `mirror` are private config and no lab exists. Module is passive-only. |
+| CVE-2026-121810 (NGINX HTTP/3 QUIC) | BLOCKED_EXTERNAL: stream-tree insertion ordering flaw and the 1.31.9 fix are source-confirmed, but upstream forwarding and connection pressure are private config and no lab exists. Module is passive-only with Alt-Svc HTTP/3 gating. |
+| CVE-2026-113425 (NGINX mail auth_http) | BLOCKED_EXTERNAL: client/auth connection lifetime mismatch and the 1.31.9 fix are source-confirmed, but `mail { proxy on; auth_http ...; }` is private config and no lab exists. Module is passive-only. |
 
 ## PHP runtimes — active probes
 

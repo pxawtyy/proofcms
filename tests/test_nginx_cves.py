@@ -14,8 +14,11 @@ from proofcms.modules.generic import (
     cve_2026_56434,
     cve_2026_60005,
     cve_2026_90439,
+    cve_2026_113425,
+    cve_2026_121810,
     cve_2026_123007,
     cve_2026_123633,
+    cve_2026_123634,
 )
 
 
@@ -90,6 +93,9 @@ def test_nginx_detector_rejects_fake_phpinfo_content():
         (cve_2026_90439, "1.31.5", "1.31.6"),
         (cve_2026_123633, "1.31.8", "1.31.9"),
         (cve_2026_123007, "1.31.8", "1.31.9"),
+        (cve_2026_123634, "1.31.8", "1.31.9"),
+        (cve_2026_121810, "1.31.8", "1.31.9"),
+        (cve_2026_113425, "1.31.8", "1.31.9"),
     ],
 )
 def test_nginx_advisory_version_boundaries(module, vulnerable, fixed):
@@ -117,6 +123,48 @@ def test_new_nginx_lower_boundaries_are_not_affected():
     assert cve_2026_90439.classify_version("1.29.1") == "NOT_AFFECTED"
     assert cve_2026_123633.classify_version("1.19.6") == "NOT_AFFECTED"
     assert cve_2026_123007.classify_version("1.9.4") == "NOT_AFFECTED"
+    assert cve_2026_123634.classify_version("1.13.3") == "NOT_AFFECTED"
+    assert cve_2026_121810.classify_version("1.24.9") == "NOT_AFFECTED"
+    assert cve_2026_113425.classify_version("0.5.14") == "NOT_AFFECTED"
+
+
+def test_config_dependent_nginx_cve_lower_bounds():
+    assert cve_2026_123634.classify_version("1.13.4") == "LIKELY_VULNERABLE"
+    assert cve_2026_121810.classify_version("1.25.0") == "LIKELY_VULNERABLE"
+    assert cve_2026_113425.classify_version("0.5.15") == "LIKELY_VULNERABLE"
+
+
+def test_nginx3_upstream_cve_requires_observable_h3_path():
+    runtime = {
+        "detected": True,
+        "version": "1.31.8",
+        "source": "/:Server",
+        "server": "nginx/1.31.8",
+        "http3_advertised": False,
+    }
+    result = cve_2026_121810.check("https://fixture.test", nginx_runtime=runtime)
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["http3_advertised"] is False
+
+    runtime["http3_advertised"] = True
+    result = cve_2026_121810.check("https://fixture.test", nginx_runtime=runtime)
+    assert result.status == "LIKELY_VULNERABLE"
+    assert result.confidence == "HIGH"
+
+
+def test_config_dependent_nginx_cves_have_no_active_probe():
+    runtime = {
+        "detected": True,
+        "version": "1.31.8",
+        "source": "/:Server",
+        "server": "nginx/1.31.8",
+    }
+    for module in (cve_2026_123634, cve_2026_113425):
+        result = module.check(
+            "https://fixture.test", run_exploit_check=True, nginx_runtime=runtime
+        )
+        assert result.exploit_ran is False
+        assert "not visible" in result.detail
 
 
 def test_window_underflow_cve_stable_and_mainline_boundaries():
@@ -293,6 +341,8 @@ def test_private_nginx_configuration_is_required_for_likely_status():
         cve_2026_60005,
         cve_2026_123633,
         cve_2026_123007,
+        cve_2026_123634,
+        cve_2026_113425,
     )
     results = [module.check("https://fixture.test", nginx_runtime=runtime) for module in modules]
     assert all(result.status == "NOT_CONFIRMED" for result in results)
