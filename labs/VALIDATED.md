@@ -217,7 +217,7 @@ Dispositions:
 | CVE-2023-21722 (.NET DoS) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36560 (ASP.NET bypass) | Passive version detection only: exact servicing build required; no lab harness. |
 | CVE-2023-36899 (ASP.NET EoP) | Passive version detection only: needs IIS/.NET app-pool and OS prerequisites; no lab harness. |
-| CVE-2026-42945 (NGINX rewrite) | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. |
+| CVE-2026-42945 (NGINX rewrite) | Passive version/config detection only: needs a vulnerable rewrite directive sequence; memory-corruption proof has no safe lab harness. Review + negative lab (2026-11-22): the 1.30.0→1.30.1 fix is one line (`e->is_args = 0` in `ngx_http_script_regex_end_code`); a paired ASAN lab (`labs/cve-2026-42945`) with several rewrite/regex-capture configs and encoded-path triggers produced no differential on either build. Exact trigger config is in the vendor-only advisory, so no probe. |
 | CVE-2026-9256 (NGINX rewrite captures) | Passive version/config detection only: needs vulnerable rewrite captures; no safe lab harness. |
 | CVE-2026-42530 (NGINX HTTP/3 UAF) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
 | CVE-2026-90439 (NGINX HTTP/3 overflow) | Passive version/config detection only: needs HTTP/3 + `ngx_http_v3_module`; no safe lab harness. |
