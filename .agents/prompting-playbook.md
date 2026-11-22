@@ -123,6 +123,13 @@ source, the fix, and the benign lab observation.
   charset path. Audit the framework source and run a minimal request: the Rack
   multipart `charset` + `_method.upcase` path was verified after the review
   said it required a non-default encoding.
+- A packet that asks the reviewer to design or rank observation techniques
+  ("workaround", "alternative designs", "verification endpoint") can be
+  blocked instantly even when the wording is sanitized. Keep the request to
+  classification, reachability conditions, control expectations, mitigations
+  and evidence thresholds. Report negative lab findings as verified facts;
+  do not ask the reviewer to propose a technique. Avoid "workaround" in the
+  filename and title.
 
 ## Note
 
