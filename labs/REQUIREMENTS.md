@@ -246,7 +246,7 @@ for CVE-2026-61424 (see the active-probes table).
 | CVE-2014-7984 | Joomla core GMail auth | Passive version detection only: proof needs the legacy GMail auth plugin and an authentication service; no safe lab harness. Fixed in 2.5.19 / 3.2.3. |
 | CVE-2018-11323 | Joomla core access-level ACL | Passive version detection only: proof needs an authenticated user-group manager; no safe lab harness. Fixed in 3.8.8. |
 | CVE-2018-15881 | Joomla core custom-field ACL | Passive version detection only: proof needs an authenticated custom-field editor and disabled-field ACL state; no safe lab harness. Fixed in 3.8.12. |
-| CVE-2019-10945 | Joomla com_media traversal | Passive version detection only: proof needs Media Manager access and a crafted folder parameter; no safe lab harness. Fixed in 3.9.5. |
+| CVE-2019-10945 | Joomla com_media traversal | Paired loopback lab at `labs/cve-2019-10945` (3.9.4 / 3.9.5) with admin account and seeded sentinel symlink; read-only safe probe needs `admin_user`, `admin_password`, `sentinel_folder`, `sentinel_file`. `..` in `folder` is blocked by Joomla's path filter. |
 | CVE-2020-13763 | Joomla core default textfilter | Passive version detection only: proof needs a guest-facing input field and the default global textfilter configuration; no safe lab harness. Fixed in 3.9.19. |
 | CVE-2020-35616 | Joomla core ACL violation | Passive version detection only: proof needs authenticated access to an affected core view and a crafted ACL ruleset; no safe lab harness. Fixed in 3.9.23. |
 
