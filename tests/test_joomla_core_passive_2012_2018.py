@@ -12,7 +12,7 @@ def test_1563_version_gates():
     assert cve_2012_1563.classify_version("2.5.2") == "LIKELY_VULNERABLE"
     assert cve_2012_1563.classify_version("2.5.3") == "PATCHED"
     assert cve_2012_1563.classify_version("3.0.0") == "PATCHED"
-    assert cve_2012_1563.classify_version(None) == "INCONCLUSIVE"
+    assert cve_2012_1563.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
 
 
 def test_11323_version_gates():
@@ -24,14 +24,47 @@ def test_11323_version_gates():
     assert cve_2018_11323.classify_version(None) == "DETECTED_VERSION_UNKNOWN"
 
 
-def test_passive_core_check_has_no_active_proof():
+def test_1563_aggressive_requires_mode():
     result = cve_2012_1563.check(
         "https://fixture.test", joomla_version="2.5.2", run_exploit_check=True
     )
     assert result.status == "LIKELY_VULNERABLE"
-    assert result.exploit_available is False
     assert result.exploit_ran is False
-    assert "version-based assessment only" in result.detail
+    assert "isolated-lab aggressive" in result.detail
+
+
+def test_1563_registration_state_differential():
+    from unittest.mock import patch
+
+    token = "0123456789abcdef0123456789abcdef"
+    form_html = f'<input name="{token}" value="1"><input name="jform[username]" value="">'
+    step1 = {"status": 200, "body": "The email address you entered is already in use or invalid."}
+    affected = {
+        "status": 200,
+        "body": "Registration failed: Only users with Super Admin permissions can change other Super Admin user accounts.",
+    }
+    fixed = {"status": 200, "body": "Registration failed: An error was encountered while sending the registration email."}
+    with patch.object(cve_2012_1563, "_token", return_value=token), patch.object(
+        cve_2012_1563, "HttpClient"
+    ) as client:
+        instance = client.return_value
+        instance.get.return_value = {"status": 200, "body": form_html}
+        instance.post.side_effect = [step1, affected]
+        result = cve_2012_1563.run_aggressive_probe("https://fixture.test")
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["step2_super_message"] is True
+    assert result.evidence["step1_invalid_email_message"] is True
+
+    with patch.object(cve_2012_1563, "_token", return_value=token), patch.object(
+        cve_2012_1563, "HttpClient"
+    ) as client:
+        instance = client.return_value
+        instance.get.return_value = {"status": 200, "body": form_html}
+        instance.post.side_effect = [step1, fixed]
+        result = cve_2012_1563.run_aggressive_probe("https://fixture.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["step2_super_message"] is False
 
 
 def test_11323_safe_probe_requires_account_and_level():
