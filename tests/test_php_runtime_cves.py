@@ -80,3 +80,37 @@ def test_fpm_unknown_version_is_not_affected_on_disclosed_apache_origin():
     )
     assert result.status == "NOT_AFFECTED"
     assert result.confidence == "HIGH"
+
+
+def test_fpm_qsl_status_differential():
+    # Baseline, then the sweep: one characteristic status change.
+    values = [200] + [200] * 20 + [502] + [200] * 100
+
+    def statuses(*_args, **_kwargs):
+        return values.pop(0)
+
+    with patch.object(cve_2019_11043, "_request", side_effect=statuses):
+        result = cve_2019_11043.run_safe_probe("https://example.test")
+    assert result.status == "VULNERABLE"
+    assert result.confidence == "CONFIRMED"
+    assert result.evidence["change_count"] == 1
+    assert result.evidence["read_only"] is True
+
+
+def test_fpm_qsl_no_status_change():
+    with patch.object(cve_2019_11043, "_request", return_value=200):
+        result = cve_2019_11043.run_safe_probe("https://example.test")
+    assert result.status == "NOT_CONFIRMED"
+    assert result.evidence["change_count"] == 0
+
+
+def test_fpm_check_routes_safe_mode():
+    runtime = {"detected": True, "version": "7.3.10", "server": "nginx/1.17"}
+    finding = cve_2019_11043.check(
+        "https://example.test",
+        run_exploit_check=True,
+        exploit_mode="aggressive",
+        php_runtime=runtime,
+    )
+    assert finding.exploit_ran is False
+    assert "read-only safe" in finding.detail
