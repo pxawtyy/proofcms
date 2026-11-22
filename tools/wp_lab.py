@@ -24,6 +24,10 @@ One-shot validation (compact JSON, vulnerable + patched control):
 Declarative form (see ``labs/cve-2024-10402/lab.json``):
 
     python tools/wp_lab.py run labs/cve-2024-10402 --pretty
+
+A lab can pin a different WordPress core with ``"core": "7.0"`` in
+``lab.json``. The driver updates core after the snapshot and restores the
+image's pinned core after the run, so the shared snapshot is not contaminated.
 """
 
 from __future__ import annotations
@@ -201,6 +205,19 @@ def status() -> None:
         print(clean(result.stdout or result.stderr))
 
 
+def _set_core(version: str | None) -> None:
+    """Move the shared fixture to a specific WordPress core version.
+
+    The snapshot stays on the image's pinned core so other labs are not
+    contaminated; each vulnerable/patched run upgrades core after the restore.
+    """
+    if not version:
+        return
+    result = _wp("core", "update", f"--version={version}", "--force")
+    if result.returncode != 0:
+        raise SystemExit(clean(result.stderr) or clean(result.stdout) or f"core update to {version} failed")
+
+
 def validate(
     cve: str,
     vuln: str,
@@ -213,20 +230,26 @@ def validate(
     pretty: bool,
     seed_entries: list[Any] | None = None,
     refresh_snapshot: bool = False,
+    core_version: str | None = None,
 ) -> int:
     up(quiet=True)
+    original_core = None
+    if core_version:
+        original_core = _wp("core", "version").stdout.strip()
     if seed_entries:
         _seed(seed_entries)
     if refresh_snapshot:
         # Capture the seeded state so reset() between the vulnerable and
         # patched runs keeps the accounts/content the proof needs.
         snapshot(force=True, quiet=True)
+    _set_core(core_version)
     install(vuln, cache_dir=cache_dir, quiet=True)
     vulnerable = run_proofcms(cve, url, "wordpress", mode, proofcms_args, timeout)
 
     patched_run = None
     if patched:
         reset(quiet=True)
+        _set_core(core_version)
         install(patched, cache_dir=cache_dir, quiet=True)
         patched_run = run_proofcms(cve, url, "wordpress", mode, proofcms_args, timeout)
 
@@ -234,6 +257,11 @@ def validate(
     if vulnerable.get("state") != "VULNERABLE" or (patched_run and patched_run.get("state") == "VULNERABLE"):
         errors = php_errors(COMPOSE, "wordpress")
     result = compact(cve, vulnerable, patched_run, errors)
+    if core_version and original_core and original_core != core_version:
+        # Leave the shared fixture on the image's pinned core. The snapshot
+        # database is the base state, so restore both sides together.
+        reset(quiet=True)
+        _set_core(original_core)
     print(json.dumps(result, indent=2 if pretty else None))
     return 0 if result["verdict"] == "CONFIRMED_WITH_CONTROL" else 2
 
@@ -273,6 +301,7 @@ def run_lab(lab_path: Path, cve: str | None, pretty: bool) -> int:
         pretty=pretty,
         seed_entries=list(config.get("seed") or []),
         refresh_snapshot=True,
+        core_version=proof.get("core") or config.get("core"),
     )
 
 
@@ -311,6 +340,7 @@ def main() -> int:
     validate_parser.add_argument("--proofcms-arg", action="append", default=[])
     validate_parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE))
     validate_parser.add_argument("--timeout", type=int, default=120)
+    validate_parser.add_argument("--core", help="WordPress core version to install after snapshot/reset")
     validate_parser.add_argument("--pretty", action="store_true")
 
     run_parser = sub.add_parser("run")
@@ -342,6 +372,7 @@ def main() -> int:
             args.cache_dir,
             args.timeout,
             args.pretty,
+            core_version=args.core,
         )
     elif args.command == "run":
         return run_lab(Path(args.lab), args.cve, args.pretty)

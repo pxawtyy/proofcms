@@ -30,6 +30,7 @@ KNOWN_PLUGIN_MARKERS = {
     "elex-helpdesk-customer-support-ticket-system": r"ELEX\s*(?:HelpDesk|Help\s*Desk)|elex[-_]helpdesk|wsdesk",
     "wpforo": r"wpForo|wpforo",
     "wpdirectorykit": r"WP\s*Directory\s*Kit|wpdirectorykit",
+    "ajax-load-more": r"Ajax\s+Load\s+More|ajax-load-more|ajaxloadmore",
     "buddypress-media": r"rtMedia|buddypress-media|BuddyPress Media",
     "wp-photo-album-plus": r"WP\s*Photo\s*Album\s*Plus|wp-photo-album-plus|wppa",
     "wp-compress-image-optimizer": r"WP\s*Compress|wp-compress",
@@ -79,6 +80,7 @@ REST_NAMESPACE_PLUGINS = {
 PLUGIN_EXTRA_VERSION_FILES = {
     "wp-automatic": ("changelog", r"^\s*Version\s+([0-9]+(?:\.[0-9]+)+)"),
     "wpdirectorykit": ("README.txt", r"^\s*Stable\s+tag:\s*([^\r\n<]+)"),
+    "ajax-load-more": ("README.txt", r"^\s*Stable\s+tag:\s*([^\r\n<]+)"),
 }
 
 PLUGIN_MAIN_FILES = {
@@ -98,6 +100,7 @@ PLUGIN_MAIN_FILES = {
     "wpvivid-backuprestore": "wpvivid-backuprestore.php",
     "wpforo": "wpforo.php",
     "wpdirectorykit": "wpdirectorykit.php",
+    "ajax-load-more": "ajax-load-more.php",
     "buddypress-media": "index.php",
 }
 
