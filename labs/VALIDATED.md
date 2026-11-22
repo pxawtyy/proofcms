@@ -178,6 +178,8 @@ Dispositions:
 | CVE-2012-1563 (core privilege escalation) | BLOCKED_EXTERNAL: passive version check only; proof needs public registration and a crafted registration state. Fixed in 2.5.3. |
 | CVE-2014-7984 (core GMail auth bypass) | BLOCKED_EXTERNAL: passive version check only; proof needs the legacy GMail auth plugin enabled plus an authentication service. Fixed in 2.5.19 / 3.2.3; plugin removed in 4.0. |
 | CVE-2018-11323 (core access-level ACL violation) | BLOCKED_EXTERNAL: passive version check only; proof needs an authenticated account able to manage user groups and access levels. Fixed in 3.8.8. |
+| CVE-2018-15881 (core custom-field ACL) | BLOCKED_EXTERNAL: passive version check only; proof needs an authenticated custom-field editor and disabled-field ACL state. Fixed in 3.8.12. |
+| CVE-2019-10945 (com_media directory traversal) | BLOCKED_EXTERNAL: passive version check only; proof needs Media Manager access and a crafted folder parameter. Fixed in 3.9.5. |
 | CVE-2020-13763 (core default textfilter) | BLOCKED_EXTERNAL: passive version check only; proof needs a guest-facing input field and the default global textfilter configuration. Fixed in 3.9.19. |
 | CVE-2020-35616 (core write ACL violation) | BLOCKED_EXTERNAL: passive version check only; proof needs authenticated access to an affected core view and a crafted ACL ruleset. Fixed in 3.9.23. |
 | CVE-2026-61424 (DJ-Classifieds) | Validated via active safe probe; see Joomla active-probes table (`labs/cve-2026-61424`). |
