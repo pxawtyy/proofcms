@@ -1,0 +1,101 @@
+name: proofcms-wpvdb-aa354358
+
+services:
+  db-vuln:
+    image: mariadb:10.11@sha256:6c65a843396dc6c78dd0da19eccaa0a91d25d9d26a4c2afcb75010ac3f59f5ea
+    tmpfs: /var/lib/mysql
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: proofcms
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    networks: [lab]
+
+  db-fixed:
+    image: mariadb:10.11@sha256:6c65a843396dc6c78dd0da19eccaa0a91d25d9d26a4c2afcb75010ac3f59f5ea
+    tmpfs: /var/lib/mysql
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: proofcms
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    networks: [lab]
+
+  wp-vuln:
+    image: wordpress:7.1.0-php8.3-apache@sha256:d0e8fb8de617c2949bffb473c5f515869255003b53e86333c5a91a5cdc883996
+    depends_on:
+      db-vuln: { condition: service_healthy }
+    environment:
+      WORDPRESS_DB_HOST: db-vuln
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    ports:
+      - "127.0.0.1:9220:80"
+    volumes:
+      - wp-vuln:/var/www/html
+    networks: [lab]
+
+  wp-fixed:
+    image: wordpress:7.1.1-php8.3-apache@sha256:f5413918c7858c97bb7d2b65f68d3ed38a97472deba9eb58eb3e1ab1eb2c4beb
+    depends_on:
+      db-fixed: { condition: service_healthy }
+    environment:
+      WORDPRESS_DB_HOST: db-fixed
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    ports:
+      - "127.0.0.1:9221:80"
+    volumes:
+      - wp-fixed:/var/www/html
+    networks: [lab]
+
+  cli-vuln:
+    image: wordpress:cli-php8.2@sha256:be56991798a70b0491f406f0a088ec3f12b5cb915ab6949dced0d9052861265b
+    entrypoint: ["tail", "-f", "/dev/null"]
+    user: "0:0"
+    depends_on:
+      db-vuln: { condition: service_healthy }
+      wp-vuln: { condition: service_started }
+    environment:
+      WORDPRESS_DB_HOST: db-vuln
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp-vuln:/var/www/html
+    networks: [lab]
+
+  cli-fixed:
+    image: wordpress:cli-php8.2@sha256:be56991798a70b0491f406f0a088ec3f12b5cb915ab6949dced0d9052861265b
+    entrypoint: ["tail", "-f", "/dev/null"]
+    user: "0:0"
+    depends_on:
+      db-fixed: { condition: service_healthy }
+      wp-fixed: { condition: service_started }
+    environment:
+      WORDPRESS_DB_HOST: db-fixed
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp-fixed:/var/www/html
+    networks: [lab]
+
+volumes:
+  wp-vuln:
+  wp-fixed:
+
+networks:
+  lab: {}

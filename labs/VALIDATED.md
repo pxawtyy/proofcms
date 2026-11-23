@@ -67,7 +67,7 @@ Dispositions:
 | CVE-2026-6692 (Slider Revolution) | Parked: 7.0.6 front AJAX is read-only and upload handlers enforce mime/extension. Advisory detail (2026-11-22): the defect is in `_get_media_url` / `_check_file_path` (insufficient file-type validation on the downloaded path); authenticated subscriber+ required; partially patched in 7.0.10, fully in 7.0.11. Still needs the 7.0.10/7.0.11 package (paid) for a real fixed control before an active probe can be validated. |
 | CVE-2024-4439 | Passive advisory only (`exploit_modes` empty; PoC recorded as metadata but never sent automatically): unauthenticated stored XSS in the Avatar block, WP 6.0.x–6.5.1 branch backports. No fixture needed — version detection from the core manifest. |
 | WPVDB-df1ca42d-b835-4ed6-a634-3f62ac020e77 | Passive advisory only (WPScan ID, no CVE): core comment-moderation stored XSS, branch-specific fixes. No fixture needed — version detection. |
-| WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa | Passive advisory only (WPScan ID, no CVE): core comment stored XSS, branch-specific fixes. No fixture needed — version detection. |
+| WPVDB-aa354358-3a32-4e81-8628-d1aa917b5efa | Passive advisory only (WPScan ID, no CVE): core comment stored XSS, branch-specific fixes. Version detection. Negative lab (2026-11-23): the 7.1.0 to 7.1.1 fix makes the `wpautop()` blockquote rewrite quote-aware, but comment KSES strips blockquote attributes and escapes `>` before that runs, so a paired 7.1.0/7.1.1 lab (`labs/wpvdb-aa354358`) produced no HTTP differential. No public PoC; no probe. |
 | WPVDB-5e9804e5-bbd4-4836-a5f0-b4388cc39225 | Passive advisory only (WPScan ID, no CVE): core insecure deserialization, branch-specific fixes. No fixture needed — version detection. |
 
 ## Joomla — active probes
