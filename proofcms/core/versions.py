@@ -58,7 +58,10 @@ def version_in_specifier(version: str | None, specifier_str: str) -> bool | None
     if parsed is None:
         return None
     try:
-        return parsed in SpecifierSet(specifier_str)
+        # A disclosed prerelease (1.5.21-rc1) must still be evaluated against
+        # an upper bound such as <=1.5.21; packaging excludes prereleases
+        # unless the specifier itself mentions one.
+        return parsed in SpecifierSet(specifier_str, prereleases=True)
     except (InvalidSpecifier, TypeError, ValueError):
         return None
 

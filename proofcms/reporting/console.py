@@ -2,61 +2,16 @@ from __future__ import annotations
 
 import importlib
 import re
-import urllib.parse
-from copy import deepcopy
 from typing import Any
 
 from ..core.categories import normalize_metadata
 from ..core.models import CMSInfo
-
-SENSITIVE_QUERY_KEYS = {
-    "access_token", "api_key", "apikey", "auth", "authorization", "key", "nonce",
-    "password", "passwd", "secret", "sig", "signature", "token",
-}
-
-
-def redact_url(value: str) -> str:
-    """Redact URL credentials and commonly sensitive query parameters."""
-    try:
-        parsed = urllib.parse.urlsplit(value)
-    except ValueError:
-        return value
-    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
-        return value
-    host = parsed.hostname or ""
-    if ":" in host and not host.startswith("["):
-        host = f"[{host}]"
-    try:
-        port = parsed.port
-    except ValueError:
-        port = None
-    netloc = ("***@" if parsed.username is not None else "") + host + (f":{port}" if port else "")
-    query = urllib.parse.urlencode(
-        [(key, "***" if key.lower() in SENSITIVE_QUERY_KEYS else item) for key, item in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)],
-        doseq=True,
-    )
-    return urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, query, parsed.fragment))
-
-
-def redact_text(value: str) -> str:
-    """Redact every HTTP(S) URL embedded in free-form text."""
-    return re.sub(r"https?://[^\s'\"<>]+", lambda match: redact_url(match.group(0)), value)
-
-
-def redact_output(value: Any) -> Any:
-    """Return a report-safe copy with URLs and sensitive mapping keys redacted."""
-    if isinstance(value, dict):
-        return {
-            key: "***" if str(key).lower() in SENSITIVE_QUERY_KEYS else redact_output(item)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [redact_output(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(redact_output(item) for item in value)
-    if isinstance(value, str):
-        return redact_text(value)
-    return deepcopy(value)
+from ..core.redact import (
+    is_sensitive_key,
+    redact_output,
+    redact_text,
+    redact_url,
+)
 
 
 def strip_ansi(text: str) -> str:
@@ -105,6 +60,12 @@ def sanitize_argv(argv: list[str]) -> list[str]:
             skip_next = True
         elif arg.startswith("--url="):
             sanitized.append("--url=" + redact_url(arg.split("=", 1)[1]))
+        elif arg.startswith("--") and "=" in arg:
+            flag, _ = arg.split("=", 1)
+            sanitized.append(f"{flag}=***" if is_sensitive_key(flag) else redact_url(arg))
+        elif arg.startswith("--") and is_sensitive_key(arg) and i + 1 < len(argv):
+            sanitized.extend([arg, "***"])
+            skip_next = True
         else:
             sanitized.append(redact_url(arg))
     return sanitized
@@ -234,9 +195,9 @@ def print_chain_results(chains: list[dict[str, Any]]):
         color = status_color(chain["status"])
         reset = "\033[0m"
         print(f"{color}{chain['chain']}: {chain['status']} ({chain['confidence']}){reset}")
-        print(f"  Components: {', '.join(chain.get('components', []))}")
-        print(f"  Detail: {chain['detail']}")
-        print(f"  Action: {chain['action']}")
+        print(f"  Components: {redact_text(', '.join(chain.get('components', [])))}")
+        print(f"  Detail: {redact_text(str(chain['detail']))}")
+        print(f"  Action: {redact_text(str(chain['action']))}")
     print()
 
 
@@ -246,10 +207,13 @@ def print_one_result(result: dict | Any):
     reset = "\033[0m"
     print(f"{color}{res_dict['cve']}: {res_dict['status']} ({res_dict['confidence']}){reset}")
     print(f"  Vulnerability type: {res_dict.get('vulnerability_type') or 'Other'}")
-    print(f"  Component: {res_dict['component']} {res_dict['component_version'] or 'unknown'}")
-    print(f"  Rule: {res_dict['affected_rule']}")
-    print(f"  Detail: {res_dict['detail']}")
-    print(f"  Action: {res_dict['action']}")
+    print(
+        f"  Component: {redact_text(str(res_dict['component']))} "
+        f"{res_dict['component_version'] or 'unknown'}"
+    )
+    print(f"  Rule: {redact_text(str(res_dict['affected_rule']))}")
+    print(f"  Detail: {redact_text(str(res_dict['detail']))}")
+    print(f"  Action: {redact_text(str(res_dict['action']))}")
     if res_dict.get("exploit_available"):
         if res_dict.get("exploit_ran"):
             state = "ran"
@@ -261,10 +225,11 @@ def print_one_result(result: dict | Any):
     if res_dict.get("proof_url"):
         print(f"  Proof URL: {redact_url(res_dict['proof_url'])}")
     if res_dict.get("uploaded_filename"):
+        filename = redact_text(str(res_dict["uploaded_filename"]))
         if res_dict["status"] in {"VULNERABLE", "VULNERABLE_UPLOAD_ONLY"}:
-            print(f"  Cleanup: delete uploaded file {res_dict['uploaded_filename']}")
+            print(f"  Cleanup: delete uploaded file {filename}")
         else:
-            print(f"  Cleanup: if present, delete uploaded file {res_dict['uploaded_filename']}")
+            print(f"  Cleanup: if present, delete uploaded file {filename}")
     if res_dict.get("cleanup_attempted"):
         print(f"  Cleanup verified: {'yes' if res_dict.get('cleanup_verified') else 'no'}")
     if res_dict.get("evidence"):

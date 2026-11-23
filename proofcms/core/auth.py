@@ -10,6 +10,7 @@ existing unit tests keep patching the same names.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 from .http import HttpClient, normalize_url
 from .probes import extract_csrf_from_html
@@ -62,7 +63,9 @@ def joomla_admin_login(
     login response status (legacy media-probe behavior).
     """
     if base_url:
-        normalize_url(base_url)
+        # Validate the target shape; the client already carries the base used
+        # for the relative administrator path.
+        _ = normalize_url(base_url)
     page = client.get(JOOMLA_ADMIN_PATH, timeout=timeout)
     token = extract_csrf_from_html(str(page.get("body", "")))
     if not token:
@@ -131,8 +134,7 @@ def wordpress_admin_login(
     timeout: int = 12,
 ) -> tuple[bool, str]:
     """Log a session client into WordPress; return ``(ok, final_url)``."""
-    if base_url:
-        normalize_url(base_url)
+    base = normalize_url(base_url) if base_url else ""
     client.get(WP_LOGIN_PATH, timeout=timeout)
     login = client.post(
         WP_LOGIN_PATH,
@@ -140,5 +142,13 @@ def wordpress_admin_login(
         timeout=timeout,
     )
     final_url = str(login.get("final_url") or "")
+    status = int(login.get("status") or 0)
+    if status and status not in {200, 302, 303}:
+        return False, final_url
+    if base and urlsplit(final_url).netloc.lower() != urlsplit(base).netloc.lower():
+        return False, final_url
     body = str(login.get("body", ""))
-    return ("/wp-admin/" in final_url and "Dashboard" in body), final_url
+    # Language-independent WordPress admin markers; "Dashboard" alone misses
+    # localized installations (the client already asks for pt-BR).
+    markers = ("wpadminbar", "wp-admin-bar", "wp-admin/wp-admin.css", "/wp-admin/", "dashboard")
+    return any(marker.lower() in body.lower() for marker in markers), final_url

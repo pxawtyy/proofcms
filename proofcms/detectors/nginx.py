@@ -6,7 +6,7 @@ import socket
 import ssl
 import urllib.parse
 
-from ..core.http import HttpClient, tls_verification_enabled
+from ..core.http import HttpClient, _acquire_rate_limit, tls_verification_enabled
 from ..core.models import NginxRuntimeInfo
 
 _NGINX_VERSION = re.compile(r"\bnginx(?:/|\s+)(\d+\.\d+(?:\.\d+)?)", re.IGNORECASE)
@@ -34,6 +34,7 @@ def _origin_http2_enabled(target_url: str, timeout: int, proxy: str | None) -> b
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
     context.set_alpn_protocols(["h2", "http/1.1"])
+    _acquire_rate_limit()
     try:
         with (
             socket.create_connection((parsed.hostname, parsed.port or 443), timeout=timeout) as raw,
@@ -67,13 +68,11 @@ def detect_nginx_runtime(
     response = client.get("/")
     headers = _headers(response)
     response_server = headers.get("server") or None
-    body = str(response.get("body", ""))[:64_000]
     direct_nginx = bool(response_server and "nginx" in response_server.lower())
     match = _NGINX_VERSION.search(response_server or "") if direct_nginx else None
-    match = match or _NGINX_VERSION.search(body)
     version = match.group(1) if match else None
     detected = bool(match or direct_nginx)
-    source = "/:Server" if direct_nginx else "/:body" if match else "not-detected"
+    source = "/:Server" if direct_nginx else "not-detected"
 
     edge_server = None if direct_nginx else response_server
     alt_svc_http3 = bool(_HTTP3_ALT_SVC.search(headers.get("alt-svc", "")))
@@ -102,13 +101,12 @@ def detect_nginx_runtime(
                 break
             sample_headers = _headers(sample)
             sample_server = sample_headers.get("server") or ""
-            sample_body = str(sample.get("body", ""))[:64_000]
-            sample_match = _NGINX_VERSION.search(sample_server) or _NGINX_VERSION.search(sample_body)
+            sample_match = _NGINX_VERSION.search(sample_server)
             if sample_match or "nginx" in sample_server.lower():
                 detected = True
                 version = sample_match.group(1) if sample_match else None
                 server = sample_server or (f"nginx/{version}" if version else "nginx")
-                source = f"{path}:Server" if sample_match and sample_server else f"{path}:body"
+                source = f"{path}:Server"
                 break
 
     return NginxRuntimeInfo(

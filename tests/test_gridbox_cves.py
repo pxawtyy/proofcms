@@ -70,6 +70,11 @@ class FakeClient:
             return {"status": 200, "body": s["upload_marker"], "headers": {}}
         return {"status": 200, "body": "<html>home</html>", "headers": {}}
 
+    def post(self, url, fields=None, **kwargs):
+        from urllib.parse import urlencode
+
+        return self.request(url, data=urlencode(fields or {}).encode(), **kwargs)
+
     def request(self, url, **kwargs):
         s = self.state
         query = {k: v[-1] for k, v in parse_qs(urlparse(url).query).items()}
@@ -77,6 +82,8 @@ class FakeClient:
         task = fields.get("task", "")
         if task == "login":
             s["admin_logged_in"] = bool(s.get("admin_ok", True))
+            body = "<html>com_cpanel logout</html>" if s["admin_logged_in"] else ""
+            return {"status": 200, "body": body, "headers": {}}
         elif task == "user.login":
             s["identity"] = s.get("login_identity") or s.get("victim_user")
         elif task == "store.register":

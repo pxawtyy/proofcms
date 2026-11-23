@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -50,6 +52,43 @@ def append_text_result(lines: list[str], result: dict | Any):
     lines.append(f"Action     : {res.get('action')}")
 
 
+def _write_exclusive(path: Path, content: str) -> None:
+    """Write ``content`` atomically without replacing an existing path."""
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)
+            os.unlink(temporary)
+        except FileExistsError:
+            raise
+        except PermissionError:
+            # Managed Windows folders can deny hard links. O_EXCL still
+            # prevents an overwrite race, unlike exists()+replace().
+            out_fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            try:
+                with os.fdopen(out_fd, "w", encoding="utf-8") as out:
+                    out.write(content)
+                    out.flush()
+                    os.fsync(out.fileno())
+            except Exception:
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
+                raise
+            os.unlink(temporary)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def write_text_report(
     path: Path | str,
     report: dict,
@@ -60,7 +99,7 @@ def write_text_report(
     tool_name: str = "ProofCMS",
 ):
     report_path = Path(path)
-    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     lines = []
     lines.append(f"{tool_name} detailed run report")
     lines.append("=" * 80)
@@ -184,9 +223,9 @@ def write_text_report(
             for chain in chains:
                 lines.append("-" * 80)
                 lines.append(f"{chain.get('chain')}: {chain.get('status')} ({chain.get('confidence')})")
-                lines.append(f"Components : {', '.join(chain.get('components', []))}")
-                lines.append(f"Detail     : {chain.get('detail')}")
-                lines.append(f"Action     : {chain.get('action')}")
+                lines.append(f"Components : {redact_text(', '.join(chain.get('components', [])))}")
+                lines.append(f"Detail     : {redact_text(str(chain.get('detail') or ''))}")
+                lines.append(f"Action     : {redact_text(str(chain.get('action') or ''))}")
         lines.append("")
 
     content = "\n".join(lines) + "\n"
@@ -194,8 +233,7 @@ def write_text_report(
     counter = 1
     while True:
         try:
-            with open(target_file, "x", encoding="utf-8") as fh:
-                fh.write(content)
+            _write_exclusive(target_file, content)
             break
         except FileExistsError:
             target_file = report_path.parent / f"{report_path.stem}_{counter}{report_path.suffix}"

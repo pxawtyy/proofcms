@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
+
+from ..core.redact import redact_output
 
 SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
 SARIF_VERSION = "2.1.0"
@@ -82,6 +84,14 @@ def build_sarif_report(report: dict[str, Any]) -> dict[str, Any]:
                 ]
             results.append(result)
 
+    summary = report.get("summary_by_status") or {}
+    if not isinstance(summary, dict):
+        summary = {}
+    try:
+        error_count = int(summary.get("ERROR", 0) or 0)
+    except (TypeError, ValueError):
+        error_count = 0
+    execution_successful = not report.get("modules_setup_failed") and error_count == 0
     run: dict[str, Any] = {
         "tool": {
             "driver": {
@@ -93,18 +103,23 @@ def build_sarif_report(report: dict[str, Any]) -> dict[str, Any]:
         },
         "invocations": [
             {
-                "executionSuccessful": True,
+                "executionSuccessful": execution_successful,
                 "endTimeUtc": report.get("finished_at") or report.get("started_at"),
             }
         ],
         "results": results,
         "properties": {
             "run_id": report.get("run_id"),
-            "summary_by_status": report.get("summary_by_status") or {},
+            "summary_by_status": summary,
         },
     }
-    return {
-        "$schema": SARIF_SCHEMA,
-        "version": SARIF_VERSION,
-        "runs": [run],
-    }
+    return cast(
+        dict[str, Any],
+        redact_output(
+            {
+                "$schema": SARIF_SCHEMA,
+                "version": SARIF_VERSION,
+                "runs": [run],
+            }
+        ),
+    )

@@ -9,6 +9,8 @@ the matched value — so CI logs cannot re-expose it.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import subprocess
 import sys
@@ -17,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-_SKIP_PREFIXES = ("reports/", "logs/", ".git/")
+_SKIP_PREFIXES = (".git/",)
 _SKIP_SUFFIXES = {
     ".bundle",
     ".gif",
@@ -34,11 +36,43 @@ _SKIP_SUFFIXES = {
 _RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("gov-br-host", re.compile(r"\b[a-z0-9][a-z0-9.-]*\.gov\.br\b", re.IGNORECASE)),
     ("edu-br-host", re.compile(r"\b[a-z0-9][a-z0-9.-]*\.edu\.br\b", re.IGNORECASE)),
-    # Codenames are split so this file does not match its own rules.
-    ("target-codename", re.compile(r"\b(?:" + "si" "ga|fa" "tec|pro" "desp|cp" r"s)\b", re.IGNORECASE)),
     ("target-report-slug", re.compile(r"\b[a-z0-9][a-z0-9-]*-gov-br\b", re.IGNORECASE)),
-    ("vendor-build", re.compile(r"\b10_1_8-\d{5}\b")),
 )
+
+
+def _load_local_rules() -> tuple[tuple[str, re.Pattern[str]], ...]:
+    """Load engagement-specific rules from an untracked local JSON file.
+
+    The public repository must not carry target codenames or vendor build
+    identifiers. Operators can keep those patterns in
+    ``.redaction-local.json`` (gitignored) or point
+    ``PROOFCMS_REDACTION_RULES`` at another file.
+    """
+    configured = os.environ.get("PROOFCMS_REDACTION_RULES")
+    path = Path(configured) if configured else REPO_ROOT / ".redaction-local.json"
+    if not path.is_file():
+        return ()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ()
+    if not isinstance(payload, list):
+        return ()
+    rules: list[tuple[str, re.Pattern[str]]] = []
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        pattern = entry.get("pattern")
+        if not isinstance(pattern, str) or not pattern:
+            continue
+        try:
+            rules.append((str(entry.get("name") or "local-rule"), re.compile(pattern)))
+        except re.error:
+            continue
+    return tuple(rules)
+
+
+_ACTIVE_RULES = _RULES + _load_local_rules()
 
 
 @dataclass(frozen=True)
@@ -51,7 +85,7 @@ class Violation:
 def scan_text(text: str, path: str = "<text>") -> list[Violation]:
     violations: list[Violation] = []
     for line_number, line in enumerate(text.splitlines(), start=1):
-        for rule, pattern in _RULES:
+        for rule, pattern in _ACTIVE_RULES:
             if pattern.search(line):
                 violations.append(Violation(path=path, line=line_number, rule=rule))
     return violations

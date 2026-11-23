@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..core.redact import redact_text, redact_url
+
 
 def _index(report: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
     indexed: dict[tuple[str, str], dict[str, Any]] = {}
+    if not isinstance(report, dict):
+        return indexed
     for target in report.get("targets", []) or []:
+        if not isinstance(target, dict):
+            continue
         target_url = str(target.get("target") or target.get("scan_base_url") or "")
         for finding in target.get("results", []) or []:
+            if not isinstance(finding, dict):
+                continue
             cve = str(finding.get("cve") or "")
             if cve:
                 indexed[(target_url, cve)] = finding
@@ -66,27 +74,29 @@ def format_scan_diff(diff: dict[str, Any]) -> str:
     changes = diff.get("changes") or []
     if not changes:
         return "Scan diff: no changes vs the previous report."
-    lines = [f"Scan diff vs {diff.get('previous_report') or 'previous report'}:"]
+    lines = [f"Scan diff vs {redact_url(str(diff.get('previous_report') or 'previous report'))}:"]
     for change in changes:
         kind = change["change"]
+        target = redact_url(str(change["target"]))
+        component = redact_text(str(change["component"]))
         if kind == "status_changed":
             lines.append(
-                f"  {change['target']} {change['cve']} ({change['component']}): "
+                f"  {target} {change['cve']} ({component}): "
                 f"{change['previous_status']} -> {change['current_status']}"
             )
         elif kind == "version_changed":
             lines.append(
-                f"  {change['target']} {change['cve']} ({change['component']}): "
+                f"  {target} {change['cve']} ({component}): "
                 f"version {change['previous_version']} -> {change['current_version']}"
             )
         elif kind == "new":
             lines.append(
-                f"  NEW {change['target']} {change['cve']} ({change['component']}): "
+                f"  NEW {target} {change['cve']} ({component}): "
                 f"{change['current_status']}"
             )
         else:
             lines.append(
-                f"  REMOVED {change['target']} {change['cve']} ({change['component']}): "
+                f"  REMOVED {target} {change['cve']} ({component}): "
                 f"{change['previous_status']}"
             )
     return "\n".join(lines)

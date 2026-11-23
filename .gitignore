@@ -10,6 +10,7 @@ htmlcov/
 venv/
 reports/*.txt
 reports/*.json
+.redaction-local.json
 dist/
 build/
 proofcms.egg-info

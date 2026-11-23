@@ -47,7 +47,9 @@ def confirm_shortcode_output(
     """
     body = fetch(url_template.format(marker=marker, tag=probe_tag))
     reflection = extract(body)
-    evaluated = expected_output in body and marker in body
+    # The sink must have reflected the probe; otherwise matching strings
+    # elsewhere on the page can masquerade as handler output.
+    evaluated = bool(reflection) and expected_output in body and marker in body
     return EvaluationResult(
         evaluated=evaluated,
         reflection=reflection,

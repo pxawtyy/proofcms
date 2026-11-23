@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import hashlib
 import threading
-import urllib.parse
 from typing import Any
+
+from .redact import redact_url
 
 MAX_ENTRIES = 50
 
@@ -30,17 +31,8 @@ _thread_state = threading.local()
 
 
 def _scrub_url(url: str) -> str:
-    try:
-        parts = urllib.parse.urlsplit(url or "")
-    except ValueError:
-        return url
-    if parts.username is None and "@" not in (parts.netloc or ""):
-        return url
-    host = parts.hostname or ""
-    if ":" in host and not host.startswith("["):
-        host = f"[{host}]"
-    netloc = host + (f":{parts.port}" if parts.port else "")
-    return urllib.parse.urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+    """Redact credentials, sensitive query values and fragments in one URL."""
+    return redact_url(url or "")
 
 
 def make_entry(

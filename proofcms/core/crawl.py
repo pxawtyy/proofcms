@@ -117,6 +117,11 @@ def rest_list_links(
         if isinstance(payload, list):
             for item in payload:
                 link = item.get(link_key) if isinstance(item, dict) else None
-                if isinstance(link, str) and link not in pages:
-                    pages.append(link)
+                if not isinstance(link, str):
+                    continue
+                resolved = urllib.parse.urljoin(f"{base}/", link)
+                if urllib.parse.urlsplit(resolved).scheme.lower() not in {"http", "https"}:
+                    continue
+                if same_site(base, resolved) and resolved not in pages:
+                    pages.append(resolved)
     return pages

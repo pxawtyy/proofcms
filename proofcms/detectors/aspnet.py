@@ -120,7 +120,10 @@ def detect_aspnet_runtime(
             source = match.group(1).strip()
             if not re.search(r"(?:gxcfg|login)\.js(?:$|\?)", source, re.IGNORECASE):
                 continue
-            asset = client.get(urljoin(final_url, source))
+            asset_url = urljoin(final_url, source)
+            if urlsplit(asset_url).netloc.lower() != urlsplit(final_url).netloc.lower():
+                continue
+            asset = client.get(asset_url)
             if asset.get("status") == 200:
                 asset_bodies.append(str(asset.get("body", ""))[:128_000])
             if len(asset_bodies) >= 4:

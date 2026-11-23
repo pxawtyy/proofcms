@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import copy
 import hashlib
-import random
+import ipaddress
+import math
 import re
 import secrets
-import string
+import socket
 import threading
 import time
 import urllib.error
@@ -27,7 +29,7 @@ DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9,pt-BR;q=0.8"
 MAX_RESPONSE_BYTES = 512 * 1024
 _TLS_VERIFY = True
 _thread_clients = threading.local()
-_discovery_cache: dict[tuple[str, int, str | None, bool], dict[str, Any]] = {}
+_discovery_cache: dict[tuple[str, int, str | None, bool, bool, str], dict[str, Any]] = {}
 _discovery_cache_enabled = False
 _discovery_cache_lock = threading.Lock()
 _rate_limit_rps: float | None = None
@@ -38,12 +40,14 @@ _rate_limit_lock = threading.Lock()
 def configure_rate_limit(requests_per_second: float | None) -> None:
     """Set a process-wide request rate (0/None disables the limiter)."""
     global _rate_limit_rps, _rate_limit_next
+    value: float | None = None
+    if requests_per_second is not None:
+        parsed = float(requests_per_second)
+        if math.isnan(parsed) or math.isinf(parsed) or parsed < 0:
+            raise ValueError("rate limit must be a finite non-negative number")
+        value = parsed if parsed > 0 else None
     with _rate_limit_lock:
-        _rate_limit_rps = (
-            float(requests_per_second)
-            if requests_per_second is not None and float(requests_per_second) > 0
-            else None
-        )
+        _rate_limit_rps = value
         _rate_limit_next = 0.0
 
 
@@ -77,16 +81,25 @@ def end_discovery_cache() -> None:
         _discovery_cache_enabled = False
 
 
+def _close_thread_clients() -> None:
+    clients = getattr(_thread_clients, "clients", None) or {}
+    for client in clients.values():
+        session = getattr(client, "session", None)
+        if session is not None:
+            session.close()
+    _thread_clients.clients = {}
+
+
 def configure_tls(verify: bool = True) -> None:
     """Set the process-wide TLS policy used by newly created clients."""
     global _TLS_VERIFY
     _TLS_VERIFY = verify
-    _thread_clients.clients = {}
+    _close_thread_clients()
 
 
 def reset_transport_state() -> None:
     """Drop thread-local clients so cookies never cross target boundaries."""
-    _thread_clients.clients = {}
+    _close_thread_clients()
     end_discovery_cache()
 
 
@@ -296,6 +309,19 @@ def application_base_url(url: str) -> str:
     return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
 
+def _multipart_param(value: str, parameter: str) -> str:
+    """Format one Content-Disposition parameter without header injection."""
+    text = str(value)
+    if "\r" in text or "\n" in text:
+        raise ValueError(f"invalid multipart {parameter}: CR/LF is not allowed")
+    try:
+        text.encode("latin-1")
+    except UnicodeEncodeError:
+        return f"{parameter}*=UTF-8''{urllib.parse.quote(text, safe='')}"
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'{parameter}="{escaped}"'
+
+
 def build_multipart(fields: dict, files: dict) -> tuple[str, bytes]:
     """
     Constructs a multipart/form-data payload with boundary.
@@ -303,18 +329,31 @@ def build_multipart(fields: dict, files: dict) -> tuple[str, bytes]:
     files: dict of {field_name: (filename, data, content_type)}
     Returns: (content_type_header_val, body_bytes)
     """
-    boundary = "".join(random.choices(string.ascii_letters + string.digits, k=32))
+    payload = b"".join(
+        [str(value).encode("utf-8") for value in fields.values()]
+        + [
+            data if isinstance(data, bytes) else str(data).encode("utf-8")
+            for _, data, _ in files.values()
+        ]
+    )
+    for _ in range(8):
+        boundary = secrets.token_bytes(16).hex()
+        if boundary.encode("ascii") not in payload:
+            break
+    else:
+        raise ValueError("could not generate a collision-free multipart boundary")
     body = b""
     for name, value in fields.items():
         body += f"--{boundary}\r\n".encode("latin-1")
-        body += f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("latin-1")
+        body += f"Content-Disposition: form-data; {_multipart_param(name, 'name')}\r\n\r\n".encode("latin-1")
         body += str(value).encode("utf-8") + b"\r\n"
     for field_name, (filename, data, content_type) in files.items():
         body += f"--{boundary}\r\n".encode("latin-1")
-        body += (
-            f'Content-Disposition: form-data; name="{field_name}"; '
-            f'filename="{filename}"\r\n'
-        ).encode("latin-1")
+        disposition = (
+            f"Content-Disposition: form-data; {_multipart_param(field_name, 'name')}; "
+            f"{_multipart_param(filename, 'filename')}"
+        )
+        body += f"{disposition}\r\n".encode("latin-1")
         body += f"Content-Type: {content_type}\r\n\r\n".encode("latin-1")
         body += data if isinstance(data, bytes) else data.encode("utf-8")
         body += b"\r\n"
@@ -416,6 +455,64 @@ class _RequestsResponse:
         self.close()
 
 
+def _ip_is_private(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return bool(
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_multicast
+        or address.is_unspecified
+    )
+
+
+def _host_is_private(url: str) -> bool:
+    """Return True when a URL host is loopback, private or otherwise local."""
+    host = urllib.parse.urlsplit(url).hostname
+    if not host:
+        return False
+    lowered = host.lower()
+    if lowered in {"localhost", "localhost.localdomain"} or lowered.endswith(".local"):
+        return True
+    try:
+        return _ip_is_private(ipaddress.ip_address(host))
+    except ValueError:
+        pass
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return False
+    for info in infos:
+        try:
+            if _ip_is_private(ipaddress.ip_address(info[4][0])):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def _redirect_allowed(current_url: str, target_url: str) -> bool:
+    """Allow HTTP(S) redirects that do not pivot a public scan into a local host."""
+    target = urllib.parse.urlsplit(target_url)
+    if target.scheme.lower() not in {"http", "https"}:
+        return False
+    return not (_host_is_private(target_url) and not _host_is_private(current_url))
+
+
+class _PolicySession(requests.Session):
+    """Requests session that validates each redirect before following it."""
+
+    def get_redirect_target(self, resp: requests.Response) -> str | None:
+        target = super().get_redirect_target(resp)
+        if not target:
+            return target
+        current = str(getattr(resp, "url", "") or "")
+        resolved = urllib.parse.urljoin(current, target)
+        if not _redirect_allowed(current, resolved):
+            raise requests.exceptions.InvalidURL(f"blocked out-of-scope redirect: {resolved}")
+        return target
+
+
 class _RequestsOpener:
     """Keep-alive transport with the same ``open(req, timeout=...)`` shape as urllib."""
 
@@ -460,7 +557,7 @@ class HttpClient:
         self.verify_tls = _TLS_VERIFY if verify_tls is None else verify_tls
         self.jar = RequestsCookieJar()
         self.transcript: list[dict[str, Any]] = []
-        self.session = requests.Session()
+        self.session = _PolicySession()
         self.session.cookies = self.jar
         self.session.trust_env = False
         self.session.verify = self.verify_tls
@@ -472,6 +569,15 @@ class HttpClient:
         self.session.verify = self.verify_tls
         self.opener = _RequestsOpener(self.session, self.timeout, True)
         self.no_redirect_opener = _RequestsOpener(self.session, self.timeout, False)
+
+    def close(self) -> None:
+        self.session.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
     def _resolve_url(self, url: str) -> str:
         if self.base_url and not url.startswith(("http://", "https://")):
@@ -509,13 +615,22 @@ class HttpClient:
 
         effective_timeout = timeout if timeout is not None else self.timeout
 
-        cache_key: tuple[str, int, str | None, bool] | None = None
-        if _discovery_cache_enabled and method.upper() == "GET" and not headers and data is None:
-            cache_key = (full_url, effective_timeout, self.proxy, self.verify_tls)
+        cache_key: tuple[str, int, str | None, bool, bool, str] | None = None
+        with _discovery_cache_lock:
+            cache_enabled = _discovery_cache_enabled
+        if cache_enabled and method.upper() == "GET" and not headers and data is None and not self.jar:
+            cache_key = (
+                full_url,
+                effective_timeout,
+                self.proxy,
+                self.verify_tls,
+                follow_redirects,
+                self.user_agent,
+            )
             with _discovery_cache_lock:
                 cached = _discovery_cache.get(cache_key)
             if cached is not None:
-                return cached
+                return copy.deepcopy(cached)
 
         _acquire_rate_limit()
         try:
@@ -671,11 +786,11 @@ def fetch_url(url: str, timeout: int = 12, proxy: str | None = None, session: An
         return cast(dict[str, Any], session.get(url, timeout=timeout))
     if not _discovery_cache_enabled:
         return request(url, method="GET", timeout=timeout, proxy=proxy)
-    key = (url, timeout, proxy, _TLS_VERIFY)
+    key = (url, timeout, proxy, _TLS_VERIFY, True, DEFAULT_USER_AGENT)
     with _discovery_cache_lock:
         cached = _discovery_cache.get(key)
     if cached is not None:
-        return cached
+        return copy.deepcopy(cached)
     response = request(url, method="GET", timeout=timeout, proxy=proxy)
     if response.get("status", 0) > 0:
         with _discovery_cache_lock:

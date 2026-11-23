@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import math
 import sys
 import tempfile
 import time
@@ -82,6 +83,8 @@ from proofcms.reporting import (
     print_result,
     print_wordpress_inventory,
     redact_output,
+    redact_text,
+    redact_url,
     sanitize_argv,
     status_color,
     strip_ansi,
@@ -211,6 +214,16 @@ def effective_exploit_mode(module, requested_mode: str) -> str:
     return "safe"
 
 
+def _rate_limit_arg(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("--rate-limit must be a number") from exc
+    if math.isnan(parsed) or math.isinf(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("--rate-limit must be a finite non-negative number")
+    return parsed
+
+
 def selection_needs_lab(exploits: set[str], requested_mode: str) -> bool:
     if requested_mode == "aggressive":
         return bool(exploits)
@@ -218,8 +231,11 @@ def selection_needs_lab(exploits: set[str], requested_mode: str) -> bool:
         return False
     # In auto mode, lab authorization is only needed if an exploit module ONLY offers aggressive mode
     for cve_id in exploits:
-        module = importlib.import_module(AVAILABLE_CVES[cve_id])
-        modes = module.metadata().get("exploit_modes", [])
+        try:
+            module = importlib.import_module(AVAILABLE_CVES[cve_id])
+            modes = module.metadata().get("exploit_modes", [])
+        except Exception:  # noqa: BLE001, S112 - unloadable module is reported later
+            continue
         if "aggressive" in modes and "safe" not in modes:
             return True
     return False
@@ -319,11 +335,17 @@ def run_lab_cleanup(args, targets: list[str], aggressive_args: dict) -> int:
                 aggressive_command=args.aggressive_command,
             )
         except Exception as exc:  # noqa: BLE001 - isolate cleanup failures per target
-            print(f"[{target}] {cve_id} cleanup ERROR: {type(exc).__name__}: {exc}")
+            print(
+                f"[{redact_url(target)}] {cve_id} cleanup ERROR: "
+                f"{type(exc).__name__}: {redact_text(str(exc))}"
+            )
             failures += 1
             continue
         shown = redact_output(dict(result))
-        print(f"[{target}] {cve_id} cleanup ok={shown.get('ok')}: {shown.get('detail')}")
+        print(
+            f"[{redact_url(target)}] {cve_id} cleanup ok={shown.get('ok')}: "
+            f"{redact_text(str(shown.get('detail') or ''))}"
+        )
         for path in shown.get("removed") or []:
             print(f"  removed: {path}")
         for path in shown.get("remaining") or []:
@@ -338,7 +360,10 @@ def run_lab_cleanup(args, targets: list[str], aggressive_args: dict) -> int:
 def main():
     monotonic_start = time.monotonic()
     start_time = datetime.now(timezone.utc)
-    parser = argparse.ArgumentParser(description=f"{TOOL_NAME} - CMS vulnerability validation hub")
+    parser = argparse.ArgumentParser(
+        description=f"{TOOL_NAME} - CMS vulnerability validation hub",
+        allow_abbrev=False,
+    )
     parser.add_argument("-u", "--url", help="Single target URL")
     parser.add_argument("-l", "--list", help="File with one target URL per line")
     parser.add_argument(
@@ -420,7 +445,7 @@ def main():
     )
     parser.add_argument(
         "--rate-limit",
-        type=float,
+        type=_rate_limit_arg,
         default=0.0,
         help="Maximum HTTP requests per second across the scan (0 = unlimited).",
     )
@@ -435,6 +460,14 @@ def main():
         action="store_true",
         help="Disable TLS certificate verification for isolated lab targets.",
     )
+    parser.add_argument(
+        "--probe-disclosed-origin",
+        action="store_true",
+        help=(
+            "Opt-in: connect directly to a public origin IP disclosed by /phpinfo.php. "
+            "TLS verification still follows the global --insecure policy."
+        ),
+    )
     parser.add_argument("--proxy", help="Proxy URL passed to CVE modules")
     parser.add_argument("--json", dest="json_path", help="Write JSON report to this path")
     parser.add_argument("--overwrite-json", action="store_true", help="Replace an existing --json report atomically")
@@ -444,6 +477,11 @@ def main():
         help="Compare against a previous JSON report and show only status/version changes.",
     )
     parser.add_argument("--sarif", dest="sarif_path", help="Write a SARIF 2.1.0 report to this path.")
+    parser.add_argument(
+        "--overwrite-sarif",
+        action="store_true",
+        help="Replace an existing --sarif report atomically",
+    )
     parser.add_argument("--report-dir", default=str(ROOT / "reports"), help="Directory for timestamped text reports")
     parser.add_argument("--no-text-report", action="store_true", help="Disable automatic timestamped text report")
     parser.add_argument("--show-patched", action="store_true", help="Show PATCHED CVEs in terminal and text report")
@@ -587,7 +625,7 @@ def main():
                     target_errors.append(diagnostic)
         if baseline.get("edge_interstitial"):
             print(
-                f"Warning: {target} returned a {baseline['edge_interstitial']} challenge page. "
+                f"Warning: {redact_url(target)} returned a {baseline['edge_interstitial']} challenge page. "
                 "CMS and vulnerability results may describe the edge page rather than the origin."
             )
         if baseline.get("status", 0) == 0:
@@ -675,7 +713,12 @@ def main():
             "session_cookie": node_runtime_info.session_cookie,
         }
         try:
-            php_runtime_info = detect_php_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
+            php_runtime_info = detect_php_runtime(
+                operational_target,
+                timeout=args.timeout,
+                proxy=args.proxy,
+                probe_disclosed_origin=args.probe_disclosed_origin,
+            )
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"PHP detection failed: {type(exc).__name__}: {exc}")
             from proofcms.core.models import PHPRuntimeInfo
@@ -1116,37 +1159,51 @@ def main():
         "targets": targets_reports,
     }
 
+    report_write_error = False
+
+    def note_report_error() -> None:
+        nonlocal report_write_error
+        report_write_error = True
+        summary["ERROR"] = summary.get("ERROR", 0) + 1
+        full_report["summary_by_status"] = summary
+
     if args.diff_path:
         try:
             previous = json.loads(Path(args.diff_path).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
-            print(f"Error: could not read --diff report {args.diff_path}: {exc}")
+            print(f"Error: could not read --diff report {redact_url(args.diff_path)}: {redact_text(str(exc))}")
+            note_report_error()
         else:
-            diff = build_scan_diff(previous, full_report, args.diff_path)
-            full_report["diff"] = diff
-            print()
-            print(format_scan_diff(diff))
-            print()
-
-    report_write_error = False
+            if not isinstance(previous, dict):
+                print(f"Error: --diff report {redact_url(args.diff_path)} is not a JSON object")
+                note_report_error()
+            else:
+                diff = build_scan_diff(previous, full_report, args.diff_path)
+                full_report["diff"] = diff
+                print()
+                print(format_scan_diff(diff))
+                print()
     if args.json_path:
         out = Path(args.json_path)
         try:
             saved_json = write_json_report(out, full_report, overwrite=args.overwrite_json)
             print(f"JSON report saved to: {saved_json}")
         except OSError as exc:
-            print(f"Error: could not save JSON report to {out}: {exc}")
-            summary["ERROR"] += 1
-            report_write_error = True
+            print(f"Error: could not save JSON report to {redact_url(str(out))}: {redact_text(str(exc))}")
+            note_report_error()
 
     if args.sarif_path:
         out = Path(args.sarif_path)
         try:
-            saved_sarif = write_json_report(out, build_sarif_report(full_report), overwrite=True)
-            print(f"SARIF report saved to: {saved_sarif}")
+            saved_sarif = write_json_report(
+                out,
+                build_sarif_report(full_report),
+                overwrite=args.overwrite_sarif,
+            )
+            print(f"SARIF report saved to: {redact_url(str(saved_sarif))}")
         except OSError as exc:
-            print(f"Error: could not save SARIF report to {out}: {exc}")
-            report_write_error = True
+            print(f"Error: could not save SARIF report to {redact_url(str(out))}: {redact_text(str(exc))}")
+            note_report_error()
 
     if not args.no_text_report:
         stamp = start_time.strftime("%Y%m%d_%H%M%S_%f")
@@ -1162,7 +1219,8 @@ def main():
             )
             print(f"Detailed report saved to: {saved_out}")
         except OSError as exc:
-            fallback = Path(tempfile.gettempdir()) / "proofcms-reports" / f"proofcms_{stamp}_{run_id}.txt"
+            fallback_dir = Path(tempfile.mkdtemp(prefix="proofcms-reports-"))
+            fallback = fallback_dir / f"proofcms_{stamp}_{run_id}.txt"
             try:
                 saved_fallback = write_text_report(
                     fallback,
@@ -1172,12 +1230,21 @@ def main():
                     show_not_detected=args.show_not_detected,
                     show_all=args.show_all,
                 )
-                print(f"Warning: could not save the detailed report to {out}: {exc}")
-                print(f"Detailed report saved to fallback path: {saved_fallback}")
+                print(
+                    f"Warning: could not save the detailed report to {redact_url(str(out))}: "
+                    f"{redact_text(str(exc))}"
+                )
+                print(f"Detailed report saved to fallback path: {redact_url(str(saved_fallback))}")
             except OSError as fallback_exc:
-                print(f"Warning: could not save the detailed report to {out}: {exc}")
-                print(f"Warning: fallback also failed at {fallback}: {fallback_exc}")
-                report_write_error = True
+                print(
+                    f"Warning: could not save the detailed report to {redact_url(str(out))}: "
+                    f"{redact_text(str(exc))}"
+                )
+                print(
+                    f"Warning: fallback also failed at {redact_url(str(fallback))}: "
+                    f"{redact_text(str(fallback_exc))}"
+                )
+                note_report_error()
 
     if fail_criteria:
         if "vulnerable" in fail_criteria and (

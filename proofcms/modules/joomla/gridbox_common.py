@@ -14,6 +14,7 @@ import secrets
 import string
 from typing import Any
 
+from ...core.auth import joomla_admin_login
 from ...core.http import HttpClient, form_encode
 from ...core.models import Finding
 from ...core.versions import parse_version_required, parse_version_safe
@@ -92,7 +93,7 @@ def frontend_login(
     tok = token(page.get("body", "") or "")
     if not tok:
         return False
-    client.request(
+    response = client.request(
         f"{base}/index.php?option=com_users&task=user.login",
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -103,28 +104,27 @@ def frontend_login(
         timeout=timeout,
         follow_redirects=False,
     )
-    return True
+    status = int(response.get("status") or 0)
+    body = str(response.get("body") or "")
+    if status in {301, 302, 303, 307, 308}:
+        return True
+    return status == 200 and not re.search(
+        r'name=["\'](?:password|passwd)["\']', body, re.IGNORECASE
+    )
 
 
 def admin_login(
     client: HttpClient, base: str, user: str, password: str, timeout: int
 ) -> bool:
-    page = client.get(f"{base}{ADMIN_LOGIN}", timeout=timeout)
-    tok = token(page.get("body", "") or "")
-    if not tok:
-        return False
-    client.request(
-        f"{base}{ADMIN_LOGIN}",
-        method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        data=form_encode({
-            "username": user, "passwd": password, "option": "com_login",
-            "task": "login", "return": "aW5kZXgucGhw", tok: "1",
-        }),
+    # Reuse the shared Joomla login, which verifies the dashboard response
+    # instead of treating every POST as success.
+    return joomla_admin_login(
+        client,
+        base_url=base,
+        username=user,
+        password=password,
         timeout=timeout,
-        follow_redirects=False,
     )
-    return True
 
 
 def admin_dashboard(client: HttpClient, base: str, timeout: int) -> bool:

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from ..core.http import HttpClient
 
@@ -89,8 +89,14 @@ def detect_genexus(target_url: str, timeout: int = 12, proxy: str | None = None)
         redirect = _JS_REDIRECT.search(body)
         if redirect:
             target = redirect.group(1).strip()
-            if not target.startswith(("http://", "https://", "#", "javascript:")):
-                login = client.get(urljoin(str(home.get("final_url") or target_url), target))
+            base_url = str(home.get("final_url") or target_url)
+            login_url = urljoin(base_url, target)
+            parsed_login = urlsplit(login_url)
+            if (
+                parsed_login.scheme.lower() in {"http", "https"}
+                and parsed_login.netloc.lower() == urlsplit(base_url).netloc.lower()
+            ):
+                login = client.get(login_url)
                 login_evidence, login_version, login_body = _inspect(login)
                 if login_evidence:
                     evidence = login_evidence

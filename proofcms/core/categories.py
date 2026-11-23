@@ -117,8 +117,9 @@ _CVE_TYPES = {
 
 def classify_vulnerability_type(cve: str, name: str = "") -> str:
     """Return a stable, human-readable category for a registered check."""
-    if cve in _CVE_TYPES:
-        return _CVE_TYPES[cve]
+    normalized = str(cve or "").strip().upper()
+    if normalized in _CVE_TYPES:
+        return _CVE_TYPES[normalized]
     lowered = name.lower()
     keyword_types = (
         (("sql injection", "sqli"), VulnerabilityType.SQL_INJECTION),

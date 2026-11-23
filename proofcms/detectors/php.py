@@ -52,11 +52,13 @@ def _probe_disclosed_origin(
     if not parsed.hostname:
         return False, None
     base_path = parsed.path.rstrip("/")
+    # Respect the process-wide TLS policy. Direct-to-IP probes normally fail
+    # certificate validation; an operator who needs the check can pass
+    # --insecure for an isolated lab instead of the module silently doing it.
     direct = HttpClient(
         base_url=f"https://{address.compressed}{base_path}",
         timeout=timeout,
         proxy=proxy,
-        verify_tls=False,
     )
     response = direct.get(
         path,
@@ -76,6 +78,7 @@ def detect_php_runtime(
     target_url: str,
     timeout: int = 12,
     proxy: str | None = None,
+    probe_disclosed_origin: bool = False,
 ) -> PHPRuntimeInfo:
     """Fingerprint the web-facing PHP runtime without creating files or invoking phpinfo()."""
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
@@ -89,13 +92,19 @@ def detect_php_runtime(
         phpinfo_response = {"status": 0, "body": ""}
     phpinfo_version, phpinfo_server, origin_ip = _phpinfo_data(phpinfo_response)
     phpinfo_exposed = phpinfo_version is not None or phpinfo_server is not None
-    origin_reachable, origin_server = _probe_disclosed_origin(
-        target_url,
-        origin_ip,
-        "phpinfo.php",
-        timeout,
-        proxy,
-    ) if phpinfo_exposed else (False, None)
+    # The disclosed address is controlled by the remote response. Connecting
+    # to it is an explicit opt-in (--probe-disclosed-origin), not a default.
+    origin_reachable, origin_server = (
+        _probe_disclosed_origin(
+            target_url,
+            origin_ip,
+            "phpinfo.php",
+            timeout,
+            proxy,
+        )
+        if phpinfo_exposed and probe_disclosed_origin
+        else (False, None)
+    )
     if phpinfo_exposed:
         return PHPRuntimeInfo(
             True,

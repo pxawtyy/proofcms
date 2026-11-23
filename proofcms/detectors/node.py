@@ -5,7 +5,7 @@ import re
 from ..core.http import HttpClient
 from ..core.models import NodeRuntimeInfo
 
-_VERSION = re.compile(r"(?:node(?:\.js)?[/\s:v]|v)(\d+\.\d+\.\d+)", re.IGNORECASE)
+_VERSION = re.compile(r"\bnode(?:\.js)?[/\s:v]+v?(\d+\.\d+\.\d+)", re.IGNORECASE)
 _FRAMEWORKS = {
     "express": "Express",
     "fastify": "Fastify",
