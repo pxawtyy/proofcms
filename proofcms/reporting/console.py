@@ -333,6 +333,7 @@ def print_result(
     aspnet = aspnet_runtime or {}
     print(
         f"ASP.NET: detected: {'yes' if aspnet.get('detected') else 'no'} | "
+        f"core: {'yes' if aspnet.get('core_detected') else 'no'} | "
         f"version: {aspnet.get('version') or 'unknown'} | source: {aspnet.get('source') or 'not-detected'}"
     )
     genexus = {

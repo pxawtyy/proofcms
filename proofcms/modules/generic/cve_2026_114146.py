@@ -13,6 +13,7 @@ from ...core.http import (
 )
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
+from .aspnet_common import core_runtime_gate
 
 CVE_ID = "CVE-2026-114146"
 NAME = "ASP.NET Core SignalR connection identity binding bypass"
@@ -363,19 +364,17 @@ def check(
 
     del cms_version, kwargs
     runtime = aspnet_runtime or {}
-    if not runtime.get("detected"):
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status=Status.NOT_DETECTED,
-            confidence=Confidence.MEDIUM,
-            component="ASP.NET Core / SignalR",
-            affected_rule=RULE,
-            exploit_available=HAS_EXPLOIT,
-            detail="ASP.NET Core / SignalR was not detected on the target; no runtime version was evaluated.",
-            action="No action is required unless the target is served by ASP.NET Core.",
-            vulnerability_type="Incorrect Authorization",
-        )
+    gate = core_runtime_gate(
+        cve=CVE_ID,
+        name=NAME,
+        rule=RULE,
+        component="ASP.NET Core / SignalR",
+        vulnerability_type="Incorrect Authorization",
+        aspnet_runtime=runtime,
+        exploit_available=HAS_EXPLOIT,
+    )
+    if gate is not None:
+        return gate
     passive = passive_result(runtime.get("version"))
     if not run_exploit_check:
         return passive

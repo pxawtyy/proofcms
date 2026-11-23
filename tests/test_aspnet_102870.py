@@ -12,7 +12,7 @@ def test_102870_is_passive():
     result = cve_2026_102870.check(
         "https://fixture.test",
         run_exploit_check=True,
-        aspnet_runtime={"detected": True, "version": "10.0.12"},
+        aspnet_runtime={"detected": True, "core_detected": True, "version": "10.0.12"},
     )
     assert result.status == "LIKELY_VULNERABLE"
     assert result.exploit_available is False

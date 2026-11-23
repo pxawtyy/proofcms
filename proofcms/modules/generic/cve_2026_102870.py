@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.models import Confidence, Finding, Status
+from ...core.models import Finding
 from ...core.versions import parse_version_required, parse_version_safe
+from .aspnet_common import core_runtime_gate
 
 CVE_ID = "CVE-2026-102870"
 NAME = "ASP.NET Core Blazor WebAssembly debugger code injection"
@@ -37,20 +38,17 @@ def check(
 ) -> Finding:
     del target_url, cms_version, timeout, proxy, kwargs
     runtime = aspnet_runtime or {}
-    if not runtime.get("detected"):
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status=Status.NOT_DETECTED,
-            confidence=Confidence.MEDIUM,
-            component=COMPONENT,
-            affected_rule=RULE,
-            exploit_available=HAS_EXPLOIT,
-            exploit_ran=False,
-            detail="ASP.NET Core / Blazor WebAssembly was not detected on the target; no runtime version was evaluated.",
-            action="No action is required unless the target is served by ASP.NET Core.",
-            vulnerability_type="Code Injection",
-        )
+    gate = core_runtime_gate(
+        cve=CVE_ID,
+        name=NAME,
+        rule=RULE,
+        component=COMPONENT,
+        vulnerability_type="Code Injection",
+        aspnet_runtime=runtime,
+        exploit_available=HAS_EXPLOIT,
+    )
+    if gate is not None:
+        return gate
     version = runtime.get("version")
     status = classify_version(version)
     if status == "LIKELY_VULNERABLE":

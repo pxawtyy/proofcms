@@ -5,6 +5,7 @@ from typing import Any
 from ...core.http import HttpClient, is_transport_error, normalize_url
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
+from .aspnet_common import core_runtime_gate
 
 CVE_ID = "CVE-2026-40372"
 NAME = "ASP.NET Core DataProtection signature verification bypass"
@@ -73,19 +74,17 @@ def check(
 ) -> Finding:
     del cms_version, kwargs
     runtime = aspnet_runtime or {}
-    if not runtime.get("detected"):
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status=Status.NOT_DETECTED,
-            confidence=Confidence.MEDIUM,
-            component="ASP.NET Core / DataProtection",
-            affected_rule=RULE,
-            exploit_available=HAS_EXPLOIT,
-            detail="ASP.NET Core / DataProtection was not detected on the target; no runtime version was evaluated.",
-            action="No action is required unless the target is served by ASP.NET Core.",
-            vulnerability_type="Improper Verification of Cryptographic Signature",
-        )
+    gate = core_runtime_gate(
+        cve=CVE_ID,
+        name=NAME,
+        rule=RULE,
+        component="ASP.NET Core / DataProtection",
+        vulnerability_type="Improper Verification of Cryptographic Signature",
+        aspnet_runtime=runtime,
+        exploit_available=HAS_EXPLOIT,
+    )
+    if gate is not None:
+        return gate
     base = normalize_url(target_url)
     client = HttpClient(timeout=timeout, proxy=proxy)
     surface = _protected_surface(client, base, timeout)

@@ -32,6 +32,7 @@ def test_detects_aspnet_and_genexus_fingerprints():
     assert info.genexus_version == "10.1.8-<build>"
     assert info.genexus_dbms == "sqlserver"
     assert info.session_secure is False
+    assert info.core_detected is False
 
 
 def test_detects_gene_xus_on_linked_application_subpath():
@@ -59,6 +60,46 @@ def test_aspnet_cves_are_not_confirmed_from_header_only():
 def test_aspnet_cves_are_not_detected_without_runtime():
     result = cve_2023_36899.check("https://target.test", aspnet_runtime={})
     assert result.status == "NOT_DETECTED"
+
+
+def test_aspnet_cves_use_the_4x_branch_instead_of_unknown_version():
+    runtime = {"detected": True, "version": "4.0.30319", "source": "/:X-AspNet-Version"}
+    result = cve_2018_8284.check("https://target.test", aspnet_runtime=runtime)
+    assert result.status == "INCONCLUSIVE"
+    assert "4.x" in result.detail
+    assert result.status != "DETECTED_VERSION_UNKNOWN"
+
+
+def test_aspnet_cves_are_not_affected_on_core_runtime():
+    runtime = {
+        "detected": True,
+        "core_detected": True,
+        "version": None,
+        "source": "/:Server:Kestrel",
+        "core_source": "/:Server:Kestrel",
+    }
+    result = cve_2023_36899.check("https://target.test", aspnet_runtime=runtime)
+    assert result.status == "NOT_AFFECTED"
+    assert "not the runtime in use" in result.detail
+
+
+def test_detects_aspnet_core_without_classic_headers():
+    response = {
+        "status": 200,
+        "headers": {
+            "Server": "Kestrel",
+            "Set-Cookie": ".AspNetCore.Session=abc; path=/",
+        },
+        "body": "<script src='_framework/blazor.webassembly.js'></script>",
+    }
+    client = type("Client", (), {"get": lambda self, path: response})
+    with patch("proofcms.detectors.aspnet.HttpClient", return_value=client()):
+        info = detect_aspnet_runtime("https://target.test")
+    assert info.detected is True
+    assert info.core_detected is True
+    assert info.version is None
+    assert "Server:Kestrel" in info.core_source
+    assert "ASP.NET_SessionId" not in info.source
 
 
 def test_source_records_the_response_path_with_the_version_header():

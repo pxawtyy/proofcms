@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from ..core.http import HttpClient, normalize_url
@@ -23,6 +24,26 @@ def _cookie_flags(set_cookie: str) -> tuple[bool, bool, str | None]:
     attrs = match.group("attrs")
     same_site = re.search(r"\bSameSite\s*=\s*([^;\s,]+)", attrs, re.IGNORECASE)
     return True, bool(re.search(r"\bSecure\b", attrs, re.IGNORECASE)), same_site.group(1) if same_site else None
+
+
+def _core_signals(response: dict[str, Any]) -> list[str]:
+    """Return strong ASP.NET Core/Kestrel fingerprints from one response.
+
+    ``ASP.NET_SessionId`` and ``X-AspNet-Version`` are classic ASP.NET/IIS
+    markers; they must never make a Core-only advisory look applicable.
+    """
+    headers = _headers(response)
+    body = str(response.get("body") or "")[:512_000]
+    signals: list[str] = []
+    if "kestrel" in headers.get("server", "").lower():
+        signals.append("Server:Kestrel")
+    if "asp.net core" in headers.get("x-powered-by", "").lower():
+        signals.append("X-Powered-By:ASP.NET Core")
+    if re.search(r"(?:^|[,;\s])\.AspNetCore\.[^=;\s]+=", headers.get("set-cookie", ""), re.IGNORECASE):
+        signals.append("Set-Cookie:.AspNetCore.*")
+    if re.search(r"blazor\.(?:webassembly|server)\.js|_framework/blazor|/_blazor\b", body, re.IGNORECASE):
+        signals.append("blazor-assets")
+    return signals
 
 
 def detect_aspnet_runtime(
@@ -105,11 +126,25 @@ def detect_aspnet_runtime(
             if len(asset_bodies) >= 4:
                 break
     fingerprint_body = body + "\n" + "\n".join(asset_bodies)
+    core_sources: list[str] = []
+    for item in responses:
+        item_path = urlsplit(str(item.get("final_url") or item.get("requested_url") or "/")).path or "/"
+        for signal in _core_signals(item):
+            entry = f"{item_path}:{signal}"
+            if entry not in core_sources:
+                core_sources.append(entry)
+    core_detected = bool(core_sources)
     asp_version = headers.get("x-aspnet-version") or headers.get("x-aspnetmvc-version")
     server = headers.get("server") or None
     session_cookie, session_secure, session_samesite = _cookie_flags(headers.get("set-cookie", ""))
     powered_by_aspnet = "asp.net" in headers.get("x-powered-by", "").lower()
-    detected = bool(asp_version or powered_by_aspnet or session_cookie or (server and "asp.net" in server.lower()))
+    detected = bool(
+        asp_version
+        or powered_by_aspnet
+        or session_cookie
+        or (server and "asp.net" in server.lower())
+        or core_detected
+    )
     sources = []
     source_prefix = selected_path if selected_path.startswith("/") else f"/{selected_path}"
     if asp_version:
@@ -118,6 +153,7 @@ def detect_aspnet_runtime(
         sources.append(f"{source_prefix}:X-Powered-By")
     if session_cookie:
         sources.append(f"{source_prefix}:Set-Cookie")
+    sources.extend(core_sources)
     generator_match = _GENERATOR.search(fingerprint_body)
     version_match = _VERSION_META.search(fingerprint_body)
     comment_match = _GENERATOR_COMMENT.search(fingerprint_body)
@@ -154,6 +190,8 @@ def detect_aspnet_runtime(
         genexus_generator=generator,
         genexus_dbms=dbms,
         genexus_source=",".join(gx_sources) or "not-detected",
+        core_detected=core_detected,
+        core_source=",".join(core_sources) or "not-detected",
     )
 
 

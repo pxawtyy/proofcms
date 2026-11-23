@@ -59,11 +59,26 @@ def test_55315_check_promotes_confirmed_probe():
             run_exploit_check=True,
             exploit_mode="safe",
             timeout=1,
-            aspnet_runtime={"detected": True, "version": "8.0.20"},
+            aspnet_runtime={"detected": True, "core_detected": True, "version": "8.0.20"},
         )
     assert result.status == "VULNERABLE"
     assert result.confidence == "CONFIRMED"
     assert result.exploit_ran is True
+
+
+def test_55315_classic_aspnet_is_not_affected():
+    result = cve_2025_55315.check(
+        "https://fixture.test",
+        aspnet_runtime={
+            "detected": True,
+            "version": "4.0.30319",
+            "session_cookie": True,
+            "source": "/:X-AspNet-Version",
+        },
+    )
+    assert result.status == "NOT_AFFECTED"
+    assert result.confidence == "HIGH"
+    assert "not applicable" in result.detail
 
 
 def test_55315_metadata_is_safe():

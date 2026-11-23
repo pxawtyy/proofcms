@@ -17,12 +17,12 @@ RUNTIME4 = {
 }
 
 
-def test_2010_3332_without_webforms_surface_is_inconclusive():
+def test_2010_3332_without_webforms_surface_is_not_affected():
     page = {"status": 200, "body": "<html>no resource</html>", "body_hash": "page"}
     with patch.object(cve_2010_3332, "HttpClient") as client:
         client.return_value.get.return_value = page
         result = cve_2010_3332.check("https://fixture.test", aspnet_runtime=RUNTIME, timeout=1)
-    assert result.status == "INCONCLUSIVE"
+    assert result.status == "NOT_AFFECTED"
     assert result.confidence == "HIGH"
     assert "oracle surface is absent" in result.detail
     assert "/login.aspx:X-AspNet-Version" in result.detail
@@ -76,13 +76,22 @@ def test_2010_3332_surface_without_token_is_likely():
     assert "no ScriptResource/WebResource token" in result.detail
 
 
-def test_2010_3332_netfx4_without_exploit_stays_inconclusive():
+def test_2010_3332_netfx4_without_surface_is_not_affected():
     page = {"status": 200, "body": "x", "body_hash": "page"}
     with patch.object(cve_2010_3332, "HttpClient") as client:
         client.return_value.get.return_value = page
         result = cve_2010_3332.check("https://fixture.test", aspnet_runtime=RUNTIME4, timeout=1)
+    assert result.status == "NOT_AFFECTED"
+    assert result.confidence == "HIGH"
+
+
+def test_2010_3332_probe_transport_failure_is_inconclusive():
+    page = {"status": 0, "body": "", "body_hash": "", "error": {"type": "TimeoutError", "message": "timed out"}}
+    with patch.object(cve_2010_3332, "HttpClient") as client:
+        client.return_value.get.return_value = page
+        result = cve_2010_3332.check("https://fixture.test", aspnet_runtime=RUNTIME, timeout=1)
     assert result.status == "INCONCLUSIVE"
-    assert result.confidence == "MEDIUM"
+    assert "no HTTP response" in result.detail
 
 
 def test_2010_3332_netfx4_active_oracle_confirms():
@@ -147,3 +156,22 @@ def test_2011_3416_is_passive():
         )
     assert result.exploit_ran is False
     assert "passive-only" in result.detail
+
+
+def test_2011_3416_netfx4_without_forms_surface_is_not_affected():
+    page = {"status": 200, "headers": {}, "body": "<html>no forms</html>"}
+    with patch.object(cve_2011_3416, "HttpClient") as client:
+        client.return_value.get.return_value = page
+        result = cve_2011_3416.check("https://fixture.test", aspnet_runtime=RUNTIME4, timeout=1)
+    assert result.status == "NOT_AFFECTED"
+    assert result.confidence == "HIGH"
+    assert "Without a Forms Authentication login surface" in result.detail
+
+
+def test_2011_3416_probe_transport_failure_is_inconclusive():
+    page = {"status": 0, "body": "", "headers": {}, "error": {"type": "TimeoutError", "message": "timed out"}}
+    with patch.object(cve_2011_3416, "HttpClient") as client:
+        client.return_value.get.return_value = page
+        result = cve_2011_3416.check("https://fixture.test", aspnet_runtime=RUNTIME, timeout=1)
+    assert result.status == "INCONCLUSIVE"
+    assert "no HTTP response" in result.detail

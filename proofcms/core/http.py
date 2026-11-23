@@ -271,6 +271,31 @@ def normalize_url(url: str, timeout: int = 0, proxy: str | None = None) -> str:
     return urllib.parse.urlunsplit((scheme, netloc, path, "", ""))
 
 
+_FILE_LIKE_PATH = re.compile(
+    r"\.(?:aspx?|ashx|asmx|axd|svc|php\d?|phtml|jsp|jspx|do|action|cgi|pl|shtml|html?|xhtml)$",
+    re.IGNORECASE,
+)
+
+
+def application_base_url(url: str) -> str:
+    """Return the directory URL that should be used as a scan root.
+
+    A target that names a document (``/portal/app.aspx``) must not become a
+    directory (``/portal/app.aspx/``): appending ``/`` to a file makes a
+    relative redirect such as ``Location: applogin.aspx`` resolve inside the
+    file (``/portal/app.aspx/applogin.aspx``) and can close a 301 loop.
+    Strip the document segment instead.
+    """
+    parts = urllib.parse.urlsplit(url.strip())
+    if not parts.scheme or not parts.netloc:
+        return url.rstrip("/")
+    path = parts.path or ""
+    if _FILE_LIKE_PATH.search(path):
+        path = path.rsplit("/", 1)[0]
+    path = path.rstrip("/")
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, path, "", ""))
+
+
 def build_multipart(fields: dict, files: dict) -> tuple[str, bytes]:
     """
     Constructs a multipart/form-data payload with boundary.
@@ -428,6 +453,7 @@ class HttpClient:
         verify_tls: bool | None = None,
     ):
         self.base_url = normalize_url(base_url) if base_url else None
+        self._base_dir = f"{application_base_url(self.base_url)}/" if self.base_url else None
         self.timeout = timeout
         self.proxy = proxy
         self.user_agent = user_agent
@@ -449,7 +475,7 @@ class HttpClient:
 
     def _resolve_url(self, url: str) -> str:
         if self.base_url and not url.startswith(("http://", "https://")):
-            base = self.base_url.rstrip("/") + "/"
+            base = self._base_dir or f"{self.base_url.rstrip('/')}/"
             return urllib.parse.urljoin(base, url.lstrip("/"))
         return url
 
@@ -532,6 +558,22 @@ class HttpClient:
             if cache_key is not None:
                 with _discovery_cache_lock:
                     _discovery_cache[cache_key] = result
+            return result
+        except requests.TooManyRedirects as exc:
+            last = getattr(exc, "response", None)
+            last_url = str(getattr(last, "url", "") or full_url)
+            result = _build_response_dict(
+                0,
+                "",
+                full_url,
+                last_url,
+                {},
+                error={
+                    "type": "TooManyRedirects",
+                    "message": f"redirect loop while following {full_url} (last hop: {last_url})",
+                },
+            )
+            self._record(method, full_url, result)
             return result
         except Exception as exc:  # noqa: BLE001
             result = _build_response_dict(
@@ -644,11 +686,12 @@ def fetch_url(url: str, timeout: int = 12, proxy: str | None = None, session: An
 def probe_target_baseline(target: str, timeout: int = 8, proxy: str | None = None) -> dict[str, Any]:
     """Probes target baseline behavior using a random nonce canary path."""
     nonce = secrets.token_hex(6)
+    scan_root = application_base_url(target)
     canary_path = f"/_jvh_probe_{nonce}/"
-    canary_url = f"{target.rstrip('/')}{canary_path}"
-    root_response = fetch_url(f"{target.rstrip('/')}/", timeout=timeout, proxy=proxy)
+    canary_url = f"{scan_root}{canary_path}"
+    root_response = fetch_url(f"{scan_root}/", timeout=timeout, proxy=proxy)
     resp = fetch_url(canary_url, timeout=timeout, proxy=proxy)
-    target_root = target.rstrip("/")
+    target_root = scan_root
     final = resp.get("final_url", "").rstrip("/")
     redirected_to_root = final in (target_root, f"{target_root}/index.php")
     return {

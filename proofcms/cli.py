@@ -14,6 +14,7 @@ from proofcms.chains import AVAILABLE_CHAINS
 from proofcms.core.args import parse_aggressive_args
 from proofcms.core.categories import normalize_metadata
 from proofcms.core.http import (
+    application_base_url,
     begin_discovery_cache,
     configure_rate_limit,
     configure_tls,
@@ -558,12 +559,16 @@ def main():
 
     for target in targets:
         target_started = time.monotonic()
+        # A target that names a document (e.g. /app.aspx) is scanned from its
+        # directory. Appending "/" to the document turns relative redirects
+        # into paths below the file and can close a 301 loop.
+        scan_target = application_base_url(target)
         reset_transport_state()
         clear_discovery_cache()
         begin_discovery_cache()
         target_errors: list[str] = []
         try:
-            baseline = probe_target_baseline(target, timeout=args.timeout, proxy=args.proxy)
+            baseline = probe_target_baseline(scan_target, timeout=args.timeout, proxy=args.proxy)
         except Exception as exc:  # noqa: BLE001
             baseline = {"status": 0, "target_root": target, "error": {"type": type(exc).__name__, "message": str(exc)}}
             target_errors.append(f"Baseline detection failed: {type(exc).__name__}: {exc}")
@@ -591,7 +596,7 @@ def main():
             info = CMSInfo("unknown", False, None, "error")
             target_report = {
                 "target": target,
-                "scan_base_url": target,
+                "scan_base_url": scan_target,
                 "cms": {"name": "unknown", "detected": False, "version": None, "source": "error"},
                 "joomla": {"detected": False, "version": None, "source": "not-detected"},
                 "plugins": {},
@@ -610,6 +615,7 @@ def main():
                     "session_cookie": False, "session_secure": False, "session_samesite": None,
                     "genexus_detected": False, "genexus_version": None, "genexus_generator": None,
                     "genexus_dbms": None, "genexus_source": "not-detected",
+                    "core_detected": False, "core_source": "not-detected",
                 },
                 "genexus": {
                     "detected": False, "version": None, "generator": None, "dbms": None,
@@ -635,11 +641,11 @@ def main():
             end_discovery_cache()
             continue
         try:
-            info = detect_cms(target, args, baseline=baseline)
+            info = detect_cms(scan_target, args, baseline=baseline)
         except Exception as exc:  # noqa: BLE001
             target_errors.append(f"CMS detection failed: {type(exc).__name__}: {exc}")
             info = CMSInfo("unknown", False, None, "error")
-        operational_target = info.base_url or target
+        operational_target = info.base_url or scan_target
         try:
             nginx_runtime_info = detect_nginx_runtime(operational_target, timeout=args.timeout, proxy=args.proxy)
         except Exception as exc:  # noqa: BLE001
@@ -711,6 +717,8 @@ def main():
             "genexus_generator": aspnet_runtime_info.genexus_generator,
             "genexus_dbms": aspnet_runtime_info.genexus_dbms,
             "genexus_source": aspnet_runtime_info.genexus_source,
+            "core_detected": aspnet_runtime_info.core_detected,
+            "core_source": aspnet_runtime_info.core_source,
         }
         try:
             plugins = (

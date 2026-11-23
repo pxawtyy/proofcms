@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from proofcms.core.http import HttpClient
+from proofcms.core.http import HttpClient, application_base_url, probe_target_baseline
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent / "proofcms"
 
@@ -86,3 +86,33 @@ def test_relative_url_without_base_is_an_explicit_error():
     response = HttpClient(timeout=1).get("/")
     assert response.get("status") == 0
     assert response.get("error")
+
+
+def test_application_base_strips_a_document_segment():
+    assert application_base_url("https://host/portal/app.aspx") == "https://host/portal"
+    assert application_base_url("https://host/app.aspx") == "https://host"
+    assert application_base_url("https://host/joomla/index.php") == "https://host/joomla"
+    assert application_base_url("https://host/portal") == "https://host/portal"
+    assert application_base_url("https://host") == "https://host"
+
+
+def test_document_base_is_not_resolved_as_a_directory():
+    client = HttpClient(base_url="https://host/portal/app.aspx", timeout=1)
+    assert client._resolve_url("/") == "https://host/portal/"
+    assert client._resolve_url("applogin.aspx") == "https://host/portal/applogin.aspx"
+    assert client._resolve_url("/login.aspx") == "https://host/portal/login.aspx"
+    assert client._resolve_url("/app.aspx") == "https://host/portal/app.aspx"
+
+
+def test_baseline_does_not_append_slash_to_a_document(monkeypatch):
+    calls: list[str] = []
+
+    def fake_fetch(url: str, **kwargs):
+        calls.append(url)
+        return {"status": 200, "body": "", "final_url": url}
+
+    monkeypatch.setattr("proofcms.core.http.fetch_url", fake_fetch)
+    probe_target_baseline("https://host/portal/app.aspx", timeout=1)
+    assert calls[0] == "https://host/portal/"
+    assert calls[1].startswith("https://host/portal/_jvh_probe_")
+    assert all("app.aspx/" not in url for url in calls)

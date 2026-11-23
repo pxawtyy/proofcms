@@ -24,9 +24,12 @@ def _auth_surface(client: HttpClient, timeout: int) -> dict[str, Any]:
         "genexus_sso": False,
         "aspnet_auth_cookie": False,
         "path": None,
+        "responded": False,
     }
     for path in _SURFACE_PATHS:
         page = client.get(path, timeout=timeout)
+        if int(page.get("status") or 0) > 0:
+            surface["responded"] = True
         headers = {str(key).lower(): str(value) for key, value in (page.get("headers") or {}).items()}
         body = str(page.get("body") or "")
         set_cookie = headers.get("set-cookie", "")
@@ -36,6 +39,7 @@ def _auth_surface(client: HttpClient, timeout: int) -> dict[str, Any]:
                 "genexus_sso": bool(_GX_SSO.search(body)),
                 "aspnet_auth_cookie": True,
                 "path": path,
+                "responded": True,
             }
         if _FORMS.search(body) and not _GX_SSO.search(body):
             surface.update(forms_auth=True, path=path, aspnet_auth_cookie=False)
@@ -71,12 +75,20 @@ def check(
         vulnerability_type=TYPE,
         cvss=CVSS,
     )
-    if finding.status != Status.LIKELY_VULNERABLE:
+    if finding.status == Status.NOT_DETECTED:
         return finding
 
     client = HttpClient(base_url=target_url, timeout=timeout, proxy=proxy)
     surface = _auth_surface(client, timeout)
     if not surface["forms_auth"]:
+        if not surface["responded"]:
+            finding.status = Status.INCONCLUSIVE
+            finding.confidence = Confidence.MEDIUM
+            finding.detail += (
+                f" The Forms Authentication surface probe received no HTTP response from "
+                f"{', '.join(_SURFACE_PATHS)}; surface absence cannot be established."
+            )
+            return finding
         finding.status = Status.NOT_AFFECTED
         finding.confidence = Confidence.HIGH
         finding.detail += (
@@ -94,7 +106,7 @@ def check(
             )
         return finding
 
-    finding.confidence = Confidence.HIGH
+    finding.confidence = Confidence.HIGH if finding.status == Status.LIKELY_VULNERABLE else Confidence.MEDIUM
     finding.evidence = {
         "auth_path": surface["path"],
         "aspnet_auth_cookie": surface["aspnet_auth_cookie"],

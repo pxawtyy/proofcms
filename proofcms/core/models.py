@@ -172,3 +172,5 @@ class AspNetRuntimeInfo:
     genexus_generator: str | None = None
     genexus_dbms: str | None = None
     genexus_source: str = "not-detected"
+    core_detected: bool = False
+    core_source: str = "not-detected"

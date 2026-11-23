@@ -17,7 +17,7 @@ def test_88092_requires_aggressive_mode():
     result = cve_2026_88092.check(
         "https://fixture.test",
         run_exploit_check=True,
-        aspnet_runtime={"detected": True, "version": "8.0.31"},
+        aspnet_runtime={"detected": True, "core_detected": True, "version": "8.0.31"},
     )
     assert result.status == "LIKELY_VULNERABLE"
     assert result.exploit_ran is False

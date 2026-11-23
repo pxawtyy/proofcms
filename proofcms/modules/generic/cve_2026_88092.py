@@ -10,6 +10,7 @@ from ...core.args import aggressive_value
 from ...core.http import normalize_url
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
+from .aspnet_common import core_runtime_gate
 
 CVE_ID = "CVE-2026-88092"
 NAME = "ASP.NET Core Kestrel aborted-connection request smuggling"
@@ -212,20 +213,17 @@ def check(
 ) -> Finding:
     del kwargs
     runtime = aspnet_runtime or {}
-    if not runtime.get("detected"):
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status=Status.NOT_DETECTED,
-            confidence=Confidence.MEDIUM,
-            component="ASP.NET Core / Kestrel",
-            affected_rule=RULE,
-            exploit_available=True,
-            exploit_ran=False,
-            detail="ASP.NET Core / Kestrel was not detected on the target; no runtime version was evaluated.",
-            action="No action is required unless the target is served by ASP.NET Core.",
-            vulnerability_type="HTTP Request Smuggling",
-        )
+    gate = core_runtime_gate(
+        cve=CVE_ID,
+        name=NAME,
+        rule=RULE,
+        component="ASP.NET Core / Kestrel",
+        vulnerability_type="HTTP Request Smuggling",
+        aspnet_runtime=runtime,
+        exploit_available=True,
+    )
+    if gate is not None:
+        return gate
     version = runtime.get("version")
     status = classify_version(version)
     if status == Status.LIKELY_VULNERABLE:

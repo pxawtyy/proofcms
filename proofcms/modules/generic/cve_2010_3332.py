@@ -19,9 +19,13 @@ _SCRIPTMANAGER = re.compile(r"\bScriptManager\b", re.IGNORECASE)
 _SURFACE_PATHS = ("/", "/login.aspx", "/default.aspx", "/app.aspx", "/applogin.aspx")
 
 
-def _find_surface(client: HttpClient, timeout: int) -> dict[str, Any] | None:
+def _find_surface(client: HttpClient, timeout: int) -> tuple[dict[str, Any] | None, bool]:
+    """Return the first Web Forms surface and whether any path answered."""
+    responded = False
     for path in _SURFACE_PATHS:
         page = client.get(path, timeout=timeout)
+        if int(page.get("status") or 0) > 0:
+            responded = True
         body = str(page.get("body") or "")
         match = _AXD.search(body)
         if match:
@@ -31,7 +35,7 @@ def _find_surface(client: HttpClient, timeout: int) -> dict[str, Any] | None:
                 "match": match,
                 "viewstate": bool(_VIEWSTATE.search(body)),
                 "scriptmanager": bool(_SCRIPTMANAGER.search(body)),
-            }
+            }, responded
         if _VIEWSTATE.search(body) or _SCRIPTMANAGER.search(body):
             return {
                 "path": path,
@@ -39,8 +43,8 @@ def _find_surface(client: HttpClient, timeout: int) -> dict[str, Any] | None:
                 "match": None,
                 "viewstate": bool(_VIEWSTATE.search(body)),
                 "scriptmanager": bool(_SCRIPTMANAGER.search(body)),
-            }
-    return None
+            }, responded
+    return None, responded
 
 
 def check(
@@ -68,25 +72,27 @@ def check(
         vulnerability_type=TYPE,
         cvss=CVSS,
     )
-    if finding.status != Status.LIKELY_VULNERABLE:
-        active_inconclusive = (
-            finding.status == Status.INCONCLUSIVE
-            and run_exploit_check
-            and exploit_mode == "safe"
-        )
-        if not active_inconclusive:
-            return finding
+    if finding.status == Status.NOT_DETECTED:
+        return finding
 
     client = HttpClient(base_url=normalize_url(target_url), timeout=timeout, proxy=proxy)
-    surface = _find_surface(client, timeout)
+    surface, responded = _find_surface(client, timeout)
     if surface is None:
-        finding.status = Status.INCONCLUSIVE
+        if not responded:
+            finding.status = Status.INCONCLUSIVE
+            finding.confidence = Confidence.MEDIUM
+            finding.detail += (
+                f" The Web Forms surface probe received no HTTP response from "
+                f"{', '.join(_SURFACE_PATHS)}; surface absence cannot be established."
+            )
+            return finding
+        finding.status = Status.NOT_AFFECTED
         finding.confidence = Confidence.HIGH
         finding.detail += (
-            f" The 2.0.50727 header was observed at {runtime.get('source', 'an ASP.NET response')}, "
+            f" ASP.NET was fingerprinted at {runtime.get('source', 'an ASP.NET response')}, "
             f"but none of {', '.join(_SURFACE_PATHS)} exposed ScriptResource/WebResource, "
-            "__VIEWSTATE, or ScriptManager. The MS10-070 oracle surface is absent, so the "
-            "version match alone does not make this endpoint exploitable."
+            "__VIEWSTATE, or ScriptManager. The MS10-070 oracle surface is absent, so this "
+            "advisory is not applicable to the endpoint."
         )
         return finding
 

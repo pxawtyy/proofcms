@@ -6,6 +6,9 @@
 component or surface was observed:
 
 - ASP.NET: `ScriptResource.axd`/`WebResource.axd`, `__VIEWSTATE`, `ScriptManager`
+- ASP.NET Core: `Server: Kestrel`, an `.AspNetCore.*` cookie, or a Blazor asset.
+  `ASP.NET_SessionId` and `X-AspNet-Version` are classic ASP.NET/IIS markers and
+  must not make a Core-only advisory applicable.
 - Forms Authentication: `.ASPXAUTH` or a FormsAuthentication login form
 - plugins: the vulnerable endpoint or asset is reachable
 - network services: the affected listener/protocol is present

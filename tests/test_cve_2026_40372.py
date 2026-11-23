@@ -23,7 +23,8 @@ def test_40372_vulnerable_with_cookie_surface() -> None:
     }
     with patch.object(cve_2026_40372, "_protected_surface", return_value=surface):
         result = cve_2026_40372.check(
-            "https://app.test", aspnet_runtime={"detected": True, "version": "10.0.6"}
+            "https://app.test",
+            aspnet_runtime={"detected": True, "core_detected": True, "version": "10.0.6"},
         )
     assert result.status == "LIKELY_VULNERABLE"
     assert result.confidence == "HIGH"
@@ -35,7 +36,8 @@ def test_40372_patched() -> None:
     surface = {"status": 200, "surface": True, "cookies": []}
     with patch.object(cve_2026_40372, "_protected_surface", return_value=surface):
         result = cve_2026_40372.check(
-            "https://app.test", aspnet_runtime={"detected": True, "version": "10.0.7"}
+            "https://app.test",
+            aspnet_runtime={"detected": True, "core_detected": True, "version": "10.0.7"},
         )
     assert result.status == "PATCHED"
 

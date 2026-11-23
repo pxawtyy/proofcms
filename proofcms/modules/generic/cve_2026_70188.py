@@ -9,6 +9,7 @@ from typing import Any
 from ...core.http import tls_verification_enabled
 from ...core.models import Confidence, Finding, Status
 from ...core.versions import parse_version_required, parse_version_safe
+from .aspnet_common import core_runtime_gate
 
 CVE_ID = "CVE-2026-70188"
 NAME = "ASP.NET Core Kestrel HTTP/2 trailer newline smuggling"
@@ -208,18 +209,17 @@ def check(
 ) -> Finding:
     del cms_version, kwargs
     runtime = aspnet_runtime or {}
-    if not runtime.get("detected"):
-        return Finding(
-            cve=CVE_ID,
-            name=NAME,
-            status=Status.NOT_DETECTED,
-            confidence=Confidence.MEDIUM,
-            component="ASP.NET Core / Kestrel",
-            affected_rule=RULE,
-            exploit_available=HAS_EXPLOIT,
-            detail="ASP.NET Core / Kestrel was not detected on the target; no runtime version was evaluated.",
-            action="No action is required unless the target is served by ASP.NET Core.",
-        )
+    gate = core_runtime_gate(
+        cve=CVE_ID,
+        name=NAME,
+        rule=RULE,
+        component="ASP.NET Core / Kestrel",
+        vulnerability_type="HTTP Request Smuggling",
+        aspnet_runtime=runtime,
+        exploit_available=HAS_EXPLOIT,
+    )
+    if gate is not None:
+        return gate
     version = runtime.get("version")
     status = classify_version(version)
 
