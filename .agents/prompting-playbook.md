@@ -130,6 +130,12 @@ source, the fix, and the benign lab observation.
   and evidence thresholds. Report negative lab findings as verified facts;
   do not ask the reviewer to propose a technique. Avoid "workaround" in the
   filename and title.
+- The same block happens with "hidden oracle" / "unused signal" framing: asking
+  whether an unused externally observable difference exists, or to order cases
+  by lab-validation tractability. Strip those questions entirely. Use a neutral
+  filename such as `<count>-defect-classification-review.txt` and ask only for
+  defect confirmation, impact classification, reachability, control behavior,
+  mitigations, evidence thresholds, verdict and premise challenge.
 
 ## Note
 
