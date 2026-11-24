@@ -31,6 +31,7 @@ KNOWN_PLUGIN_MARKERS = {
     "wpforo": r"wpForo|wpforo",
     "wpdirectorykit": r"WP\s*Directory\s*Kit|wpdirectorykit",
     "ajax-load-more": r"Ajax\s+Load\s+More|ajax-load-more|ajaxloadmore",
+    "supportcandy": r"SupportCandy|supportcandy",
     "buddypress-media": r"rtMedia|buddypress-media|BuddyPress Media",
     "wp-photo-album-plus": r"WP\s*Photo\s*Album\s*Plus|wp-photo-album-plus|wppa",
     "wp-compress-image-optimizer": r"WP\s*Compress|wp-compress",
@@ -101,6 +102,7 @@ PLUGIN_MAIN_FILES = {
     "wpforo": "wpforo.php",
     "wpdirectorykit": "wpdirectorykit.php",
     "ajax-load-more": "ajax-load-more.php",
+    "supportcandy": "supportcandy.php",
     "buddypress-media": "index.php",
 }
 

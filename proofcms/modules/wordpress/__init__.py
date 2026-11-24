@@ -3,6 +3,7 @@
 from . import (
     cve_2020_25213,
     cve_2020_35489,
+    cve_2023_1730,
     cve_2023_3460,
     cve_2023_6553,
     cve_2023_28121,
@@ -43,6 +44,7 @@ from . import (
 AVAILABLE_CVES: dict[str, str] = {
     "CVE-2020-25213": "proofcms.modules.wordpress.cve_2020_25213",
     "CVE-2020-35489": "proofcms.modules.wordpress.cve_2020_35489",
+    "CVE-2023-1730": "proofcms.modules.wordpress.cve_2023_1730",
     "CVE-2023-28121": "proofcms.modules.wordpress.cve_2023_28121",
     "CVE-2023-32243": "proofcms.modules.wordpress.cve_2023_32243",
     "CVE-2023-6553": "proofcms.modules.wordpress.cve_2023_6553",
@@ -84,6 +86,7 @@ __all__ = [
     "AVAILABLE_CVES",
     "cve_2020_25213",
     "cve_2020_35489",
+    "cve_2023_1730",
     "cve_2023_3460",
     "cve_2023_6553",
     "cve_2023_28121",
